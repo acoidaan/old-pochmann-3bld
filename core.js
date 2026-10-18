@@ -1092,7 +1092,10 @@
     if (timer.phase === 'done') s.t2 = epoch(timer.t2);
     return s;
   }
-  const emitTimer = (extra) => emit('timer', { ...timerState(), ...extra });
+  const emitTimer = (extra) => {
+    document.body.dataset.timer = timer.phase;
+    emit('timer', { ...timerState(), ...extra });
+  };
   const SHARE_ICON = '<svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   // An attempt lasts minutes, longer than most phones stay awake: keep the screen on until it is saved.
   const screenLock = { want: false, lock: null, asking: false };
@@ -1141,7 +1144,7 @@
   function timerCancel() {
     cancelAnimationFrame(timer.raf);
     timer.phase = 'idle';
-    holdScreen(false);
+    holdScreen(focus.on);
     $('verdict').hidden = true;
     paintClock(0);
     $('clockPhase').textContent = 'Intento cancelado';
@@ -1158,7 +1161,7 @@
     times.push(entry);
     saveTimes();
     timer.phase = 'idle';
-    holdScreen(false);
+    holdScreen(focus.on);
     $('verdict').hidden = true;
     $('clock').dataset.phase = 'idle';
     $('clockPhase').textContent = ok ? 'Guardado como resuelto' : 'Guardado como DNF';
@@ -1223,6 +1226,65 @@
         + `<button type=button class=x data-del='${idx}' aria-label='Borrar intento ${idx + 1}' title='Borrar'>×</button></td></tr>`).join('')
       + '</tbody></table>';
   }
+
+  // ================= Competition mode =================
+  // Only the clock, full screen, and the whole screen is the button (like a stackmat). The screen stays on
+  // while it is open. Enter with the button or F; leave with Salir, Esc or the phone's back gesture.
+  const focus = { on: false };
+  document.body.dataset.timer = 'idle';
+  function renderFocus() {
+    $('focusScr').textContent = $('scr').value.trim() || 'Sin scramble: pulsa «Nuevo scramble».';
+    let reto = '';
+    if (OP3.timerTag) {
+      try {
+        const r = (JSON.parse(localStorage.getItem('op3bld:retos:v1')) || []).find((x) => x.id === OP3.timerTag);
+        if (r) reto = `Reto de ${r.by}`;
+      } catch (e) { /* no list */ }
+    }
+    $('focusReto').textContent = reto;
+    const from = new Date();
+    from.setHours(0, 0, 0, 0);
+    const today = times.filter((t) => t.at >= from.getTime());
+    const solved = today.filter((t) => t.ok);
+    const last = times[times.length - 1];
+    const parts = [];
+    if (today.length) {
+      parts.push(`Hoy <b>${solved.length}</b> de <b>${today.length}</b>`);
+      if (solved.length) parts.push(`mejor <b>${fmt(Math.min(...solved.map((t) => t.memo + t.exec)))}</b>`);
+    }
+    if (last) parts.push(`último <b>${last.ok ? fmt(last.memo + last.exec) : 'DNF'}</b>`);
+    $('focusStats').innerHTML = parts.join(' · ');
+    const gen = $('newScr');
+    $('focusNew').disabled = gen.disabled;
+    $('focusNew').textContent = gen.disabled ? gen.textContent : 'Nuevo scramble';
+  }
+  function setFocus(on, fromHistory) {
+    if (focus.on === on) return;
+    focus.on = on;
+    document.body.classList.toggle('focus', on);
+    holdScreen(on || timer.phase !== 'idle');
+    if (on) {
+      if (currentView !== 'crono') showView('crono');
+      renderFocus();
+      try {
+        const el = document.documentElement;
+        if (el.requestFullscreen && !document.fullscreenElement) el.requestFullscreen({ navigationUI: 'hide' }).catch(() => {});
+      } catch (e) { /* the overlay alone is enough */ }
+      // So the back gesture on Android leaves this mode instead of the app.
+      try { history.pushState({ op3focus: true }, ''); } catch (e) { /* sandboxed */ }
+    } else {
+      try { if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {}); } catch (e) { /* already out */ }
+      if (!fromHistory) { try { if (history.state && history.state.op3focus) history.back(); } catch (e) { /* sandboxed */ } }
+    }
+  }
+  window.addEventListener('popstate', () => { if (focus.on) setFocus(false, true); });
+  ['op3:scramble', 'op3:result', 'op3:changed'].forEach((ev) => document.addEventListener(ev, () => { if (focus.on) renderFocus(); }));
+  $('focusOpen').addEventListener('click', () => setFocus(true));
+  $('focusExit').addEventListener('click', () => setFocus(false));
+  $('focusNew').addEventListener('click', () => {
+    $('newScr').click();
+    renderFocus();
+  });
 
   // ================= Setup trainer =================
   const TRAIN_KEY = 'op3bld:trainer:v1';
@@ -1736,6 +1798,10 @@
         if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
         timerPress();
       } else if (k === 'Escape' && (timer.phase === 'memo' || timer.phase === 'exec')) timerCancel();
+      else if (k === 'Escape' && focus.on && timer.phase === 'idle') { ev.preventDefault(); setFocus(false); } else if ((k === 'f' || k === 'F') && timer.phase === 'idle') {
+        ev.preventDefault();
+        setFocus(!focus.on);
+      }
       return;
     }
     if (currentView !== 'practicar' && currentView !== 'tabla') {
@@ -1765,6 +1831,7 @@
   function showView(name, opts) {
     const o = opts || {};
     if (!VIEWS.includes(name)) name = 'practicar';
+    if (name !== 'crono' && focus.on) setFocus(false);
     const changed = name !== currentView;
     currentView = name;
     document.querySelectorAll('.view').forEach((el) => { el.hidden = el.dataset.view !== name; });

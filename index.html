@@ -168,6 +168,18 @@
       <div class="panel-head">
         <h2 id="hTimer">Cronómetro</h2>
         <span class="hint"><kbd>Espacio</kbd> o toca el reloj: memo → ejecución → parar · <kbd>Esc</kbd> cancela</span>
+        <button class="btn focus-open" type="button" id="focusOpen" aria-keyshortcuts="f" title="Solo el cronómetro, a pantalla completa (tecla F)">
+          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+          Modo competición
+        </button>
+      </div>
+      <div class="focus-top focus-only" id="focusTop">
+        <div class="focus-bar">
+          <button class="btn" type="button" id="focusExit" aria-keyshortcuts="Escape">Salir</button>
+          <span class="focus-reto" id="focusReto"></span>
+        </div>
+        <p class="focus-scr" id="focusScr"></p>
+        <button class="btn" type="button" id="focusNew">Nuevo scramble</button>
       </div>
       <button type="button" class="clock" id="clock" data-phase="idle">
         <span class="clock-phase" id="clockPhase">Listo</span>
@@ -181,6 +193,10 @@
       </div>
       <div class="verdict" id="afterResult" hidden>
         <button class="btn" type="button" id="shareLast">Compartir como imagen</button>
+      </div>
+      <div class="focus-bottom focus-only" id="focusBottom">
+        <p class="focus-stats" id="focusStats"></p>
+        <p class="focus-hint"><span class="on-touch">Toca la pantalla para empezar el memo</span><span class="on-keys">Toca la pantalla o pulsa <kbd>Espacio</kbd> para empezar el memo · <kbd>Esc</kbd> sale</span></p>
       </div>
       <div class="stats" id="stats"></div>
       <div class="hist-bar" id="histBar" hidden>
