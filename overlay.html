@@ -1,0 +1,594 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Overlay · Old Pochmann 3BLD</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Martian+Mono:wght@400;600&family=Unbounded:wght@500;700&display=swap">
+<style>
+/* Stream overlay for OBS (browser source, 1920x1080, transparent).
+   The app sends its state through obs-websocket or a BroadcastChannel. */
+:root {
+  --panel: rgba(12, 15, 21, 0.86);
+  --panel-line: rgba(255, 255, 255, 0.09);
+  --ink: #EDF0F5;
+  --muted: #9AA5B6;
+  --faint: rgba(255, 255, 255, 0.10);
+  --memo: #F0699C;
+  --exec: #5B9BFF;
+  --wait: #F0CF0C;
+  --ok: #4CC774;
+  --dnf: #E5484D;
+  --plastic: #05070A;
+  --st-U: #ECEEE8; --st-R: #D7263D; --st-F: #1E9E4B; --st-D: #F0CF0C; --st-L: #EE7A1A; --st-B: #2563D6;
+  --font-display: "Unbounded", "Arial Black", system-ui, sans-serif;
+  --font-body: "Atkinson Hyperlegible", system-ui, "Segoe UI", sans-serif;
+  --font-mono: "Martian Mono", ui-monospace, Consolas, monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: transparent; }
+body { color: var(--ink); font-family: var(--font-body); -webkit-font-smoothing: antialiased; }
+body.chroma { background: #00FF00; }
+
+.stage {
+  position: absolute; left: 0; top: 0; width: 1920px; height: 1080px;
+  transform-origin: 0 0;
+  display: grid; padding: 40px; gap: 18px;
+}
+/* --k grows the cards for small viewers (Discord); the grid tracks grow with them. */
+.stage { --k: 1; }
+body.big .stage[data-layout=esquinas], body.big .stage[data-layout=crono] { --k: 1.18; }
+.stage[data-layout=esquinas] {
+  grid-template-columns: calc(480px * var(--k)) 1fr calc(560px * var(--k));
+  grid-template-rows: auto 1fr auto;
+  grid-template-areas: "brand . scr" ". . ." "stats . timer";
+}
+.stage[data-layout=derecha], .stage[data-layout=izquierda] {
+  grid-template-rows: auto auto auto auto 1fr;
+  align-content: start;
+}
+.stage[data-layout=derecha] { grid-template-columns: 1fr 520px; grid-template-areas: ". brand" ". timer" ". scr" ". stats" ". ."; }
+.stage[data-layout=izquierda] { grid-template-columns: 520px 1fr; grid-template-areas: "brand ." "timer ." "scr ." "stats ." ". ."; }
+.stage[data-layout=crono] {
+  grid-template-columns: 1fr calc(640px * var(--k)) 1fr;
+  grid-template-rows: 1fr auto;
+  grid-template-areas: ". . ." ". timer .";
+}
+.stage[data-layout=crono] .brand, .stage[data-layout=crono] .scr, .stage[data-layout=crono] .stats { display: none; }
+
+.card {
+  background: var(--panel);
+  border: 1.5px solid var(--panel-line);
+  border-radius: 22px;
+  padding: 22px 26px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+  min-width: 0;
+  transition: border-color .25s ease, box-shadow .25s ease;
+}
+.brand { grid-area: brand; align-self: start; }
+.scr { grid-area: scr; align-self: start; }
+.stats { grid-area: stats; align-self: end; }
+.timer { grid-area: timer; align-self: end; position: relative; }
+.stage[data-layout=derecha] .card, .stage[data-layout=izquierda] .card { align-self: start; }
+.card { zoom: var(--k); }
+.card[hidden], [hidden] { display: none !important; }
+
+.eyebrow {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 15px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--muted);
+}
+.eyebrow .soft { letter-spacing: .04em; text-transform: none; font-weight: 400; }
+
+/* Brand */
+.brand-top { display: flex; align-items: center; gap: 16px; margin-top: 12px; }
+.logo { display: grid; grid-template-columns: repeat(3, 13px); gap: 3px; padding: 5px; background: var(--plastic); border-radius: 8px; flex: none; }
+.logo i { width: 13px; height: 13px; border-radius: 3px; }
+.who { font-family: var(--font-display); font-weight: 700; font-size: 34px; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.method { font-size: 18px; color: var(--muted); margin-top: 3px; }
+.live { width: 11px; height: 11px; border-radius: 50%; background: #5A6372; flex: none; }
+.live.on { background: var(--memo); box-shadow: 0 0 0 0 rgba(240, 105, 156, .6); animation: pulse 2s infinite; }
+@keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(240, 105, 156, .55); } 70% { box-shadow: 0 0 0 9px rgba(240, 105, 156, 0); } 100% { box-shadow: 0 0 0 0 rgba(240, 105, 156, 0); } }
+.prog { display: grid; gap: 10px; margin-top: 18px; }
+.prow { display: grid; gap: 5px; }
+.prow-top { display: flex; justify-content: space-between; align-items: baseline; font-size: 18px; color: var(--muted); }
+.prow-top b { color: var(--ink); font-family: var(--font-display); font-weight: 500; font-size: 17px; font-variant-numeric: tabular-nums; }
+.bar { height: 8px; border-radius: 4px; background: var(--faint); overflow: hidden; }
+.bar i { display: block; height: 100%; border-radius: 4px; background: var(--ok); transition: width .6s ease; }
+.bar.learn i { background: var(--memo); }
+.total { margin-top: 14px; font-size: 18px; color: var(--muted); }
+.total b { color: var(--ink); }
+.prow .s { display: none; }
+body.no-prog .prog, body.no-prog .total { display: none; }
+/* Side layouts stack everything in one column, so the cards are more compact. */
+.stage[data-layout=derecha] .prog, .stage[data-layout=izquierda] .prog { grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 16px; }
+.stage[data-layout=derecha] .prow .l, .stage[data-layout=izquierda] .prow .l { display: none; }
+.stage[data-layout=derecha] .prow .s, .stage[data-layout=izquierda] .prow .s { display: inline; }
+.stage[data-layout=derecha] .total, .stage[data-layout=izquierda] .total { display: none; }
+
+/* Scramble */
+.scr-text { margin: 12px 0 0; font-family: var(--font-mono); font-size: 25px; line-height: 1.55; word-spacing: .08em; }
+.scr-text .mv { white-space: nowrap; }
+.net { display: grid; grid-template-columns: repeat(4, auto); gap: 6px; justify-content: center; margin-top: 18px; --cell: 28px; }
+.face { display: grid; grid-template-columns: repeat(3, var(--cell)); grid-template-rows: repeat(3, var(--cell)); gap: 3px; padding: 4px; background: var(--plastic); border-radius: 8px; }
+.face i { border-radius: 4px; }
+.c-U { background: var(--st-U); } .c-R { background: var(--st-R); } .c-F { background: var(--st-F); }
+.c-D { background: var(--st-D); } .c-L { background: var(--st-L); } .c-B { background: var(--st-B); }
+body.no-net .net { display: none; }
+.stage[data-layout=derecha] .net, .stage[data-layout=izquierda] .net { --cell: 18px; margin-top: 14px; gap: 5px; }
+.stage[data-layout=derecha] .face, .stage[data-layout=izquierda] .face { gap: 2px; padding: 3px; border-radius: 6px; }
+.stage[data-layout=derecha] .face i, .stage[data-layout=izquierda] .face i { border-radius: 3px; }
+.stage[data-layout=derecha] .scr-text, .stage[data-layout=izquierda] .scr-text { font-size: 21px; margin-top: 10px; }
+
+/* Stats */
+.sgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 18px; margin-top: 14px; }
+.stat span { display: block; font-size: 16px; color: var(--muted); }
+.stat b { display: block; font-family: var(--font-display); font-weight: 700; font-size: 30px; line-height: 1.15; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.stat b small { font-family: var(--font-body); font-size: 19px; font-weight: 700; color: var(--muted); margin-left: 4px; }
+.chips { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 16px; }
+.chip { font-family: var(--font-mono); font-size: 17px; font-weight: 600; padding: 4px 10px; border-radius: 8px; border: 1.5px solid; }
+.chip.ok { color: var(--ok); border-color: rgba(76, 199, 116, .55); }
+.chip.dnf { color: #FF8A8D; border-color: rgba(229, 72, 77, .55); }
+.foot { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--panel-line); font-size: 18px; color: var(--muted); }
+.foot b { color: var(--ink); font-family: var(--font-display); font-size: 21px; }
+.foot .streak { margin-left: auto; color: var(--ok); font-weight: 700; }
+.empty { margin: 12px 0 0; font-size: 19px; color: var(--muted); }
+.stage[data-layout=derecha] .sgrid, .stage[data-layout=izquierda] .sgrid { grid-template-columns: repeat(4, auto); justify-content: space-between; gap: 10px; margin-top: 10px; }
+.stage[data-layout=derecha] .stat span, .stage[data-layout=izquierda] .stat span { font-size: 15px; }
+.stage[data-layout=derecha] .stat b, .stage[data-layout=izquierda] .stat b { font-size: 22px; }
+.stage[data-layout=derecha] .stat b small, .stage[data-layout=izquierda] .stat b small { font-size: 15px; margin-left: 3px; }
+.stage[data-layout=derecha] .card, .stage[data-layout=izquierda] .card { padding: 20px 24px; }
+.stage[data-layout=derecha] .chips, .stage[data-layout=izquierda] .chips { display: none; }
+.stage[data-layout=derecha] .foot, .stage[data-layout=izquierda] .foot { margin-top: 12px; padding-top: 10px; }
+
+/* Timer */
+.trow { display: flex; align-items: center; gap: 12px; min-height: 40px; }
+.pill {
+  display: inline-flex; align-items: center; gap: 9px;
+  font-size: 17px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+  padding: 7px 16px; border-radius: 999px; background: var(--faint); color: var(--muted);
+}
+.pill svg { width: 21px; height: 21px; flex: none; }
+.retotag { margin-left: auto; font-size: 18px; font-weight: 700; color: var(--memo); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.timer { container-type: inline-size; }
+/* Fixed-width slots keep the digits still while they tick; the size fits the card. */
+.time {
+  font-family: var(--font-display); font-weight: 700; line-height: 1; margin: 16px 0 8px; white-space: nowrap;
+  font-size: min(var(--max-time, 118px), calc(100cqi / var(--ems, 5)));
+}
+.time span { display: inline-block; text-align: center; }
+.time .d { width: .86em; }
+.time .p { width: .36em; }
+.time.dim { color: #5D6676; }
+.splits { display: flex; gap: 26px; font-size: 20px; color: var(--muted); }
+.splits b { color: var(--ink); font-family: var(--font-display); font-weight: 500; font-variant-numeric: tabular-nums; margin-left: 6px; }
+/* Memo: shown while executing (if it was checked) and with the result */
+.memoline { display: grid; gap: 6px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--panel-line); }
+.mrow { display: flex; align-items: baseline; gap: 12px; min-width: 0; }
+.mrow .ml { flex: none; width: 96px; font-size: 15px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.mrow code { min-width: 0; font-family: var(--font-mono); font-weight: 600; font-size: 22px; line-height: 1.35; word-spacing: .12em; color: var(--ink); }
+.mrow .par { flex: none; font-size: 14px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--wait); }
+/* Where height is tight, the memo takes the place of the cube drawing while it shows. */
+.stage[data-memo][data-layout=derecha] .net, .stage[data-memo][data-layout=izquierda] .net, body.big .stage[data-memo] .net { display: none; }
+.timer[data-tone=memo] { border-color: rgba(240, 105, 156, .7); }
+.timer[data-tone=memo] .pill { background: var(--memo); color: #1B0811; }
+.timer[data-tone=exec] { border-color: rgba(91, 155, 255, .75); }
+.timer[data-tone=exec] .pill { background: var(--exec); color: #06122A; }
+.timer[data-tone=wait] .pill { background: var(--wait); color: #1D1800; }
+.timer[data-tone=ok] .pill { background: var(--ok); color: #03140A; }
+.timer[data-tone=dnf] .pill { background: var(--dnf); color: #fff; }
+.timer.flash-ok { animation: flashOk 1.4s ease-out; }
+.timer.flash-dnf { animation: flashDnf 1.4s ease-out; }
+@keyframes flashOk { from { box-shadow: 0 0 0 10px rgba(76, 199, 116, .55), 0 12px 40px rgba(0,0,0,.35); } to { box-shadow: 0 0 0 0 rgba(76, 199, 116, 0), 0 12px 40px rgba(0,0,0,.35); } }
+@keyframes flashDnf { from { box-shadow: 0 0 0 10px rgba(229, 72, 77, .5), 0 12px 40px rgba(0,0,0,.35); } to { box-shadow: 0 0 0 0 rgba(229, 72, 77, 0), 0 12px 40px rgba(0,0,0,.35); } }
+.banner {
+  position: absolute; left: 50%; bottom: calc(100% + 14px); transform: translateX(-50%);
+  white-space: nowrap; font-family: var(--font-display); font-weight: 700; font-size: 30px;
+  padding: 12px 26px; border-radius: 999px; background: var(--ok); color: #03140A;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .4);
+  animation: pop 9s ease forwards;
+}
+.banner.first { background: var(--memo); color: #1B0811; }
+@keyframes pop {
+  0% { opacity: 0; transform: translateX(-50%) translateY(14px) scale(.9); }
+  6% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1.06); }
+  10% { transform: translateX(-50%) scale(1); }
+  88% { opacity: 1; }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-6px); }
+}
+.stage[data-layout=derecha] .time, .stage[data-layout=izquierda] .time { --max-time: 100px; margin: 12px 0 6px; }
+
+/* Waiting hint, only until the app has sent something once */
+.wait {
+  position: absolute; left: 50%; bottom: 40px; transform: translateX(-50%);
+  max-width: 900px; text-align: center; font-size: 22px; line-height: 1.4;
+  background: var(--panel); border: 1.5px dashed rgba(240, 105, 156, .6); border-radius: 18px; padding: 16px 26px;
+}
+.wait b { color: var(--memo); }
+@media (prefers-reduced-motion: reduce) { .live.on, .timer.flash-ok, .timer.flash-dnf { animation: none; } .banner { animation-duration: .01s; animation-iteration-count: 1; opacity: 1; } }
+</style>
+</head>
+<body>
+<div class="stage" id="stage" data-layout="esquinas">
+  <section class="card brand" id="brand">
+    <div class="eyebrow"><i class="live" id="live"></i><span>Aprendiendo 3BLD</span></div>
+    <div class="brand-top">
+      <div class="logo" aria-hidden="true">
+        <i class="c-U"></i><i class="c-R"></i><i class="c-F"></i><i class="c-L"></i><i class="c-B"></i><i class="c-D"></i><i class="c-F"></i><i class="c-U"></i><i class="c-R"></i>
+      </div>
+      <div style="min-width:0">
+        <div class="who" id="who">Old Pochmann</div>
+        <div class="method" id="method">Letras Speffz · blanco arriba, verde delante</div>
+      </div>
+    </div>
+    <div class="prog" id="prog"></div>
+    <div class="total" id="total" hidden></div>
+  </section>
+
+  <section class="card scr" id="scrCard" hidden>
+    <div class="eyebrow">Scramble <span class="soft" id="moves"></span></div>
+    <p class="scr-text" id="scrText"></p>
+    <div class="net" id="net" aria-hidden="true"></div>
+  </section>
+
+  <section class="card stats" id="statsCard" hidden>
+    <div class="eyebrow">Hoy</div>
+    <div id="statsBody"></div>
+  </section>
+
+  <section class="card timer" id="timerCard" data-tone="idle" hidden>
+    <div class="trow"><span class="pill" id="phase"></span><span class="retotag" id="retoTag"></span></div>
+    <div class="time" id="time"></div>
+    <div class="splits"><span>Memo<b id="sMemo">—</b></span><span>Ejecución<b id="sExec">—</b></span></div>
+    <div class="memoline" id="memoLine" hidden></div>
+  </section>
+
+  <div class="wait" id="wait" hidden>Esperando a la app… Ábrela y en <b>Ajustes → Overlay para stream</b> pulsa <b>Conectar con OBS</b>.</div>
+</div>
+<script>
+(() => {
+  'use strict';
+  const q = new URLSearchParams(location.search);
+  const $ = (id) => document.getElementById(id);
+  const stage = $('stage');
+  const LAYOUTS = ['esquinas', 'derecha', 'izquierda', 'crono'];
+  stage.dataset.layout = LAYOUTS.includes(q.get('layout')) ? q.get('layout') : 'esquinas';
+  document.body.classList.toggle('big', q.get('size') === 'grande');
+  document.body.classList.toggle('no-net', q.get('net') === '0');
+  document.body.classList.toggle('no-prog', q.get('prog') === '0');
+  document.body.classList.toggle('chroma', q.get('bg') === 'chroma');
+  const DEMO = q.get('demo') === '1';
+  const SHOW_MEMO = q.get('memo') !== '0';
+  const CACHE_KEY = 'op3bld:overlay:last';
+
+  // The design is laid out at 1920x1080 and scaled to whatever size the source has.
+  function fit() {
+    const k = Math.min(innerWidth / 1920, innerHeight / 1080) || 1;
+    stage.style.transform = `translate(${(innerWidth - 1920 * k) / 2}px, ${(innerHeight - 1080 * k) / 2}px) scale(${k})`;
+  }
+  addEventListener('resize', fit);
+  fit();
+
+  function fmt(ms) {
+    if (ms == null || !isFinite(ms) || ms < 0) return '—';
+    const cs = Math.floor(ms / 10);
+    const m = Math.floor(cs / 6000);
+    const s = Math.floor((cs % 6000) / 100);
+    return `${m}:${String(s).padStart(2, '0')}.${String(cs % 100).padStart(2, '0')}`;
+  }
+  const text = (el, t) => { if (el.textContent !== t) el.textContent = t; };
+  function setTime(t, dim) {
+    const el = $('time');
+    el.classList.toggle('dim', !!dim);
+    if (el.dataset.t === t) return;
+    el.dataset.t = t;
+    el.textContent = '';
+    el.style.setProperty('--ems', [...t].reduce((a, ch) => a + (/\d/.test(ch) ? 0.86 : ch === '—' ? 1.2 : 0.36), 0).toFixed(2));
+    for (const ch of t) {
+      const s = document.createElement('span');
+      s.className = /\d/.test(ch) ? 'd' : 'p';
+      s.textContent = ch;
+      el.appendChild(s);
+    }
+  }
+
+  // Cube net: six 3x3 faces in the usual cross layout.
+  const NET = { U: [1, 2], L: [2, 1], F: [2, 2], R: [2, 3], B: [2, 4], D: [3, 2] };
+  const ORDER = ['U', 'L', 'F', 'R', 'B', 'D'];
+  const cells = [];
+  ORDER.forEach((f) => {
+    const face = document.createElement('div');
+    face.className = 'face';
+    face.style.gridRow = NET[f][0];
+    face.style.gridColumn = NET[f][1];
+    for (let i = 0; i < 9; i++) { const c = document.createElement('i'); face.appendChild(c); cells.push(c); }
+    $('net').appendChild(face);
+  });
+  function paintNet(cube) {
+    const ok = typeof cube === 'string' && cube.length === 54;
+    $('net').hidden = !ok;
+    if (!ok) return;
+    for (let i = 0; i < 54; i++) cells[i].className = 'c-' + cube[i];
+  }
+
+  const ICON = {
+    memo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>',
+    exec: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10c2.4 3 5.4 4.5 9 4.5s6.6-1.5 9-4.5M7 13.3 5.5 16M12 14.5V17.5M17 13.3l1.5 2.7"/></svg>',
+    ok: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>',
+    dnf: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+  };
+  function setPill(tone, label) {
+    const card = $('timerCard');
+    const pill = $('phase');
+    const key = tone + '|' + label;
+    if (pill.dataset.k === key) return;
+    pill.dataset.k = key;
+    card.dataset.tone = tone;
+    pill.innerHTML = ICON[tone] || '';
+    pill.appendChild(document.createTextNode(label));
+  }
+
+  let S = null;          // last state received
+  let liveAt = 0;        // when the last live message arrived
+  let lastSeen = null;   // last result we already celebrated
+  let cancelUntil = 0;
+
+  function renderStatic() {
+    const s = S;
+    $('wait').hidden = !!s;
+    if (!s) return;
+    text($('who'), s.name || 'Old Pochmann');
+    text($('method'), s.name ? 'Old Pochmann · letras Speffz' : 'Letras Speffz · blanco arriba, verde delante');
+
+    // Learning progress
+    const rows = [];
+    if (s.learn && s.learn.total) rows.push(['Tutorial', 'Tutorial', s.learn.done, s.learn.total, 'learn']);
+    if (s.train) {
+      rows.push(['Setups de aristas', 'Aristas', s.train.edge[0], s.train.edge[1], '']);
+      rows.push(['Setups de esquinas', 'Esquinas', s.train.corner[0], s.train.corner[1], '']);
+    }
+    const prog = $('prog');
+    const html = rows.map(([label, short, a, b, cls]) => `<div class=prow><div class=prow-top><span><span class=l>${label}</span><span class=s>${short}</span></span><b>${a}/${b}</b></div>`
+      + `<div class='bar ${cls}'><i style='width:${b ? Math.round((100 * a) / b) : 0}%'></i></div></div>`).join('');
+    if (prog.dataset.h !== html) { prog.dataset.h = html; prog.innerHTML = html; }
+    const tot = $('total');
+    tot.hidden = !(s.total && s.total.n);
+    if (s.total && s.total.n) {
+      tot.innerHTML = `<b>${s.total.n}</b> ${s.total.n === 1 ? 'intento' : 'intentos'} · <b>${s.total.ok}</b> ${s.total.ok === 1 ? 'resuelto' : 'resueltos'} en total`;
+    }
+
+    // Scramble and its cube
+    const card = $('scrCard');
+    card.hidden = !s.scr;
+    if (s.scr) {
+      const sc = $('scrText');
+      if (sc.dataset.s !== s.scr) {
+        sc.dataset.s = s.scr;
+        sc.textContent = '';
+        s.scr.split(/\s+/).forEach((m, i) => {
+          if (i) sc.appendChild(document.createTextNode(' '));
+          const span = document.createElement('span');
+          span.className = 'mv';
+          span.textContent = m;
+          sc.appendChild(span);
+        });
+      }
+      text($('moves'), s.moves > 0 ? `· ${s.moves} movimientos` : '');
+      paintNet(s.cube);
+    }
+
+    // Today's numbers
+    const st = $('statsCard');
+    st.hidden = false;
+    const t = s.today || { n: 0 };
+    let body = '';
+    if (t.n) {
+      body += '<div class=sgrid>'
+        + `<div class=stat><span>Intentos</span><b>${t.n}</b></div>`
+        + `<div class=stat><span>Resueltos</span><b>${t.ok}<small>${Math.round((100 * t.ok) / t.n)} %</small></b></div>`
+        + `<div class=stat><span>Mejor</span><b>${fmt(t.best)}</b></div>`
+        + `<div class=stat><span>Media</span><b>${fmt(t.mean)}</b></div>`
+        + '</div>';
+      if (s.recent && s.recent.length) {
+        body += '<div class=chips>' + s.recent.map((r) => `<span class='chip ${r.ok ? 'ok' : 'dnf'}'>${r.ok ? fmt(r.t) : 'DNF'}</span>`).join('') + '</div>';
+      }
+    } else {
+      body += '<p class=empty>Todavía no hay intentos hoy.</p>';
+    }
+    if (s.record != null || (t.streak || 0) >= 2) {
+      body += '<div class=foot>' + (s.record != null ? `<span>Récord</span><b>${fmt(s.record)}</b>` : '')
+        + ((t.streak || 0) >= 2 ? `<span class=streak>Racha de ${t.streak}</span>` : '') + '</div>';
+    }
+    const sb = $('statsBody');
+    if (sb.dataset.h !== body) { sb.dataset.h = body; sb.innerHTML = body; }
+
+    // Timer card (the clock itself is painted every frame)
+    $('timerCard').hidden = false;
+    text($('retoTag'), s.reto ? `Reto de ${s.reto}` : '');
+  }
+
+  // memo: { e: 'OK TX HF', c: 'MV WF' } or null
+  function setMemo(memo) {
+    const box = $('memoLine');
+    const m = SHOW_MEMO && memo && (memo.e || memo.c) ? memo : null;
+    const key = m ? `${m.e}|${m.c}` : '';
+    stage.toggleAttribute('data-memo', !!m);
+    box.hidden = !m;
+    if (box.dataset.k === key) return;
+    box.dataset.k = key;
+    box.textContent = '';
+    if (!m) return;
+    const row = (label, letters, parity) => {
+      const r = document.createElement('div');
+      r.className = 'mrow';
+      const l = document.createElement('span');
+      l.className = 'ml';
+      l.textContent = label;
+      const c = document.createElement('code');
+      c.textContent = letters || '—';
+      r.append(l, c);
+      if (parity) {
+        const p = document.createElement('span');
+        p.className = 'par';
+        p.textContent = '+ R-perm';
+        r.appendChild(p);
+      }
+      box.appendChild(r);
+    };
+    const edgeCount = (m.e || '').replace(/\s+/g, '').length;
+    row('Aristas', m.e, edgeCount % 2 === 1);
+    row('Esquinas', m.c, false);
+  }
+  // A stored result keeps its memo as "OK TX · MV WF".
+  const splitMemo = (s) => {
+    if (!s) return null;
+    const [e, c] = String(s).split(' · ');
+    return { e: (e || '').trim(), c: (c || '').trim() };
+  };
+
+  function paintClock() {
+    if (!S) return;
+    const now = Date.now();
+    const t = S.timer || { phase: 'idle' };
+    let memo = null;
+    let exec = null;
+    let showMemo = null;
+    if (t.phase === 'memo') {
+      setPill('memo', 'Memorizando');
+      setTime(fmt(now - t.t0));
+      memo = now - t.t0;
+    } else if (t.phase === 'exec') {
+      setPill('exec', 'Ejecutando a ciegas');
+      setTime(fmt(now - t.t0));
+      memo = t.t1 - t.t0; exec = now - t.t1;
+      showMemo = S.memo;
+    } else if (t.phase === 'done') {
+      setPill('wait', '¿Resuelto?');
+      setTime(fmt(t.t2 - t.t0));
+      memo = t.t1 - t.t0; exec = t.t2 - t.t1;
+      showMemo = S.memo;
+    } else if (cancelUntil > now) {
+      setPill('idle', 'Intento cancelado');
+      setTime(fmt(0), true);
+    } else if (S.last && now - S.last.at < 30 * 60 * 1000) {
+      const L = S.last;
+      setPill(L.ok ? 'ok' : 'dnf', L.ok ? 'Resuelto' : 'DNF');
+      setTime(fmt(L.memo + L.exec), !L.ok);
+      memo = L.memo; exec = L.exec;
+      showMemo = splitMemo(L.mem);
+    } else {
+      setPill('idle', 'Listo');
+      setTime(fmt(0), true);
+    }
+    text($('sMemo'), fmt(memo));
+    text($('sExec'), fmt(exec));
+    setMemo(showMemo);
+    $('live').classList.toggle('on', DEMO || now - liveAt < 12000);
+  }
+  function frame() { paintClock(); requestAnimationFrame(frame); }
+
+  function celebrate(L) {
+    const card = $('timerCard');
+    card.classList.remove('flash-ok', 'flash-dnf');
+    void card.offsetWidth;
+    card.classList.add(L.ok ? 'flash-ok' : 'flash-dnf');
+    const old = card.querySelector('.banner');
+    if (old) old.remove();
+    if (L.ok && (L.first || L.pb)) {
+      const b = document.createElement('div');
+      b.className = 'banner' + (L.first ? ' first' : '');
+      b.textContent = L.first ? '¡Primer resuelto!' : '¡Nuevo récord!';
+      card.appendChild(b);
+      setTimeout(() => b.remove(), 9500);
+    }
+  }
+
+  // If several app tabs send at once, follow the one used most recently; an idle
+  // tab's heartbeat must not overwrite it. A sender silent for 10 s loses its turn.
+  let owner = null;
+  function fromOwner(s) {
+    const now = Date.now();
+    const src = s.src || 'old';
+    const act = s.src ? s.act || 0 : 0;
+    if (!owner || src === owner.src || act > owner.act || now - owner.seen > 10000) {
+      owner = { src, act, seen: now };
+      return true;
+    }
+    return false;
+  }
+
+  function receive(raw, live) {
+    let s = raw;
+    if (typeof raw === 'string') { try { s = JSON.parse(raw); } catch (e) { return; } }
+    if (!s || s.v !== 1) return;
+    if (live && !DEMO && !fromOwner(s)) return;
+    S = s;
+    if (live) {
+      liveAt = Date.now();
+      if (!DEMO) { try { localStorage.setItem(CACHE_KEY, JSON.stringify(s)); } catch (e) { /* not kept */ } }
+      const L = s.last;
+      if (L && L.at !== lastSeen) {
+        if (Date.now() - L.at < 12000) celebrate(L);
+        lastSeen = L.at;
+      }
+      if (s.timer && s.timer.cancelled && Date.now() - s.at < 5000) cancelUntil = Date.now() + 4000;
+      if (s.timer && s.timer.phase !== 'idle') cancelUntil = 0;
+    }
+    renderStatic();
+    paintClock();
+  }
+
+  // 1) OBS: the app calls obs-websocket → obs-browser emit_event → this event.
+  addEventListener('op3bld', (e) => { const d = e.detail; receive(d && typeof d.p === 'string' ? d.p : d, true); });
+  // 2) Same browser (preview in the app, or a window captured with Window Capture).
+  if ('BroadcastChannel' in window && !DEMO) {
+    const bc = new BroadcastChannel('op3bld-live');
+    bc.onmessage = (e) => { if (e.data && e.data.type === 'state') receive(e.data.p, true); };
+    bc.postMessage({ type: 'hello' });
+  }
+  // Last known state, so a reloaded source does not start empty.
+  if (!DEMO) {
+    try { const c = localStorage.getItem(CACHE_KEY); if (c) { const s = JSON.parse(c); lastSeen = s.last ? s.last.at : null; receive(s, false); } } catch (e) { /* none */ }
+  }
+  renderStatic();
+  requestAnimationFrame(frame);
+
+  // Demo: example data that loops through an attempt (used by the preview).
+  if (DEMO) {
+    const day = Date.now();
+    const base = {
+      v: 1, name: 'Aco', reto: null,
+      scr: "D2 F2 U' B2 R2 U2 F2 D' L2 U' R' D2 B' U F' L' D2 F L2 B'", moves: 20,
+      cube: 'RRLDULLRRBLBRLFRFLDFUDFUBRFFBFFRURDLUUDLBBFBBUDDLDBUUD',
+      learn: { done: 6, total: 9 }, train: { edge: [15, 22], corner: [6, 21] },
+      total: { n: 58, ok: 17 }, record: 151230,
+      today: { n: 6, ok: 3, best: 158440, mean: 174300, streak: 2 },
+      recent: [{ ok: false, t: 201000 }, { ok: true, t: 190100 }, { ok: false, t: 180000 }, { ok: false, t: 222000 }, { ok: true, t: 174360 }, { ok: true, t: 158440 }],
+      last: { ok: true, memo: 61200, exec: 97240, at: day - 60000, mem: 'HN DX FK OW AJ CP · TL MJ XB FS', pb: false },
+      memo: { e: 'HN DX FK OW AJ CP', c: 'TL MJ XB FS' },
+      timer: { phase: 'idle' },
+    };
+    const pick = q.get('phase');
+    const at = (phase) => {
+      const s = JSON.parse(JSON.stringify(base));
+      const now = Date.now();
+      s.at = now;
+      if (phase === 'memo') s.timer = { phase, t0: now - 41870 };
+      if (phase === 'exec') s.timer = { phase, t0: now - 103400, t1: now - 58200 };
+      if (phase === 'done') s.timer = { phase, t0: now - 160000, t1: now - 99000, t2: now - 2000 };
+      if (phase === 'pb') { s.last = { ok: true, memo: 52300, exec: 91050, at: now, mem: 'HN DX FK OW AJ CP · TL MJ XB FS', pb: true }; s.record = 143350; }
+      return s;
+    };
+    if (pick) receive(at(pick), true);
+    else {
+      const loop = ['memo', 'exec', 'done', 'idle'];
+      let i = 0;
+      receive(at(loop[0]), true);
+      setInterval(() => { i = (i + 1) % loop.length; receive(at(loop[i]), true); }, 4000);
+    }
+  }
+})();
+</script>
+</body>
+</html>

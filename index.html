@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script>try{var t=localStorage.getItem('op3bld:theme:v1');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
+<meta name="description" content="Setups, memo, scrambles, cronómetro, tutorial y retos para aprender 3BLD con Old Pochmann.">
+<meta name="op3-build" content="__BUILD__">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Old Pochmann 3BLD">
+<meta property="og:title" content="Old Pochmann 3BLD">
+<meta property="og:description" content="Aprende a resolver el cubo de Rubik a ciegas: setups, memo, cronómetro, tutorial y retos con tus amigos.">
+<meta property="og:url" content="https://old-pochmann-3bld.vercel.app/">
+<meta property="og:image" content="https://old-pochmann-3bld.vercel.app/api/og?v=1">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Old Pochmann 3BLD: aprende 3BLD con Old Pochmann">
+<meta property="og:locale" content="es_ES">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#ECEFF3" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0F1319" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="OP 3BLD">
+<title>Old Pochmann 3BLD</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Martian+Mono:wght@400;600&family=Unbounded:wght@500;700&display=swap">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div class="app">
+  <aside class="rail" id="rail" aria-label="Algoritmos fijos">
+    <div class="brand">
+      <h1>Old Pochmann 3BLD</h1>
+      <p>Speffz · blanco arriba, verde delante</p>
+      <button class="btn install" type="button" hidden>Instalar app</button>
+    </div>
+    <div class="rail-head">
+      <span class="eyebrow">Algoritmos fijos</span>
+      <span class="rail-tools">
+        <button class="rail-toggle" id="railToggle" type="button" aria-expanded="true">Ocultar</button>
+        <button class="rail-gear" type="button" data-go="ajustes" aria-label="Ajustes"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2.2"/><circle cx="9" cy="17" r="2.2"/></svg></button>
+      </span>
+    </div>
+    <section class="alg" id="algT">
+      <div class="alg-top"><span class="alg-name">T-perm</span><span class="tag">Aristas</span></div>
+      <div class="moves" data-alg="T"></div>
+      <p class="alg-note">Intercambia <b>B ↔ D</b> (UR ↔ UL). De paso cruza las esquinas UFR ↔ UBR.</p>
+    </section>
+    <section class="alg" id="algP">
+      <div class="alg-top"><span class="alg-name">R-perm</span><span class="tag">Paridad</span></div>
+      <div class="moves" data-alg="P"></div>
+      <p class="alg-note">Solo si hay un número <b>impar</b> de aristas. Hazla justo al acabar las aristas, <b>antes</b> de las esquinas.</p>
+    </section>
+    <section class="alg" id="algY">
+      <div class="alg-top"><span class="alg-name">Y-perm modificada</span><span class="tag">Esquinas</span></div>
+      <div class="moves" data-alg="Y"></div>
+      <p class="alg-note">Intercambia <b>E ↔ V</b> (UBL ↔ DFR). Con tu tabla, la pegatina que lees del buffer es la <b>E</b> (cara naranja).</p>
+    </section>
+  </aside>
+
+  <main>
+    <nav class="tabs" id="tabs" aria-label="Secciones">
+      <button type="button" class="tab tab-practicar" data-go="practicar"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 7.5v9L12 21l8-4.5v-9Z"/><path d="M4 7.5 12 12l8-4.5M12 12v9"/></svg><span>Practicar</span></button>
+      <button type="button" class="tab tab-crono" data-go="crono"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13.5" r="7.5"/><path d="M12 13.5V9.5M9.5 2.5h5M12 2.5V6M18.3 6.7 19.8 5.2"/></svg><span class="tab-l">Cronómetro</span><span class="tab-s">Crono</span></button>
+      <button type="button" class="tab tab-entrenar" data-go="entrenar"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/></svg><span>Entrenar</span></button>
+      <button type="button" class="tab tab-aprender" data-go="aprender"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 5.5c2.8-.9 5.6-.6 8.5 1.2v13c-2.9-1.8-5.7-2.1-8.5-1.2ZM20.5 5.5c-2.8-.9-5.6-.6-8.5 1.2v13c2.9-1.8 5.7-2.1 8.5-1.2Z"/></svg><span>Aprender</span></button>
+      <button type="button" class="tab tab-retos" data-go="retos"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v5a4 4 0 0 1-8 0ZM8 6H5.2a3 3 0 0 0 2.9 4M16 6h2.8a3 3 0 0 1-2.9 4M12 13v4M8.5 20.5h7M10 17h4v3.5h-4Z"/></svg><span>Retos</span></button>
+      <button type="button" class="tab tab-tabla" data-go="tabla"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2.5"/><path d="M4 9.3h16M4 14.7h16M9.3 4v16M14.7 4v16"/></svg><span>Tabla</span></button>
+      <button type="button" class="tab tab-ajustes" data-go="ajustes"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2.2"/><circle cx="9" cy="17" r="2.2"/></svg><span>Ajustes</span></button>
+    </nav>
+    <div class="mobile-brand"><h1>Old Pochmann 3BLD</h1><button class="btn install" type="button" hidden>Instalar app</button></div>
+
+    <div class="view" data-view="practicar">
+    <section class="panel" aria-labelledby="hLookup">
+      <div class="panel-head">
+        <h2 id="hLookup">¿Dónde va esta letra?</h2>
+        <div class="seg" role="group" aria-label="Tipo de pieza">
+          <button type="button" id="modeEdge" aria-pressed="true">Aristas</button>
+          <button type="button" id="modeCorner" aria-pressed="false">Esquinas</button>
+        </div>
+      </div>
+
+      <div class="walk" id="walk" aria-label="Recorrido del memo">
+        <div class="walk-nav">
+          <button class="btn" type="button" id="memoPrev">↑ Anterior</button>
+          <button class="btn primary" type="button" id="memoNext">Siguiente ↓</button>
+          <button class="btn" type="button" id="guideOpen">Ejecución guiada</button>
+          <span class="walk-pos" id="walkPos" aria-live="polite"></span>
+          <span class="walk-keys"><kbd>↑</kbd><kbd>↓</kbd> también con el teclado</span>
+        </div>
+        <div class="walk-toks" id="walkToks"></div>
+      </div>
+
+      <div class="viewer">
+        <div class="who">
+          <div class="big" id="big"><span id="bigLetter">K</span><i class="sw" id="bigSw"></i></div>
+          <div class="who-text">
+            <div class="who-title" id="whoTitle"></div>
+            <p class="who-desc" id="whoDesc"></p>
+          </div>
+        </div>
+
+        <div class="seq" id="seq"></div>
+
+        <div class="stage">
+          <div class="basebar">
+            <span class="hint">Ver sobre</span>
+            <div class="seg small" role="group" aria-label="Estado del cubo">
+              <button type="button" id="baseScr" aria-pressed="true">Tu scramble</button>
+              <button type="button" id="baseSolved" aria-pressed="false">Cubo resuelto</button>
+            </div>
+          </div>
+          <div class="net" id="net" aria-label="Cubo desplegado"></div>
+          <p class="caption" id="caption" aria-live="polite"></p>
+          <div class="stepnav">
+            <button class="btn" type="button" id="prevStep">← Anterior</button>
+            <button class="btn" type="button" id="nextStep">Siguiente →</button>
+          </div>
+          <div class="legend" id="legend"></div>
+        </div>
+        <p class="notice" id="notice" aria-live="polite"></p>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="hMemo">
+      <div class="panel-head">
+        <h2 id="hMemo">Tu memo</h2>
+        <span class="hint">Se recorre arriba, junto al cubo</span>
+      </div>
+      <div class="fields">
+        <div class="field wide">
+          <label for="scr">Scramble <span class="count" id="scrCount"></span></label>
+          <textarea id="scr" rows="1" spellcheck="false" autocomplete="off" autocapitalize="off" enterkeyhint="done"></textarea>
+          <div class="inrow">
+            <select id="scrKind" aria-label="Tipo de scramble">
+              <option value="full">Completo</option>
+              <option value="edges">Solo aristas</option>
+              <option value="corners">Solo esquinas</option>
+            </select>
+            <button class="btn" type="button" id="newScr" title="Estado aleatorio, como los scrambles oficiales de la WCA">Nuevo scramble</button>
+          </div>
+        </div>
+        <div class="field">
+          <label for="memoE">Memo de aristas</label>
+          <input id="memoE" type="text" spellcheck="false" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="memoC">Memo de esquinas</label>
+          <input id="memoC" type="text" spellcheck="false" autocomplete="off">
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn primary" type="button" id="check">Comprobar memo</button>
+        <button class="btn" type="button" id="generate">Generar memo recomendado</button>
+      </div>
+      <p class="result" id="result" aria-live="polite"></p>
+    </section>
+    </div>
+
+    <div class="view" data-view="crono" hidden>
+      <div class="reto-banner" id="retoBanner" hidden></div>
+    <section class="panel" aria-labelledby="hTimer">
+      <div class="panel-head">
+        <h2 id="hTimer">Cronómetro</h2>
+        <span class="hint"><kbd>Espacio</kbd> o toca el reloj: memo → ejecución → parar · <kbd>Esc</kbd> cancela</span>
+      </div>
+      <button type="button" class="clock" id="clock" data-phase="idle">
+        <span class="clock-phase" id="clockPhase">Listo</span>
+        <span class="clock-time" id="clockTime">0:00.00</span>
+        <span class="clock-split" id="clockSplit">Memo — · Ejecución —</span>
+      </button>
+      <div class="verdict" id="verdict" hidden>
+        <span>¿Lo has resuelto?</span>
+        <button class="btn primary" type="button" id="markOk">Resuelto</button>
+        <button class="btn" type="button" id="markDnf">DNF</button>
+      </div>
+      <div class="verdict" id="afterResult" hidden>
+        <button class="btn" type="button" id="shareLast">Compartir como imagen</button>
+      </div>
+      <div class="stats" id="stats"></div>
+      <div class="hist-bar" id="histBar" hidden>
+        <div class="seg small" role="group" aria-label="Filtrar intentos">
+          <button type="button" data-hf="all" aria-pressed="true">Todos</button>
+          <button type="button" data-hf="ok" aria-pressed="false">Resueltos</button>
+          <button type="button" data-hf="dnf" aria-pressed="false">DNF</button>
+        </div>
+        <span class="hint" id="histCount"></span>
+      </div>
+      <div class="history" id="history"></div>
+      <div class="actions">
+        <button class="btn" type="button" id="histMore" hidden>Ver más</button>
+        <button class="btn" type="button" id="clearTimes" hidden>Borrar historial</button>
+      </div>
+    </section>
+    </div>
+
+    <div class="view" data-view="entrenar" hidden>
+    <section class="panel" aria-labelledby="hTrain">
+      <div class="panel-head">
+        <h2 id="hTrain">Entrenar setups</h2>
+        <div class="seg" role="group" aria-label="Piezas a entrenar">
+          <button type="button" id="trEdge" aria-pressed="true">Aristas</button>
+          <button type="button" id="trCorner" aria-pressed="false">Esquinas</button>
+        </div>
+      </div>
+      <div class="trainer">
+        <div class="tr-card">
+          <div class="big"><span id="trLetter">I</span><i class="sw" id="trSw"></i></div>
+          <div class="who-text">
+            <div class="who-title" id="trTitle"></div>
+            <p class="who-desc" id="trDesc"></p>
+          </div>
+          <button class="btn spoil" type="button" id="trSpoil" aria-expanded="false" aria-controls="trCube" aria-keyshortcuts="?" title="Atajo: tecla ?"><span id="trSpoilText">Spoiler: ver el cubo</span><kbd class="kbd-hint" aria-hidden="true">?</kbd></button>
+        </div>
+        <div class="stage tr-cube" id="trCube" hidden>
+          <div class="net" id="trNet" aria-hidden="true"></div>
+          <div class="legend" id="trLegend"></div>
+        </div>
+        <form class="inrow" id="trForm" autocomplete="off">
+          <input id="trInput" type="text" spellcheck="false" placeholder="p. ej. l D’ L2" aria-label="Setup">
+          <button class="btn primary" type="submit" id="trSubmit">Comprobar</button>
+          <button class="btn" type="button" id="trSkip">No lo sé</button>
+        </form>
+        <p class="tr-feedback" id="trFeedback" aria-live="polite"></p>
+        <p class="tr-stats" id="trStats"></p>
+        <div class="mastery" id="trMastery"></div>
+        <p class="m-legend">Verde: dominada (3 aciertos seguidos). Rosa: para repasar. Las que fallas te salen más a menudo.</p>
+        <div class="actions">
+          <button class="btn" type="button" id="trSee">Ver en el cubo</button>
+          <button class="btn" type="button" id="trReset">Reiniciar estadísticas</button>
+        </div>
+      </div>
+    </section>
+    </div>
+
+    <div class="view" data-view="aprender" hidden>
+      <section class="panel learn-panel" aria-labelledby="hLearn">
+        <div class="panel-head">
+          <h2 id="hLearn">Aprender Old Pochmann</h2>
+          <span class="hint" id="learnProgress"></span>
+        </div>
+        <div class="learn" id="learn"></div>
+      </section>
+    </div>
+
+    <div class="view" data-view="retos" hidden>
+      <div id="retos"></div>
+    </div>
+
+    <div class="view" data-view="tabla" hidden>
+    <section class="panel" aria-labelledby="hBoard">
+      <div class="panel-head">
+        <h2 id="hBoard">Tabla de setups</h2>
+        <span class="hint">Toca una letra (o escríbela) para verla en el cubo · <kbd>1</kbd> aristas · <kbd>2</kbd> esquinas</span>
+      </div>
+      <div class="board" id="board"></div>
+    </section>
+    </div>
+
+    <div class="view" data-view="ajustes" hidden>
+      <section class="panel" aria-labelledby="hStream">
+        <div class="panel-head"><h2 id="hStream">Overlay para stream</h2><span class="hint">OBS · Twitch · Discord</span></div>
+        <div class="stream" id="streamBox"></div>
+      </section>
+      <section class="panel" aria-labelledby="hSync">
+        <div class="panel-head"><h2 id="hSync">Sincronizar entre dispositivos</h2></div>
+        <div class="sync" id="syncBox"></div>
+      </section>
+      <section class="panel" aria-labelledby="hApp">
+        <div class="panel-head"><h2 id="hApp">La app</h2></div>
+        <div class="field">
+          <label for="setName">Tu nombre en los retos</label>
+          <input id="setName" type="text" maxlength="24" spellcheck="false" autocomplete="nickname" placeholder="p. ej. Aco">
+        </div>
+        <div class="field">
+          <span class="field-title" id="themeLabel">Tema</span>
+          <div class="seg small" role="group" aria-labelledby="themeLabel">
+            <button type="button" data-theme-set="auto" aria-pressed="true">Automático</button>
+            <button type="button" data-theme-set="light" aria-pressed="false">Claro</button>
+            <button type="button" data-theme-set="dark" aria-pressed="false">Oscuro</button>
+          </div>
+        </div>
+        <div class="actions"><button class="btn install" type="button" hidden>Instalar app</button></div>
+        <p class="hint">Instalada en el móvil funciona sin conexión, incluido el generador de scrambles. En iPhone: Compartir → Añadir a pantalla de inicio.</p>
+      </section>
+    </div>
+
+  </main>
+</div>
+
+<div class="guide" id="guide" hidden role="dialog" aria-modal="true" aria-labelledby="guideTitle">
+  <div class="guide-top">
+    <span class="guide-title" id="guideTitle">Ejecución guiada</span>
+    <span class="guide-prog" id="guideProg"></span>
+    <label class="guide-opt"><input type="checkbox" id="guideSplit"> Algoritmos movimiento a movimiento</label>
+    <button class="btn" type="button" id="guideClose">Cerrar</button>
+  </div>
+  <div class="guide-bar" id="guideBar"></div>
+  <div class="guide-stage" id="guideStage" role="button" tabindex="0" aria-label="Siguiente paso">
+    <span class="guide-ctx" id="guideCtx"></span>
+    <span class="guide-move" id="guideMove"></span>
+    <span class="guide-seq" id="guideSeq"></span>
+    <span class="guide-kind" id="guideKind"></span>
+  </div>
+  <div class="guide-next" id="guideNext"></div>
+  <div class="guide-nav">
+    <button class="btn" type="button" id="guidePrev">← Atrás</button>
+    <span class="hint"><kbd>Espacio</kbd> o <kbd>→</kbd> siguiente · <kbd>←</kbd> atrás · <kbd>Esc</kbd> salir</span>
+    <button class="btn primary" type="button" id="guideNextBtn">Siguiente →</button>
+  </div>
+</div>
+
+<div class="sheet" id="shareSheet" hidden role="dialog" aria-modal="true" aria-labelledby="shareTitle">
+  <div class="sheet-card">
+    <div class="panel-head"><h2 id="shareTitle">Compartir</h2><button class="btn" type="button" id="shareClose">Cerrar</button></div>
+    <img class="share-img" id="shareImg" alt="Tarjeta con tu tiempo">
+    <div class="actions">
+      <button class="btn primary" type="button" id="shareGo">Compartir</button>
+      <button class="btn" type="button" id="shareSave">Descargar imagen</button>
+    </div>
+    <p class="hint" id="shareNote"></p>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+<div class="update-bar" id="updateBar" role="status" hidden>
+  <span>Hay una versión nueva de la app.</span>
+  <button class="btn primary" type="button" id="updateGo">Actualizar</button>
+  <button class="x" type="button" id="updateLater" aria-label="Ahora no" title="Ahora no">×</button>
+</div>
+
+<script src="core.js"></script>
+<script src="learn.js"></script>
+<script src="social.js"></script>
+<script src="stream.js"></script>
+</body>
+</html>
