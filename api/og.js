@@ -121,9 +121,9 @@ function stat(label, value, sub, tone) {
   return col({
     padding: '16px 22px', gap: 4, background: C.panel, border: `1.5px solid ${C.line}`, borderRadius: 16,
   },
-  h('div', { fontSize: 20, color: C.muted }, label),
-  h('div', { fontFamily: DISPLAY, fontWeight: 700, fontSize: 38, lineHeight: 1.15, color: tone || C.ink }, value),
-  sub ? h('div', { fontSize: 20, color: C.muted, maxWidth: 230, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }, sub) : null);
+  h('div', { fontSize: 24, color: C.muted }, label),
+  h('div', { fontFamily: DISPLAY, fontWeight: 700, fontSize: 44, lineHeight: 1.15, color: tone || C.ink }, value),
+  sub ? h('div', { fontSize: 24, color: C.muted, maxWidth: 260, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }, sub) : null);
 }
 
 function retoImage(s) {
@@ -140,13 +140,12 @@ function retoImage(s) {
     col({ gap: 14 },
       row({},
         h('div', {
-          fontWeight: 700, fontSize: 20, letterSpacing: 2, padding: '6px 16px', borderRadius: 999,
+          fontWeight: 700, fontSize: 22, letterSpacing: 2, padding: '6px 16px', borderRadius: 999,
           background: C.accent, color: C.onAccent,
         }, `RETO 3BLD · SCRAMBLE ${s.kind.toUpperCase()}`)),
       h('div', { fontFamily: DISPLAY, fontWeight: 700, fontSize: size, lineHeight: 1.1, maxWidth: 620 }, title),
-      h('div', { fontSize: 26, lineHeight: 1.35, color: C.muted }, 'Resuélvelo a ciegas y compara tu tiempo.')),
+      h('div', { fontSize: 30, lineHeight: 1.35, color: C.muted }, 'Resuélvelo a ciegas y compara tu tiempo.')),
     stats,
-    h('div', { fontFamily: MONO, fontSize: 18, lineHeight: 1.6, color: C.muted, maxWidth: 620 }, s.scramble),
   ], facelets(s.scramble));
 }
 

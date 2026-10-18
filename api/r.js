@@ -26,9 +26,8 @@ module.exports = async (req, res) => {
   const title = `${s.by} te reta a un 3BLD`;
   const best = s.best ? `Mejor tiempo: ${fmtTime(s.best.t)} (${s.best.name})` : 'Todavía nadie lo ha resuelto';
   const people = s.n === 1 ? '1 participante' : `${s.n} participantes`;
-  const desc = s.n
-    ? `Scramble ${s.kind}. ${best} · ${people}. Resuélvelo a ciegas y compara tu tiempo.`
-    : `Scramble ${s.kind}. Todavía nadie lo ha intentado: resuélvelo a ciegas y compara tu tiempo.`;
+  // The scramble goes here, in readable text, rather than small in the image.
+  const desc = `${s.n ? `${best} · ${people}.` : 'Todavía nadie lo ha intentado.'} Scramble ${s.kind}: ${s.scramble}`;
   const image = `${base}/api/og?reto=${id}&n=${s.n}-${s.ok}`;
   res.statusCode = 200;
   res.setHeader('content-type', 'text/html; charset=utf-8');
@@ -44,7 +43,6 @@ module.exports = async (req, res) => {
 <meta property=og:image content="${esc(image)}">
 <meta property=og:image:width content=1200>
 <meta property=og:image:height content=630>
-<meta property=og:image:alt content="${esc(title)}">
 <meta property=og:locale content=es_ES>
 <meta name=twitter:card content=summary_large_image>
 <meta name=theme-color content="#F0699C">
