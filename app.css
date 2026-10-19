@@ -454,7 +454,7 @@ body.focus:not([data-timer="idle"]) .focus-bottom { visibility: hidden; }
 .stat { background: var(--raise); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; display: grid; gap: 2px; }
 .stat span { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 .stat b { font-family: var(--font-display); font-size: 18px; font-variant-numeric: tabular-nums; }
-.history { overflow-x: auto; }
+.history { overflow-x: auto; position: relative; }   /* keeps the hidden «Acciones» header inside the scroller */
 .field-title { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 .field .seg { justify-self: start; }
 .hist-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; }

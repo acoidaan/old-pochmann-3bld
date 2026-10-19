@@ -1,0 +1,19 @@
+{
+  "name": "old-pochmann-3bld-tests",
+  "private": true,
+  "description": "Pruebas de extremo a extremo (Playwright + Chromium) y auditorías de accesibilidad (axe-core) de Old Pochmann 3BLD.",
+  "scripts": {
+    "test": "node run.js",
+    "audit": "node run.js --audit",
+    "shots": "node run.js --shots"
+  },
+  "devDependencies": {
+    "@fontsource/atkinson-hyperlegible": "5.3.0",
+    "@fontsource/martian-mono": "5.3.0",
+    "@fontsource/unbounded": "5.3.0",
+    "axe-core": "4.10.2",
+    "cubejs": "1.3.2",
+    "playwright": "1.56.1",
+    "ws": "8.22.0"
+  }
+}

@@ -12,7 +12,7 @@ fs.copyFileSync(path.join(__dirname, 'manifest.webmanifest'), path.join(out, 'ma
 fs.copyFileSync(path.join(__dirname, 'overlay.html'), path.join(out, 'overlay.html'));
 // Third-party code with the version in its name (the smart cube library), loaded only when needed.
 fs.mkdirSync(path.join(out, 'vendor'), { recursive: true });
-for (const f of fs.readdirSync(path.join(__dirname, 'vendor'))) {
+for (const f of fs.readdirSync(path.join(__dirname, 'vendor')).filter((x) => !x.endsWith('.md'))) {
   fs.copyFileSync(path.join(__dirname, 'vendor', f), path.join(out, 'vendor', f));
 }
 

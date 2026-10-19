@@ -703,12 +703,14 @@
       // No memo: the cube itself says what came next, when the buffer holds another piece.
       const cur = r.cur;
       let next = null;
+      let cycleBreak = null;   // the buffer held its own piece: any letter could have come next
       for (const kind of ['edge', 'corner']) {
         const mode = MODES[kind];
         const id = cur[mode.posOf[mode.read]];
         const pending = CUBIES.some((g) => g.length === (kind === 'edge' ? 2 : 3) && !g.every((p) => cur[p] === p));
         if (!pending) continue;
         if (!mode.buffer.some((b) => mode.posOf[b] === id)) next = { kind, L: mode.letterOf[id] };
+        else cycleBreak = kind;
         break;
       }
       const n = r.done.length;
@@ -719,6 +721,8 @@
         const s = stageOf(next, cur, r.j, r.after);
         main += ` ${stageText(nth(toks, toks.length - 1), s, next)}`;
         fail = { kind: next.kind, L: next.L };
+      } else if (cycleBreak) {
+        main += ` Ahí tocaba un cambio de ciclo de ${cycleBreak === 'edge' ? 'aristas' : 'esquinas'}, así que el cubo no puede saber a qué letra ibas.`;
       }
       lines.push('Si escribes en «Practicar» el memo que hiciste y vuelves aquí, te digo también si el error estaba en el memo o en la ejecución.');
     }

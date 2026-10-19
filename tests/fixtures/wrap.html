@@ -1,0 +1,12 @@
+<!doctype html>
+<!-- Stands in for OBS: a "game" background with the overlay on top, like a browser source over a scene.
+     Open as /wrap.html#overlay.html?layout=derecha -->
+<html><head><meta charset="utf-8">
+<style>
+html, body { margin: 0; height: 100%; background: #000; }
+.scene { position: fixed; inset: 0; background: radial-gradient(120% 90% at 30% 20%, #3a5a7a, #14202c 55%, #07090c); }
+iframe { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; }
+</style></head>
+<body><div class="scene"></div><iframe id="f"></iframe>
+<script>document.getElementById('f').src = decodeURIComponent(location.hash.slice(1));</script>
+</body></html>
