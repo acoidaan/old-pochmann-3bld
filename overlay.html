@@ -169,8 +169,9 @@ body.no-net .net { display: none; }
 .mrow .ml { flex: none; width: 96px; font-size: 15px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
 .mrow code { min-width: 0; font-family: var(--font-mono); font-weight: 600; font-size: 22px; line-height: 1.35; word-spacing: .12em; color: var(--ink); }
 .mrow .par { flex: none; font-size: 14px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--wait); }
-/* Where height is tight, the memo takes the place of the cube drawing while it shows. */
+/* Where height is tight, the memo (or the smart cube's turns) takes the place of the cube drawing while it shows. */
 .stage[data-memo][data-layout=derecha] .net, .stage[data-memo][data-layout=izquierda] .net, body.big .stage[data-memo] .net { display: none; }
+.stage[data-live][data-layout=derecha] .net, .stage[data-live][data-layout=izquierda] .net { display: none; }
 .timer[data-tone=memo] { border-color: rgba(240, 105, 156, .7); }
 .timer[data-tone=memo] .pill { background: var(--memo); color: #1B0811; }
 .timer[data-tone=exec] { border-color: rgba(91, 155, 255, .75); }
@@ -198,6 +199,30 @@ body.no-net .net { display: none; }
   100% { opacity: 0; transform: translateX(-50%) translateY(-6px); }
 }
 .stage[data-layout=derecha] .time, .stage[data-layout=izquierda] .time { --max-time: 100px; margin: 12px 0 6px; }
+
+/* Smart cube: scramble progress, live cube, the attempt's turns and letters */
+.cubetag { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; font-size: 14px; letter-spacing: .1em; color: var(--ok); }
+.cubetag i { width: 9px; height: 9px; border-radius: 50%; background: var(--ok); }
+.scr-text .mv { transition: opacity .2s ease; }
+.scr-text .mv.done { opacity: .3; }
+.scr-text .mv.next { color: #1B0811; background: var(--memo); border-radius: 6px; padding: 0 4px; }
+.scr-text .mv.half { color: var(--memo); background: transparent; box-shadow: inset 0 0 0 2px var(--memo); }
+.scrhint { margin: 10px 0 0; font-size: 20px; font-weight: 700; color: var(--muted); }
+.scrhint.ok { color: var(--ok); }
+.scrhint.bad { color: #FF8A8D; }
+.scrhint b { font-family: var(--font-mono); }
+.liveline { display: grid; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--panel-line); }
+.lmoves {
+  justify-self: start; display: inline-flex; justify-content: flex-end; align-items: baseline; gap: .5em; max-width: 100%;
+  overflow: hidden; white-space: nowrap; font-family: var(--font-mono); font-size: 21px; color: var(--muted);
+}
+.lmoves > * { flex: none; }
+.lmoves .n { font-family: var(--font-body); font-size: 16px; }
+.lmoves b { color: var(--exec); }
+.lnote { font-size: 19px; line-height: 1.35; }
+.lnote.ok { font-size: 16px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ok); }
+.lnote.dnf { color: #FF8A8D; }
+.stage[data-layout=derecha] .lmoves, .stage[data-layout=izquierda] .lmoves { font-size: 18px; }
 
 /* Waiting hint, only until the app has sent something once */
 .wait {
@@ -227,8 +252,9 @@ body.no-net .net { display: none; }
   </section>
 
   <section class="card scr" id="scrCard" hidden>
-    <div class="eyebrow">Scramble <span class="soft" id="moves"></span></div>
+    <div class="eyebrow">Scramble <span class="soft" id="moves"></span><span class="cubetag" id="cubeTag" hidden><i></i>Cubo en directo</span></div>
     <p class="scr-text" id="scrText"></p>
+    <p class="scrhint" id="scrHint" hidden></p>
     <div class="net" id="net" aria-hidden="true"></div>
   </section>
 
@@ -242,6 +268,7 @@ body.no-net .net { display: none; }
     <div class="time" id="time"></div>
     <div class="splits"><span>Memo<b id="sMemo">—</b></span><span>Ejecución<b id="sExec">—</b></span></div>
     <div class="memoline" id="memoLine" hidden></div>
+    <div class="liveline" id="liveLine" hidden></div>
   </section>
 
   <div class="wait" id="wait" hidden>Esperando a la app… Ábrela y en <b>Ajustes → Overlay para stream</b> pulsa <b>Conectar con OBS</b>.</div>
@@ -375,7 +402,29 @@ body.no-net .net { display: none; }
         });
       }
       text($('moves'), s.moves > 0 ? `· ${s.moves} movimientos` : '');
-      paintNet(s.cube);
+      // A connected smart cube: the drawing is the real cube, and the scramble shows how far it is.
+      const sm = s.smart && s.smart.net ? s.smart : null;
+      $('cubeTag').hidden = !sm;
+      paintNet(sm ? sm.net : s.cube);
+      const idle = !s.timer || s.timer.phase === 'idle';
+      const f = sm && idle && sm.scr ? sm.scr : null;
+      [...sc.children].forEach((el, k) => {
+        const on = f && !f.lost;
+        el.classList.toggle('done', !!on && k < f.done);
+        el.classList.toggle('next', !!on && !f.undo && k === f.done);
+        el.classList.toggle('half', !!on && !f.undo && k === f.done && f.half);
+      });
+      let hint = '';
+      let tone = '';
+      if (f) {
+        if (f.lost) { hint = 'Resolviendo el cubo para mezclarlo…'; }
+        else if (f.undo) { hint = `Deshaciendo un giro: <b>${f.undo}</b>`; tone = 'bad'; }
+        else if (f.done >= f.n) { hint = '✓ Cubo mezclado'; tone = 'ok'; }
+      }
+      const sh = $('scrHint');
+      sh.hidden = !hint;
+      sh.className = `scrhint ${tone}`;
+      if (sh.dataset.h !== hint) { sh.dataset.h = hint; sh.innerHTML = hint; }
     }
 
     // Today's numbers
@@ -447,6 +496,27 @@ body.no-net .net { display: none; }
     return { e: (e || '').trim(), c: (c || '').trim() };
   };
 
+  // Smart cube: while executing, the turns and each letter as it is done; afterwards, the letters and
+  // whether the cube confirmed it (or where a DNF went wrong).
+  const esc = (x) => String(x).replace(/[&<>"']/g, (c) => '&#' + c.charCodeAt(0) + ';');
+  function setLive(phase) {
+    const box = $('liveLine');
+    const lv = S && S.smart && S.smart.live;
+    let html = '';
+    if (lv && lv.cur && (phase === 'exec' || phase === 'done')) {
+      html = (lv.letters ? `<div class=mrow><span class=ml>Letras</span><code>${esc(lv.letters)}</code></div>` : '')
+        + `<div class=lmoves><span class=n>${lv.n} giros</span>`
+        + lv.moves.map((m, i) => (i === lv.moves.length - 1 ? `<b>${esc(m)}</b>` : `<span>${esc(m)}</span>`)).join('') + '</div>';
+    } else if (lv && !lv.cur && phase === 'idle' && S.last && lv.at === S.last.at && Date.now() - S.last.at < 30 * 60 * 1000) {
+      html = (lv.letters ? `<div class=mrow><span class=ml>Letras</span><code>${esc(lv.letters)}</code></div>` : '')
+        + (S.last.ok && lv.checked ? '<div class="lnote ok">✓ Lo ha comprobado el cubo</div>' : '')
+        + (!S.last.ok && lv.why ? `<div class="lnote dnf">${esc(lv.why)}</div>` : '');
+    }
+    box.hidden = !html;
+    stage.toggleAttribute('data-live', !!html);
+    if (box.dataset.h !== html) { box.dataset.h = html; box.innerHTML = html; }
+  }
+
   function paintClock() {
     if (!S) return;
     const now = Date.now();
@@ -484,6 +554,7 @@ body.no-net .net { display: none; }
     text($('sMemo'), fmt(memo));
     text($('sExec'), fmt(exec));
     setMemo(showMemo);
+    setLive(t.phase);
     $('live').classList.toggle('on', DEMO || now - liveAt < 12000);
   }
   function frame() { paintClock(); requestAnimationFrame(frame); }

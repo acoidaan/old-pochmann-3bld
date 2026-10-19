@@ -389,6 +389,7 @@
       if (isSolved(cube.state)) {
         attempt.auto = true;
         attempt.running = false;
+        celebrate();
         O.clock.press();
         O.clock.mark(true);
         // Blindfolded, you will still hit the timer to stop it: that press must not start a new attempt.
@@ -410,6 +411,7 @@
   }
   document.addEventListener('op3:timer', (ev) => {
     const d = ev.detail || {};
+    if (d.phase === 'memo') unlockAudio();
     if (d.phase === 'memo' && !attempt && cube.status === 'on' && cube.state) {
       const scrState = (() => { try { return norm(apply(solved(), d.scramble || '')); } catch (e) { return null; } })();
       attempt = { running: true, scramble: d.scramble || '', scrState, start: cube.state, states: [cube.state], moves: [], gap: false };
@@ -420,7 +422,9 @@
     } else if (d.phase === 'idle' && d.cancelled) {
       attempt = null;
       setAsk(null);
-    } else if (d.phase === 'done' && attempt && attempt.running) {
+    }
+    // The scramble follower slept during the attempt: find where the cube is now.
+    if (d.phase === 'idle' && cube.state && !locate()) { follow.lost = true; follow.off = []; } else if (d.phase === 'done' && attempt && attempt.running) {
       attempt.running = false;
       if (attempt.moves.length && cube.status === 'on') startCheck();
     }
@@ -438,12 +442,70 @@
     clearTimeout(attempt.timer);
     attempt.checking = false;
     if (O.clock.phase() !== 'done') return;   // already marked by hand
-    if (ok) { O.clock.mark(true); return; }
+    if (ok) { attempt.auto = true; celebrate(); O.clock.mark(true); return; }
     setAsk('El cubo no está resuelto. ¿Es DNF?');
     try { $('markDnf').focus(); } catch (e) { /* hidden */ }
     attempt.cubeSaysDnf = true;
     showReport(attempt, null);
   }
+  // ================= Sound and vibration when the cube confirms it is solved =================
+  const FX_KEY = 'op3bld:cube-fx:v1';
+  const fx = (() => {
+    try { return { sound: true, vibrate: true, ...JSON.parse(localStorage.getItem(FX_KEY)) }; } catch (e) { return { sound: true, vibrate: true }; }
+  })();
+  // Desktop Chrome has vibrate() too, but nothing to shake: only offer it on touch screens.
+  const canVibrate = typeof navigator.vibrate === 'function' && !!window.matchMedia && matchMedia('(pointer: coarse)').matches;
+  let audio = null;
+  // Browsers only let a page make sound after a tap or a key: start the audio on the press that starts the memo.
+  function unlockAudio() {
+    if (!fx.sound) return;
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      if (!audio) audio = new AC();
+      if (audio.state === 'suspended') audio.resume().catch(() => {});
+    } catch (e) { audio = null; }
+  }
+  // Three rising notes (C6 E6 G6), synthesised: nothing to download, works offline.
+  function chime() {
+    if (!fx.sound || !audio) return;
+    try {
+      const t0 = audio.currentTime + 0.02;
+      [[1047, 0], [1319, 0.1], [1568, 0.2]].forEach(([f, d]) => {
+        const o = audio.createOscillator();
+        const g = audio.createGain();
+        o.type = 'sine';
+        o.frequency.value = f;
+        g.gain.setValueAtTime(0.0001, t0 + d);
+        g.gain.exponentialRampToValueAtTime(0.3, t0 + d + 0.015);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + d + (d > 0.15 ? 0.9 : 0.45));
+        o.connect(g).connect(audio.destination);
+        o.start(t0 + d);
+        o.stop(t0 + d + 1);
+      });
+      fxLog.push('chime');
+    } catch (e) { /* no sound */ }
+  }
+  function buzz() {
+    if (!fx.vibrate || !canVibrate) return;
+    try { navigator.vibrate([80, 60, 180]); fxLog.push('vibrate'); } catch (e) { /* no vibration */ }
+  }
+  const fxLog = [];   // what was played, for tests
+  function celebrate() { chime(); buzz(); }
+  function renderFx() {
+    $('fxSound').setAttribute('aria-pressed', String(fx.sound));
+    $('fxVibrate').setAttribute('aria-pressed', String(fx.vibrate));
+    $('fxVibrate').hidden = !canVibrate;
+    $('fxNote').textContent = canVibrate
+      ? 'Suenan tres notas y el móvil vibra en cuanto el cubo queda resuelto.'
+      : 'Suenan tres notas en cuanto el cubo queda resuelto. Este navegador no puede vibrar (en iPhone ninguno puede); y en iPhone, con el modo silencio puesto, tampoco suena.';
+  }
+  const saveFx = () => { try { localStorage.setItem(FX_KEY, JSON.stringify(fx)); } catch (e) { /* this visit only */ } };
+  $('fxSound').addEventListener('click', () => { fx.sound = !fx.sound; saveFx(); renderFx(); });
+  $('fxVibrate').addEventListener('click', () => { fx.vibrate = !fx.vibrate; saveFx(); renderFx(); });
+  $('fxTry').addEventListener('click', () => { unlockAudio(); celebrate(); });
+  renderFx();
+
   function setAsk(text) { $('verdictAsk').textContent = text || '¿Lo has resuelto?'; }
   O.resultExtra = () => (attempt && attempt.moves.length ? { cube: { moves: attempt.moves.length } } : {});
   document.addEventListener('op3:result', (ev) => {
@@ -453,6 +515,7 @@
     attempt = null;
     last.ok = !!(ev.detail && ev.detail.ok);
     last.exec = ev.detail ? ev.detail.exec : 0;
+    last.at = ev.detail ? ev.detail.at : Date.now();
     showReport(last, last.ok);
     if (last.auto && last.ok) $('clockPhase').textContent = 'Resuelto · lo ha comprobado el cubo';
   });
@@ -658,6 +721,8 @@
     const secs = (a.exec || 0) / 1000;
     const pace = moves && secs > 0 ? ` · ${(moves / secs).toLocaleString('es-ES', { maximumFractionDigits: 1 })} por segundo` : '';
     const head = r.ok ? r.main : `<b>DNF.</b> ${r.main}`;
+    if (r.ok) a.why = '';
+    else { const d = document.createElement('div'); d.innerHTML = r.main; a.why = d.textContent; }   // plain text for the stream overlay
     box.className = `result cube-report ${r.ok ? 'ok' : 'ko'}`;
     box.innerHTML = `<p>${head}</p>`
       + `<p class=sub>${moves} giros en la ejecución${savedOk == null ? '' : pace}.</p>`
@@ -666,6 +731,34 @@
   }
   // Typed the memo afterwards: look again when coming back.
   O.onView('crono', () => { if (last && !last.ok && !attempt) showReport(last, last.ok); });
+
+  // ================= For the stream overlay =================
+  // The live cube, how far the scramble is, and the turns and letters of the attempt (or the last one).
+  function overlayState() {
+    const a = attempt || last;
+    const on = cube.status === 'on' && !!cube.state;
+    if (!on && !(a && a.live)) return null;
+    const out = {};
+    if (on) {
+      out.name = cube.hw || cube.name;
+      out.bat = cube.battery;
+      out.net = ['U', 'L', 'F', 'R', 'B', 'D'].map((f) => {
+        const base = 9 * O.FACE_ORDER.indexOf(f);
+        return cube.state.slice(base, base + 9).map(faceOfSticker).join('');
+      }).join('');
+      out.scr = follow.moves.length
+        ? { n: follow.moves.length, done: follow.prog, half: follow.halfway, undo: follow.off.length ? undoText() : '', lost: follow.lost }
+        : null;
+    }
+    if (a && a.live && a.moves.length) {
+      out.live = {
+        cur: a === attempt, at: a.at || null, n: a.moves.length, letters: lettersLine(a.live.done),
+        moves: simplify(a.moves.slice(-30)).map(moveText).slice(-10),
+        checked: !!a.auto, why: a.why || '',
+      };
+    }
+    return out;
+  }
 
   // ================= Drawing =================
   const netCells = O.buildNet($('cubeNet'));
@@ -711,6 +804,7 @@
     // Competition mode: the turns and letters at the bottom, kept after the attempt until the next one.
     $('focusMoves').innerHTML = liveHtml(attempt || last);
     O.refreshFocus();
+    document.dispatchEvent(new CustomEvent('op3:cube'));
   }
   document.addEventListener('op3:scramble', () => { if (cube.status === 'on') render(); });
 
@@ -831,8 +925,8 @@
   });
 
   // ================= Buttons =================
-  $('cubeConnect').addEventListener('click', connectGan);
-  $('cubeSim').addEventListener('click', () => { say(''); attach(simLink(), 'sim'); });
+  $('cubeConnect').addEventListener('click', () => { unlockAudio(); connectGan(); });
+  $('cubeSim').addEventListener('click', () => { unlockAudio(); say(''); attach(simLink(), 'sim'); });
   $('cubeOff').addEventListener('click', () => {
     if (macWaiting) macWaiting();
     detach();
@@ -853,11 +947,13 @@
   renderBar();
 
   O.cube = {
+    overlay: overlayState,
     attach, detach, connectGan, simLink, simSolve, simSolution, simMemo, flawed, fromFacelets, toFacelets, norm, facePath,
     get state() { return cube.state; },
     get status() { return cube.status; },
     get link() { return cube.link; },
     get last() { return last; },
+    fxLog,
     analyze,
   };
 })();

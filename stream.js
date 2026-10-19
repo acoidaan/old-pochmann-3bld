@@ -116,6 +116,7 @@
       v: 1, at: Date.now(), src: SRC, act,
       name: String(readJson('op3bld:name:v1', '') || '').slice(0, 24),
       reto, scr, moves: c.moves, cube: c.cube, timer, last: lastOut,
+      smart: OP.cube && OP.cube.overlay ? OP.cube.overlay() : null,
       memo: timer.phase !== 'idle' ? checkedMemo(scr) : null,
       today: {
         n: today.length, ok: okToday.length, streak,
@@ -151,6 +152,14 @@
   document.addEventListener('op3:result', soon);
   document.addEventListener('op3:scramble', soon);
   document.addEventListener('op3:changed', soon);
+  // Smart cube turns come many per second: send at most every 150 ms, and always the last one.
+  let cubeT = 0;
+  let cubeAt = 0;
+  document.addEventListener('op3:cube', () => {
+    const wait = 150 - (Date.now() - cubeAt);
+    if (wait <= 0) { cubeAt = Date.now(); push(); return; }
+    if (!cubeT) cubeT = setTimeout(() => { cubeT = 0; cubeAt = Date.now(); push(); }, wait);
+  });
   // Name fields (Retos / Ajustes) save on change; the overlay shows that name.
   document.addEventListener('change', (e) => { if (e.target && e.target.matches && e.target.matches('[data-name-input]')) soon(); });
 
