@@ -101,6 +101,30 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     check(L + 'overlay: cube off → no «en directo», no progress marks', !s.tag && s.done === 0 && !s.next, JSON.stringify({ tag: s.tag, done: s.done }));
     await ctx.close();
   }
+  // «Ver con datos de ejemplo»: the example shows the smart cube too, with the turns coming in.
+  {
+    const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+    await ctx.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
+    const ov = await ctx.newPage();
+    ov.on('pageerror', (e) => errs.push('demo: ' + e.message));
+    await ov.goto(`${SITE}/overlay.html?demo=1`);
+    const live = () => ov.evaluate(() => (document.getElementById('liveLine').hidden ? '' : document.getElementById('liveLine').innerText));
+    await ov.waitForFunction(() => /Ejecutando/i.test(document.getElementById('phase').textContent), null, { timeout: 6000 });
+    await wait(1500);
+    const a = await live();
+    await wait(2500);
+    const b = await live();
+    const n = (x) => Number((x.match(/(\d+) giros/) || [])[1] || 0);
+    check('demo: turns come in during the execution', n(a) > 31 && n(b) > n(a), `${n(a)} → ${n(b)}`);
+    check('demo: «cubo en directo» on the scramble', await ov.evaluate(() => !document.getElementById('cubeTag').hidden));
+    await ov.screenshot({ path: `${SHOTS}/overlay-demo-exec.png` });
+    await ov.waitForFunction(() => document.getElementById('phase').textContent.trim() === 'Resuelto', null, { timeout: 15000 });
+    check('demo: the result says the cube checked it', /Lo ha comprobado el cubo/i.test(await live()), await live());
+    const marks = await ov.evaluate(() => [document.querySelectorAll('#scrText .mv.done').length, document.querySelectorAll('#scrText .mv.next').length]);
+    check('demo: the next scramble half done', marks[0] === 7 && marks[1] === 1, JSON.stringify(marks));
+    await ctx.close();
+  }
+
   console.log(results.join('\n'));
   console.log('page errors:', errs.length ? errs : 'none');
   console.log(`${results.filter((r) => r.startsWith('FAIL')).length} failed of ${results.length}`);

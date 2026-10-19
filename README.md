@@ -289,14 +289,14 @@ Hace falta Node 18 o superior. No hay que instalar nada para la app en sí.
 node build.js                    # genera public/
 cd tests && npm install
 node server.js                   # sirve public/ con una API falsa en http://localhost:8793
-npm test                         # todas las pruebas (unas 245 comprobaciones)
+npm test                         # todas las pruebas (unas 250 comprobaciones)
 ```
 
 `tests/server.js` imita la API, así que retos y sincronización funcionan en local sin Vercel ni Blob. Con `vercel dev` se prueba la API de verdad.
 
 **Despliegue.** Cada push a `main` se despliega solo en Vercel: instala `package.json` (`@vercel/blob`, `@vercel/og`, `cubejs`), ejecuta `node build.js` y publica `public/` y `api/`. Hace falta un almacén de Vercel Blob conectado al proyecto (variable `BLOB_READ_WRITE_TOKEN`); sin él, la app funciona igual pero sin retos ni sincronización. `vercel.json` sirve `cubejs` desde jsDelivr en el mismo dominio (para el generador sin conexión), traduce `/r/:id` a `/api/r` y fija las cabeceras de caché de `sw.js` y `vendor/`.
 
-**Pruebas.** Diez suites en Chromium con Playwright y tres auditorías con axe-core; ver [tests/README.md](tests/README.md).
+**Pruebas.** Diez suites en Chromium con Playwright (unas 250 comprobaciones) y tres auditorías con axe-core; ver [tests/README.md](tests/README.md).
 
 ## Créditos y licencias
 

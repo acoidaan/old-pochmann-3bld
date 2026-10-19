@@ -640,23 +640,52 @@ body.no-net .net { display: none; }
       memo: { e: 'HN DX FK OW AJ CP', c: 'TL MJ XB FS' },
       timer: { phase: 'idle' },
     };
+    // A smart cube in the example too: the live cube, the scramble half done, and an execution whose
+    // turns and letters come in one by one.
+    base.smart = { name: 'GAN356 i3', bat: 84, net: base.cube, scr: { n: 20, done: 7, half: false, undo: '', lost: false } };
+    const LETTERS = 'HNDXFKOWAJCP'.split('');
+    const T = "R U R' U' R' F R2 U' R' U' R U R' F'".split(' ');
+    const SETUPS = [['D', 'L'], ['F', 'L', 'U'], ['L2'], ['D2', 'L2'], ['R', 'U'], ['L']];
+    const MOVES = [];
+    SETUPS.forEach((st) => { MOVES.push(...st, ...T, ...st.slice().reverse().map((m) => (m.endsWith('2') ? m : m.endsWith("'") ? m[0] : `${m}'`))); });
+    const pairs = (arr) => arr.join('').replace(/(..)/g, '$1 ').trim();
+    const liveAt = (k) => {
+      const done = [];
+      let n = 0;
+      for (const st of SETUPS) { n += 2 * st.length + T.length; if (n <= k) done.push(LETTERS[done.length]); }
+      return { cur: true, at: null, n: 31 + k, letters: pairs(done), moves: MOVES.slice(Math.max(0, k - 10), k), checked: false, why: '' };
+    };
     const pick = q.get('phase');
     const at = (phase) => {
       const s = JSON.parse(JSON.stringify(base));
       const now = Date.now();
       s.at = now;
       if (phase === 'memo') s.timer = { phase, t0: now - 41870 };
-      if (phase === 'exec') s.timer = { phase, t0: now - 103400, t1: now - 58200 };
-      if (phase === 'done') s.timer = { phase, t0: now - 160000, t1: now - 99000, t2: now - 2000 };
+      if (phase === 'exec') { s.timer = { phase, t0: now - 103400, t1: now - 58200 }; s.smart.live = liveAt(40); }
+      if (phase === 'done') { s.timer = { phase, t0: now - 160000, t1: now - 99000, t2: now - 2000 }; s.smart.live = liveAt(MOVES.length); }
       if (phase === 'pb') { s.last = { ok: true, memo: 52300, exec: 91050, at: now, mem: 'HN DX FK OW AJ CP · TL MJ XB FS', pb: true }; s.record = 143350; }
+      if (phase === 'idle' || phase === 'pb') {
+        s.smart.live = { cur: false, at: s.last.at, n: 186, letters: 'HN DX FK OW AJ CP · paridad · TL MJ XB FS', moves: [], checked: true, why: '' };
+      }
       return s;
     };
     if (pick) receive(at(pick), true);
     else {
-      const loop = ['memo', 'exec', 'done', 'idle'];
+      // memo 3 s → execution 8 s with the turns arriving → «¿Resuelto?» 3 s → the result 4 s.
+      const loop = [['memo', 3000], ['exec', 8000], ['done', 3000], ['idle', 4000]];
       let i = 0;
-      receive(at(loop[0]), true);
-      setInterval(() => { i = (i + 1) % loop.length; receive(at(loop[i]), true); }, 4000);
+      let tick = 0;
+      const show = () => {
+        clearInterval(tick);
+        const [phase, ms] = loop[i];
+        receive(at(phase), true);
+        if (phase === 'exec') {
+          let k = 0;
+          tick = setInterval(() => { k = Math.min(MOVES.length, k + 1); S.smart.live = liveAt(k); }, Math.floor(ms / MOVES.length));
+        }
+        setTimeout(() => { i = (i + 1) % loop.length; show(); }, ms);
+      };
+      show();
     }
   }
 })();
