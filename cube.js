@@ -95,7 +95,10 @@
       return 'En iPhone y iPad ningún navegador tiene Bluetooth web, tampoco Safari. Ahí solo funciona con la app Bluefy; si no, usa el ordenador o un Android.';
     }
     if (/Firefox\//.test(ua)) {
-      return 'Firefox y los navegadores basados en él (como Zen) no tienen Bluetooth web. Abre la app en Chrome o Edge, en el ordenador o en Android.';
+      return 'Firefox y los navegadores basados en él (como Zen) no traen Bluetooth web. Se lo añade la extensión '
+        + '<a href="https://addons.mozilla.org/firefox/addon/webbt/" target="_blank" rel="noopener">WebBT</a> junto con su programa '
+        + '<a href="https://github.com/stevennyman/webbt/releases/latest" target="_blank" rel="noopener">WebBT Server</a> '
+        + '(instala los dos y recarga la página). Si da problemas, usa Chrome o Edge.';
     }
     return 'Este navegador no tiene Bluetooth web. Abre la app en Chrome o Edge, en el ordenador o en Android.';
   }
@@ -196,12 +199,9 @@
   async function connectGan() {
     say('');
     if (!navigator.bluetooth || !navigator.bluetooth.requestDevice) { say(noBluetoothText(), 'ko'); return; }
-    try {
-      if (navigator.bluetooth.getAvailability && !(await navigator.bluetooth.getAvailability())) {
-        say('El Bluetooth está apagado (o este equipo no tiene). Enciéndelo y vuelve a probar.', 'ko');
-        return;
-      }
-    } catch (e) { /* unknown: try anyway */ }
+    // Only used to explain a failure: some add-ons (WebBT in Firefox) answer it wrongly.
+    let available = null;
+    try { if (navigator.bluetooth.getAvailability) available = await navigator.bluetooth.getAvailability(); } catch (e) { /* unknown */ }
     let lib;
     try { lib = await loadLib(); } catch (e) {
       say('No he podido cargar el código del cubo. Comprueba la conexión a internet y vuelve a probar.', 'ko');
@@ -219,7 +219,8 @@
       const msg = String((e && e.message) || e);
       const name = e && e.name;
       if (name === 'NotFoundError' && /cancel/i.test(msg)) return;   // closed the chooser
-      if (name === 'NotFoundError') say('No he encontrado ningún cubo. Gíralo un poco para despertarlo, acércalo y vuelve a probar.', 'ko');
+      if (/adapter/i.test(msg) || (available === false && name === 'NotFoundError')) say('El Bluetooth está apagado (o este equipo no tiene). Enciéndelo y vuelve a probar.', 'ko');
+      else if (name === 'NotFoundError') say('No he encontrado ningún cubo. Gíralo un poco para despertarlo, acércalo y vuelve a probar.', 'ko');
       else if (name === 'SecurityError' || name === 'NotAllowedError') say('El navegador no deja usar Bluetooth en esta página. Abre la app directamente en old-pochmann-3bld.vercel.app con Chrome o Edge.', 'ko');
       else if (/MAC address/i.test(msg)) say('Sin la dirección del cubo no puedo conectarlo. Cuando la tengas, vuelve a pulsar «Conectar cubo».', 'ko');
       else if (/services|unsupported/i.test(msg)) say('Ese cubo no es un GAN compatible (o este modelo todavía no está soportado).', 'ko');
