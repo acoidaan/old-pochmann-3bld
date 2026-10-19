@@ -382,6 +382,23 @@ body.focus[data-timer="idle"] .focus-moves { bottom: calc(max(16px, env(safe-are
 /* While timing, nothing but the time. */
 body.focus:not([data-timer="idle"]) .focus-top,
 body.focus:not([data-timer="idle"]) .focus-bottom { visibility: hidden; }
+/* Smart cube: setup trainer and guided execution */
+.tr-how { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.tr-cubeline { display: grid; gap: 8px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--raise); }
+.tr-steps { display: flex; flex-wrap: wrap; gap: 8px; }
+.tr-step { font-size: 13px; font-weight: 700; padding: 4px 12px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+.tr-step.cur { border-color: var(--accent); color: var(--accent); }
+.tr-step.done { border-color: var(--ok); color: var(--ok); }
+.tr-cubeline .cube-hint { margin: 0; }
+.tr-cubeline .btn { justify-self: start; }
+#trForm.cube #trInput { display: none; }
+#trForm.cube.ask #trSubmit { display: none; }
+.guide-cube { margin: 0; text-align: center; font-size: 16px; font-weight: 700; color: var(--muted); min-height: 1.5em; }
+.guide-cube.ok { color: var(--ok); }
+.guide-cube.bad { color: var(--accent); font-size: clamp(18px, 4vw, 24px); }
+.guide-cube b { font-family: var(--font-mono); }
+.guide-seq .sm.done { opacity: .35; }
+
 /* Smart cube */
 .cube-bar {
   display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 14px;

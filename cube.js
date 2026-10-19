@@ -401,6 +401,8 @@
       if (isSolved(cube.state)) finishCheck(true);
     } else if (ph === 'idle') {
       followMove(m.text);
+      if (trActive()) trMove(m.text);
+      if (guideActive()) guideMove(m.text);
     }
     render();
   }
@@ -732,6 +734,253 @@
   // Typed the memo afterwards: look again when coming back.
   O.onView('crono', () => { if (last && !last.ok && !attempt) showReport(last, last.ok); });
 
+  // ================= Following a known sequence of turns =================
+  // From a starting state: the states after each turn of a sequence (and halfway through half turns, either
+  // way round). The setup trainer and the guided execution follow the cube along one of these.
+  function makePath(start, algs) {
+    const at = new Map();
+    const half = new Map();
+    const add = (m, k, p) => { if (!m.has(k)) m.set(k, []); m.get(k).push(p); };
+    let s = start;
+    let p = 0;
+    add(at, key(norm(s)), 0);
+    const segEnd = [];
+    const moves = [];
+    const spat = [s];   // as held in the hands, wide turns included
+    algs.forEach((alg) => {
+      for (const m of parseAlg(alg)) {
+        if (m.turns === 2) [m.base, `${m.base}'`].forEach((q) => add(half, key(norm(apply(s, q))), p));
+        s = apply(s, m.text);
+        p++;
+        moves.push(m.text);
+        spat.push(s);
+        add(at, key(norm(s)), p);
+      }
+      segEnd.push(p);
+    });
+    return { at, half, segEnd, moves, spat, total: p, end: key(norm(s)), pos: 0, halfway: false, off: [], lost: false };
+  }
+  // Where the cube is on the path. A path can pass the same state twice (a turn and its inverse back to
+  // back, like the end of one letter and the start of the next): take the furthest of the spots near
+  // where it was, as both mean the same cube.
+  function pathLocate(P, st) {
+    const k = key(st);
+    const pick = (list) => {
+      const d = Math.min(...list.map((x) => Math.abs(x - P.pos)));
+      return Math.max(...list.filter((x) => Math.abs(x - P.pos) <= d + 2));
+    };
+    if (P.at.has(k)) { P.pos = pick(P.at.get(k)); P.halfway = false; }
+    else if (P.half.has(k)) { P.pos = pick(P.half.get(k)); P.halfway = true; }
+    else return false;
+    P.off = [];
+    P.lost = false;
+    return true;
+  }
+  function pathMove(P, mv, st) {
+    if (pathLocate(P, st) || P.lost) return;
+    P.off = simplify([...P.off.map(moveText), mv]);
+    if (P.off.length > 8) P.lost = true;
+  }
+  // The turns to undo, named as the cube is held at that point: after a wide turn (l, d) the cube sits
+  // rotated in the hands, so the face the core calls F may be the one on the bottom.
+  function undoFor(P) {
+    const sp = P.spat[Math.min(P.pos, P.spat.length - 1)];
+    const here = norm(sp);
+    return P.off.slice().reverse().map((m) => {
+      const core = moveText({ base: m.base, turns: (4 - m.turns) % 4 });
+      const want = key(apply(here, core));
+      return FACE_MOVES.find((x) => key(norm(apply(sp, x))) === want) || core;
+    }).join(' ');
+  }
+  const segOf = (P, pos) => { for (let i = 0; i < P.segEnd.length; i++) if (pos < P.segEnd[i]) return i; return P.segEnd.length; };
+  const f1 = (x) => x.toFixed(1).replace('.', ',');
+
+  // ================= Setup trainer on the cube =================
+  // A letter is asked; you do setup, algorithm and undo on the real cube, from wherever it is. It is right
+  // when the cube ends exactly where that letter leaves it; doing another letter cleanly is caught too.
+  const TR_KEY = 'op3bld:train-cube:v1';
+  let trUseCube = (() => { try { return localStorage.getItem(TR_KEY) !== 'type'; } catch (e) { return true; } })();
+  const tr = { path: null, letter: null, kind: null, t0: 0, first: 0, clean: true, others: null, setup: '', algName: '', descSaved: null, descSet: null, descFor: null };
+  const trActive = () => cube.status === 'on' && !!cube.state && trUseCube && O.currentView() === 'entrenar';
+  function trStart() {
+    const s = O.trainer.state();
+    tr.path = null;
+    if (!cube.state || !s.letter) return;
+    const mode = MODES[s.kind];
+    const setup = mode.table[s.letter] || '';
+    tr.kind = s.kind; tr.letter = s.letter; tr.t0 = s.t0; tr.first = 0; tr.clean = true;
+    tr.setup = setup; tr.algName = ALGS[mode.alg].name;
+    tr.path = makePath(cube.state, setup ? [setup, ALGS[mode.alg].moves, invertAlg(setup)] : [ALGS[mode.alg].moves]);
+    tr.others = new Map();
+    O.trainLetters(s.kind).forEach((L) => { if (L !== s.letter) tr.others.set(key(apply(cube.state, O.tokenAlg({ kind: s.kind, L }))), L); });
+  }
+  function trMove(mv) {
+    const P = tr.path;
+    if (!P) return;
+    if (!tr.first) tr.first = performance.now();
+    pathMove(P, mv, cube.state);
+    if (P.off.length || P.lost) tr.clean = false;
+    const k = key(cube.state);
+    if (k === P.end) trFinish(true);
+    else if (tr.others.has(k)) trFinish(false, tr.others.get(k));
+  }
+  function trFinish(ok, other) {
+    const now = performance.now();
+    const secs = (now - tr.t0) / 1000;
+    const think = tr.first ? (tr.first - tr.t0) / 1000 : secs;
+    const exec = tr.first ? (now - tr.first) / 1000 : 0;
+    const L = tr.letter;
+    let html;
+    if (ok && tr.clean) html = `✓ ${L} en ${f1(secs)} s (pensar ${f1(think)} · ejecutar ${f1(exec)}).`;
+    else if (ok) html = `${L}: acabada, pero corrigiendo por el camino (${f1(secs)} s). Te saldrá más a menudo.`;
+    else html = `✗ Has hecho la ${other}, no la ${L}. La ${L} es <code>${esc(tr.setup || 'sin setup')}</code>.`;
+    if (O.trainer.state().phase === 'ask') O.trainer.cubeAnswer({ ok, clean: tr.clean }, secs, html);
+    O.trainer.next(true);   // the next letter, from wherever the cube is now
+  }
+  function trRestart() { trStart(); renderTrain(); }
+  function renderTrain() {
+    const connected = cube.status === 'on' && !!cube.state;
+    $('trHow').hidden = !connected;
+    $('trHowType').setAttribute('aria-pressed', String(!trUseCube));
+    $('trHowCube').setAttribute('aria-pressed', String(trUseCube));
+    const on = trActive();
+    const form = $('trForm');
+    form.classList.toggle('cube', on);
+    form.classList.toggle('ask', on && O.trainer.state().phase === 'ask');
+    const line = $('trCubeLine');
+    line.hidden = !on;
+    // The card's text says how to answer: swap it while answering on the cube, put it back after.
+    const desc = $('trDesc');
+    if (!on) {
+      if (tr.descSet != null && desc.innerHTML === tr.descSet) desc.innerHTML = tr.descSaved;
+      tr.descSet = null;
+      return;
+    }
+    if (tr.letter) {
+      const want = `Hazla en el cubo: el setup que lleva ${tr.letter} a <b>${MODES[tr.kind].swap}</b>, la ${tr.algName} y deshacer el setup.`;
+      if (desc.innerHTML !== tr.descSet || tr.descFor !== want) {
+        if (desc.innerHTML !== tr.descSet) tr.descSaved = desc.innerHTML;
+        desc.innerHTML = want;
+        tr.descSet = desc.innerHTML;
+        tr.descFor = want;
+      }
+    }
+    const stats = $('trStats');
+    if (/^Escribe el setup/.test(stats.textContent)) stats.textContent = 'Haz cada letra en el cubo tal como esté, no hace falta que esté resuelto. Si te equivocas, deshaz o empieza la letra desde ahí.';
+    const P = tr.path;
+    if (!P) { line.innerHTML = ''; return; }
+    const segs = tr.setup ? ['Setup', tr.algName, 'Deshacer'] : [tr.algName];
+    const cur = segOf(P, P.pos);
+    const chips = segs.map((name, i) => {
+      const from = i ? P.segEnd[i - 1] : 0;
+      const n = P.segEnd[i] - from;
+      const cls = i < cur ? 'done' : i === cur && P.pos > from ? 'cur' : '';
+      const count = i === cur && P.pos > from ? ` ${P.pos - from}/${n}` : '';
+      return `<span class="tr-step ${cls}">${i < cur ? '✓ ' : ''}${name}${count}</span>`;
+    }).join('');
+    let hint = '';
+    let tone = '';
+    if (P.lost) { hint = 'Te has perdido. Empieza la letra desde como está el cubo ahora.'; tone = 'bad'; }
+    else if (P.off.length) { hint = `Ese giro no toca. Deshaz: <b>${undoFor(P)}</b>`; tone = 'bad'; }
+    else if (!P.pos) hint = 'Cuando quieras: el tiempo cuenta desde que sale la letra.';
+    line.innerHTML = `<div class="tr-steps">${chips}</div>`
+      + (hint ? `<p class="cube-hint ${tone}">${hint}</p>` : '')
+      + (P.off.length || P.lost ? '<button class="btn" type="button" data-tr-restart>Empezar la letra desde aquí</button>' : '');
+  }
+  $('trCubeLine').addEventListener('click', (ev) => { if (ev.target.closest('[data-tr-restart]')) { tr.clean = false; const keep = tr.t0; trStart(); tr.t0 = keep; tr.clean = false; renderTrain(); } });
+  function trSync() {
+    if (trActive()) {
+      const s = O.trainer.state();
+      if (!tr.path || tr.letter !== s.letter || tr.t0 !== s.t0) trStart();
+    } else tr.path = null;
+    renderTrain();
+  }
+  document.addEventListener('op3:train', trSync);
+  O.onView('entrenar', trSync);
+  const setHow = (useCube) => {
+    trUseCube = useCube;
+    try { localStorage.setItem(TR_KEY, useCube ? 'cube' : 'type'); } catch (e) { /* this visit only */ }
+    tr.path = null;
+    trSync();
+  };
+  $('trHowType').addEventListener('click', () => setHow(false));
+  $('trHowCube').addEventListener('click', () => setHow(true));
+
+  // ================= Guided execution on the cube =================
+  // With «Ejecución guiada» open, the steps move on by themselves as you turn the real cube, from the
+  // scramble to solved; a wrong turn is caught at once.
+  const gd = { path: null, cheered: false };
+  const guideActive = () => cube.status === 'on' && !!cube.state && O.guideApi.open();
+  function guideStart() {
+    gd.path = null;
+    gd.cheered = false;
+    const start = O.guideApi.start();
+    if (!guideActive() || !start) { renderGuideCube(); return; }
+    const steps = O.guideApi.steps().filter((s) => !s.end);
+    gd.path = makePath(start, steps.map((s) => (s.isAlg ? s.seq : s.move)));
+    // Start the search from the step on screen, then go wherever the cube really is.
+    const i = O.guideApi.index();
+    gd.path.pos = i ? gd.path.segEnd[i - 1] || 0 : 0;
+    // A solved cube is the end of the path too, but on opening it means «not scrambled yet».
+    const fresh = isSolved(cube.state) && !isSolved(norm(start));
+    if (fresh || !pathLocate(gd.path, cube.state)) gd.path.lost = true;
+    guideShow();
+  }
+  function guideMove(mv) {
+    if (!gd.path) return;
+    pathMove(gd.path, mv, cube.state);
+    guideShow();
+  }
+  function guideShow() {
+    const P = gd.path;
+    if (P && !P.lost && !P.off.length) {
+      const step = segOf(P, P.pos);
+      if (step !== O.guideApi.index()) O.guideApi.go(step);
+      if (P.pos >= P.total && isSolved(cube.state) && !gd.cheered) { gd.cheered = true; celebrate(); }
+    }
+    renderGuideCube();
+  }
+  function renderGuideCube() {
+    const el = $('guideCube');
+    const P = gd.path;
+    el.hidden = !guideActive();
+    if (el.hidden) return;
+    let html = '';
+    let tone = '';
+    if (!P || P.lost) {
+      const v = followView();
+      if (v && !follow.lost && follow.prog < follow.moves.length) {
+        html = follow.off.length
+          ? `Primero mezcla el cubo. Ese giro no toca, deshaz: <b>${undoText()}</b>`
+          : `Primero mezcla el cubo con el scramble: giro ${follow.prog + 1} de ${follow.moves.length}, <b>${follow.moves[follow.prog].text}</b>${follow.halfway ? ' (falta la otra mitad)' : ''}`;
+        tone = follow.off.length ? 'bad' : '';
+      } else {
+        html = 'Tu cubo no está en ningún punto de esta resolución. Resuélvelo y mézclalo con el scramble de «Practicar».';
+        tone = 'bad';
+      }
+    } else if (P.off.length) {
+      html = `Ese giro no toca. Deshaz: <b>${undoFor(P)}</b>`;
+      tone = 'bad';
+    } else if (P.pos >= P.total) {
+      html = isSolved(cube.state) ? '✓ Resuelto, y lo ha comprobado el cubo' : 'Has hecho todo el memo, pero el cubo no queda resuelto: el memo tiene algún error.';
+      tone = isSolved(cube.state) ? 'ok' : 'bad';
+    } else {
+      // Inside a whole algorithm: how far, and the turns already done dimmed.
+      const step = segOf(P, P.pos);
+      const from = step ? P.segEnd[step - 1] : 0;
+      const s = O.guideApi.steps()[step];
+      if (s && s.isAlg) {
+        const mv = parseAlg(s.seq);
+        const done = P.pos - from;
+        $('guideSeq').innerHTML = mv.map((m, k) => `<span class="sm${k < done ? ' done' : k === done ? ' next' : ''}">${m.text}</span>`).join(' ');
+        html = `Siguiendo tu cubo · ${s.move}: ${done} de ${mv.length}`;
+      } else html = 'Siguiendo tu cubo: haz el giro y pasa solo al siguiente';
+    }
+    el.className = `guide-cube ${tone}`;
+    if (el.dataset.h !== html) { el.dataset.h = html; el.innerHTML = html; }
+  }
+  document.addEventListener('op3:guide', (ev) => { if (ev.detail && ev.detail.open) guideStart(); else { gd.path = null; renderGuideCube(); } });
+
   // ================= For the stream overlay =================
   // The live cube, how far the scramble is, and the turns and letters of the attempt (or the last one).
   function overlayState() {
@@ -801,6 +1050,8 @@
       else scr.innerHTML = v ? `<span class="cube-chips">${v.chips}</span><span class="cube-hint ${v.tone}">${v.hint}</span>` : '<span class="cube-hint">No hay scramble: pulsa «Nuevo scramble».</span>';
     }
     if (cube.status === 'on') renderBar();
+    trSync();
+    if (O.guideApi.open()) { if (on && !gd.path) guideStart(); else renderGuideCube(); }
     // Competition mode: the turns and letters at the bottom, kept after the attempt until the next one.
     $('focusMoves').innerHTML = liveHtml(attempt || last);
     O.refreshFocus();
@@ -953,6 +1204,7 @@
     get status() { return cube.status; },
     get link() { return cube.link; },
     get last() { return last; },
+    get guidePath() { return gd.path; },
     fxLog,
     analyze,
   };

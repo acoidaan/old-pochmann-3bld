@@ -1311,7 +1311,7 @@
     for (let i = 0; i < pool.length; i++) { r -= weights[i]; if (r <= 0) return pool[i]; }
     return pool[pool.length - 1];
   }
-  function nextCard(focus) {
+  function nextCard(focus, keepFeedback) {
     const kind = trainer.kind;
     const mode = MODES[kind];
     const L = pickLetter(kind);
@@ -1326,10 +1326,38 @@
     inp.value = ''; inp.readOnly = false;
     $('trSubmit').textContent = 'Comprobar';
     $('trSkip').hidden = false;
-    $('trFeedback').textContent = '';
-    $('trFeedback').className = 'tr-feedback';
+    if (!keepFeedback) {
+      $('trFeedback').textContent = '';
+      $('trFeedback').className = 'tr-feedback';
+    }
     showSpoiler(false);
     if (focus) inp.focus();
+    emit('train', { letter: L });
+  }
+  // Answered on a smart cube (cube.js): the same scoring as typing. A letter finished after leaving the
+  // right path counts, but neither lowers its weight nor adds to its streak.
+  function cubeAnswer(res, secs, html) {
+    if (trainer.phase !== 'ask') return;
+    const st = statOf(trainer.kind, trainer.letter);
+    st.seen++;
+    if (res.ok && res.clean) {
+      st.right++; st.streak++; st.w = Math.max(1, st.w / 2);
+      if (secs > 6) st.w = Math.max(st.w, 1.5);
+    } else if (res.ok) {
+      st.right++; st.streak = 0; st.w = Math.max(st.w, 2);
+    } else {
+      st.streak = 0; st.w = Math.min(16, st.w * 2 + 1);
+    }
+    saveTrain();
+    emit('changed', { what: 'train' });
+    trainer.session.n++;
+    if (res.ok) { trainer.session.ok++; trainer.session.time += secs; }
+    const fb = $('trFeedback');
+    fb.className = 'tr-feedback ' + (res.ok && res.clean ? 'ok' : 'ko');
+    fb.innerHTML = html;
+    trainer.phase = 'answered';
+    renderTrainStats();
+    emit('train', { answered: true });
   }
   // Spoiler: the solved cube with every letter, the asked one, the buffer and the swap spot, right here.
   let trCells = null;
@@ -1407,8 +1435,9 @@
     $('trInput').readOnly = true;
     $('trSubmit').textContent = 'Siguiente';
     $('trSkip').hidden = true;
-    $('trSubmit').focus();
+    if (!$('trSubmit').closest('[hidden]') && getComputedStyle($('trSubmit')).display !== 'none') $('trSubmit').focus();
     renderTrainStats();
+    emit('train', { answered: true });
   }
   function renderTrainStats() {
     const kind = trainer.kind;
@@ -1484,6 +1513,7 @@
     $('guide').hidden = false;
     document.body.style.overflow = 'hidden';
     renderGuide();
+    emit('guide', { open: true });
     $('guideStage').focus();
     try {
       if (navigator.wakeLock) navigator.wakeLock.request('screen').then((l) => { guide.lock = l; }).catch(() => {});
@@ -1492,6 +1522,7 @@
   function closeGuide() {
     $('guide').hidden = true;
     document.body.style.overflow = '';
+    emit('guide', { open: false });
     try { if (guide.lock) guide.lock.release(); } catch (e) { /* already released */ }
     guide.lock = null;
     if (ui.memoIdx >= 0) goToken(ui.memoIdx);
@@ -1682,6 +1713,7 @@
     const at = guide.steps.findIndex((st) => st.token === token);
     guide.i = at >= 0 ? at : 0;
     renderGuide();
+    emit('guide', { open: true });
   });
   // Installable app (only where a manifest is served, i.e. the Vercel build).
   let installEvt = null;
@@ -1878,6 +1910,13 @@
     loadPractice, openGuide, timerTag: null,
     showTimer: () => showView('crono'),
     timerState, trainLetters,
+    // For the smart cube: the setup trainer and the guided execution.
+    trainer: { state: () => ({ kind: trainer.kind, letter: trainer.letter, phase: trainer.phase, t0: trainer.t0 }), next: (keep) => nextCard(false, keep), cubeAnswer },
+    guideApi: {
+      open: () => !$('guide').hidden, steps: () => guide.steps, index: () => guide.i,
+      go: (i) => { guide.i = Math.min(guide.steps.length - 1, Math.max(0, i)); renderGuide(); },
+      start: () => scrambleState(),
+    },
     // For the smart cube: drive the clock as Space would, and redraw competition mode.
     clock: {
       phase: () => timer.phase, press: timerPress, mark: markResult, cancel: timerCancel,

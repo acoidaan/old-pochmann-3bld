@@ -275,6 +275,14 @@
           <div class="net" id="trNet" aria-hidden="true"></div>
           <div class="legend" id="trLegend"></div>
         </div>
+        <div class="tr-how" id="trHow" hidden>
+          <span class="field-title" id="trHowLabel">Responder</span>
+          <div class="seg small" role="group" aria-labelledby="trHowLabel">
+            <button type="button" id="trHowType" aria-pressed="false">Escribiendo</button>
+            <button type="button" id="trHowCube" aria-pressed="true">Con el cubo</button>
+          </div>
+        </div>
+        <div class="tr-cubeline" id="trCubeLine" hidden></div>
         <form class="inrow" id="trForm" autocomplete="off">
           <input id="trInput" type="text" spellcheck="false" placeholder="p. ej. l D’ L2" aria-label="Setup">
           <button class="btn primary" type="submit" id="trSubmit">Comprobar</button>
@@ -372,6 +380,7 @@
     <span class="guide-seq" id="guideSeq"></span>
     <span class="guide-kind" id="guideKind"></span>
   </div>
+  <p class="guide-cube" id="guideCube" hidden></p>
   <div class="guide-next" id="guideNext"></div>
   <div class="guide-nav">
     <button class="btn" type="button" id="guidePrev">← Atrás</button>
