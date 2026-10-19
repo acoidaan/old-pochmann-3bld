@@ -91,6 +91,7 @@
   const simAllowed = /[?&]cubo=(virtual|sim)\b/.test(location.search);
   const ua = navigator.userAgent || '';
   const isEdge = /\bEdg\//.test(ua);
+  const isFirefox = /Firefox\//.test(ua);
   function noBluetoothText() {
     if (/iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)) {
       return 'En iPhone y iPad ningún navegador tiene Bluetooth web, tampoco Safari. Ahí solo funciona con la app Bluefy; si no, usa el ordenador o un Android.';
@@ -148,7 +149,12 @@
   function askMac(device) {
     return new Promise((resolve) => {
       const sheet = $('macSheet');
-      const prefix = isEdge ? 'edge://' : 'chrome://';
+      // Firefox and Zen (with WebBT) have no such page: Edge, which comes with Windows, does.
+      const prefix = isEdge || isFirefox ? 'edge://' : 'chrome://';
+      $('macAuto').hidden = isFirefox;
+      $('macHow').textContent = isFirefox
+        ? 'abre Edge (viene con Windows; en Mac o Linux, Chrome con chrome://), pega esta dirección, pulsa «Start scan», busca tu cubo (empieza por GAN) y copia su dirección.'
+        : 'abre esta página, pulsa «Start scan», busca tu cubo (empieza por GAN) y copia su dirección.';
       $('macFlag').textContent = `${prefix}flags/#enable-experimental-web-platform-features`;
       $('macScan').textContent = `${prefix}bluetooth-internals/#devices`;
       $('macErr').textContent = '';

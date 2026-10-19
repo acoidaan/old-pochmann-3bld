@@ -415,6 +415,21 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     await ctx.close();
   }
 
+  // ================= MAC dialog in Zen/Firefox (WebBT) =================
+  {
+    const { ctx, p } = await page({ userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:131.0) Gecko/20100101 Firefox/131.0' }, () => {
+      const device = { id: 'dz', name: 'GAN-zen', addEventListener() {}, removeEventListener() {}, gatt: { connect: async () => { throw new DOMException('x', 'NetworkError'); } } };
+      Object.defineProperty(navigator, 'bluetooth', { configurable: true, value: { requestDevice: async () => device } });
+    });
+    await p.goto(`${SITE}/#crono`);
+    await p.click('#cubeConnect');
+    await p.waitForSelector('#macSheet:not([hidden])', { timeout: 15000 });
+    const z = await p.evaluate(() => ({ auto: !document.getElementById('macAuto').hidden, how: document.getElementById('macHow').textContent, url: document.getElementById('macScan').textContent }));
+    check('Zen/Firefox MAC dialog: only the manual way, through Edge', !z.auto && /abre Edge \(viene con Windows/.test(z.how) && z.url === 'edge://bluetooth-internals/#devices', JSON.stringify(z));
+    await p.keyboard.press('Escape');
+    await ctx.close();
+  }
+
   // ================= Phone =================
   {
     const { ctx, p } = await page({ ...devices['Pixel 7'] });

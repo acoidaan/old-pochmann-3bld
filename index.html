@@ -410,9 +410,9 @@
     <div class="panel-head"><h2 id="macTitle">Falta la dirección del cubo</h2></div>
     <p class="mac-p">Para descifrar los giros, la app necesita la dirección MAC de tu cubo y el navegador no me la ha dado. Solo se pide una vez.</p>
     <ol class="mac-steps">
-      <li><b>Automática:</b> activa esta opción, reinicia el navegador y vuelve a conectar.
+      <li id="macAuto"><b>Automática:</b> activa esta opción, reinicia el navegador y vuelve a conectar.
         <span class="mac-url"><code id="macFlag">chrome://flags/#enable-experimental-web-platform-features</code><button class="btn" type="button" data-copy="macFlag">Copiar</button></span></li>
-      <li><b>A mano:</b> abre esta página, pulsa «Start scan», busca tu cubo (empieza por GAN) y copia su dirección.
+      <li><b>A mano:</b> <span id="macHow">abre esta página, pulsa «Start scan», busca tu cubo (empieza por GAN) y copia su dirección.</span>
         <span class="mac-url"><code id="macScan">chrome://bluetooth-internals/#devices</code><button class="btn" type="button" data-copy="macScan">Copiar</button></span></li>
     </ol>
     <div class="field">
