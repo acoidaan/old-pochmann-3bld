@@ -1,7 +1,7 @@
 {
   "name": "old-pochmann-3bld",
   "private": true,
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "Old Pochmann 3BLD: setups, memo, cronómetro, tutorial, retos y sincronización.",
   "dependencies": {
     "@vercel/blob": "2.8.2",

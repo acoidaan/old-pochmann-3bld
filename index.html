@@ -172,6 +172,30 @@
           Modo competición
         </button>
       </div>
+      <div class="cube-bar" id="cubeBar">
+        <div class="cube-who">
+          <svg class="cube-bt" id="cubeDot" data-s="off" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7l10 10-5 5V2l5 5L7 17"/></svg>
+          <div class="cube-text">
+            <b id="cubeName">Cubo inteligente</b>
+            <span class="hint" id="cubeInfo">Conecta un GAN por Bluetooth: sigue el scramble, para el crono solo y te dice dónde fallaste.</span>
+          </div>
+        </div>
+        <div class="cube-acts">
+          <button class="btn" type="button" id="cubeConnect">Conectar cubo</button>
+          <button class="btn" type="button" id="cubeSim" hidden>Cubo virtual</button>
+          <button class="btn" type="button" id="cubeSync" hidden title="Si el cubo está resuelto pero la app no lo ve así, púlsalo para sincronizarlos">Está resuelto</button>
+          <button class="btn" type="button" id="cubeOff" hidden>Desconectar</button>
+        </div>
+      </div>
+      <div class="result" id="cubeMsg" role="status"></div>
+      <div class="cube-follow" id="cubeFollow" hidden>
+        <div class="cube-stage"><div class="net mini" id="cubeNet" aria-hidden="true"></div></div>
+        <div class="cube-follow-main">
+          <span class="field-title">Scramble</span>
+          <p class="cube-scr" id="cubeScr"></p>
+          <div class="actions"><button class="btn" type="button" id="cubeNewScr">Nuevo scramble</button></div>
+        </div>
+      </div>
       <div class="focus-top focus-only" id="focusTop">
         <div class="focus-bar">
           <button class="btn" type="button" id="focusExit" aria-keyshortcuts="Escape">Salir</button>
@@ -186,13 +210,27 @@
         <span class="clock-split" id="clockSplit">Memo — · Ejecución —</span>
       </button>
       <div class="verdict" id="verdict" hidden>
-        <span>¿Lo has resuelto?</span>
+        <span id="verdictAsk">¿Lo has resuelto?</span>
         <button class="btn primary" type="button" id="markOk">Resuelto</button>
         <button class="btn" type="button" id="markDnf">DNF</button>
       </div>
       <div class="verdict" id="afterResult" hidden>
         <button class="btn" type="button" id="shareLast">Compartir como imagen</button>
       </div>
+      <div class="result cube-report" id="cubeReport" aria-live="polite"></div>
+      <form class="cube-sim" id="cubeSimBox" hidden>
+        <span class="field-title">Cubo virtual</span>
+        <div class="inrow">
+          <input id="cubeSimMoves" placeholder="Gíralo: R U R' U'" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Movimientos para el cubo virtual">
+          <button class="btn" type="submit">Girar</button>
+        </div>
+        <div class="actions">
+          <button class="btn" type="button" id="cubeSimScr">Mezclarlo con el scramble</button>
+          <button class="btn" type="button" id="cubeSimSolve">Resolverlo con el memo</button>
+          <button class="btn" type="button" id="cubeSimFail">Resolverlo con un fallo</button>
+        </div>
+        <p class="hint">Para probar sin cubo. Se comporta como uno de verdad: los giros anchos (l, d) le llegan a la app como giros de la cara contraria.</p>
+      </form>
       <div class="focus-bottom focus-only" id="focusBottom">
         <p class="focus-stats" id="focusStats"></p>
         <p class="focus-hint"><span class="on-touch">Toca la pantalla para empezar el memo</span><span class="on-keys">Toca la pantalla o pulsa <kbd>Espacio</kbd> para empezar el memo · <kbd>Esc</kbd> sale</span></p>
@@ -341,6 +379,27 @@
     <p class="hint" id="shareNote"></p>
   </div>
 </div>
+<div class="sheet" id="macSheet" hidden role="dialog" aria-modal="true" aria-labelledby="macTitle">
+  <form class="sheet-card" id="macForm">
+    <div class="panel-head"><h2 id="macTitle">Falta la dirección del cubo</h2></div>
+    <p class="mac-p">Para descifrar los giros, la app necesita la dirección MAC de tu cubo y el navegador no me la ha dado. Solo se pide una vez.</p>
+    <ol class="mac-steps">
+      <li><b>Automática:</b> activa esta opción, reinicia el navegador y vuelve a conectar.
+        <span class="mac-url"><code id="macFlag">chrome://flags/#enable-experimental-web-platform-features</code><button class="btn" type="button" data-copy="macFlag">Copiar</button></span></li>
+      <li><b>A mano:</b> abre esta página, pulsa «Start scan», busca tu cubo (empieza por GAN) y copia su dirección.
+        <span class="mac-url"><code id="macScan">chrome://bluetooth-internals/#devices</code><button class="btn" type="button" data-copy="macScan">Copiar</button></span></li>
+    </ol>
+    <div class="field">
+      <label for="macInput">Dirección MAC</label>
+      <input id="macInput" placeholder="AB:12:CD:34:EF:56" autocomplete="off" autocapitalize="characters" spellcheck="false">
+    </div>
+    <p class="hint bad" id="macErr" aria-live="polite"></p>
+    <div class="actions">
+      <button class="btn primary" type="submit">Conectar</button>
+      <button class="btn" type="button" id="macCancel">Cancelar</button>
+    </div>
+  </form>
+</div>
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 <div class="update-bar" id="updateBar" role="status" hidden>
   <span>Hay una versión nueva de la app.</span>
@@ -352,5 +411,6 @@
 <script src="learn.js"></script>
 <script src="social.js"></script>
 <script src="stream.js"></script>
+<script src="cube.js"></script>
 </body>
 </html>

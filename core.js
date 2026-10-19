@@ -1158,6 +1158,7 @@
       entry.mem = `${pairs(lettersOf($('memoE').value))} · ${pairs(lettersOf($('memoC').value))}`;
     }
     if (OP3.timerTag) entry.reto = OP3.timerTag;
+    if (OP3.resultExtra) Object.assign(entry, OP3.resultExtra(ok));
     times.push(entry);
     saveTimes();
     timer.phase = 'idle';
@@ -1218,7 +1219,7 @@
       $('history').innerHTML = `<p class=empty-note>${hist.filter === 'ok' ? 'Todavía no hay intentos resueltos.' : 'No hay ningún DNF.'}</p>`;
       return;
     }
-    $('history').innerHTML = '<table><thead><tr><th>#</th><th>Total</th><th>Memo</th><th>Ejecución</th><th>Resultado</th><th>Scramble</th><th></th></tr></thead><tbody>'
+    $('history').innerHTML = '<table><thead><tr><th>#</th><th>Total</th><th>Memo</th><th>Ejecución</th><th>Resultado</th><th>Scramble</th><th><span class=sr-only>Acciones</span></th></tr></thead><tbody>'
       + rows.map(({ t, idx }) => `<tr><td>${idx + 1}</td><td>${fmt(total(t))}</td><td>${fmt(t.memo)}</td><td>${fmt(t.exec)}</td>`
         + `<td><span class='pill ${t.ok ? 'ok' : 'dnf'}'>${t.ok ? 'Resuelto' : 'DNF'}</span></td>`
         + `<td class=scr title='${esc(t.scr)}'>${esc(t.scr)}</td>`
@@ -1233,7 +1234,10 @@
   const focus = { on: false };
   document.body.dataset.timer = 'idle';
   function renderFocus() {
-    $('focusScr').textContent = $('scr').value.trim() || 'Sin scramble: pulsa «Nuevo scramble».';
+    // A connected smart cube shows the scramble move by move instead.
+    const live = OP3.scrHtml && OP3.scrHtml();
+    if (live) $('focusScr').innerHTML = live;
+    else $('focusScr').textContent = $('scr').value.trim() || 'Sin scramble: pulsa «Nuevo scramble».';
     let reto = '';
     if (OP3.timerTag) {
       try {
@@ -1863,7 +1867,8 @@
   window.OP3 = {
     STICKERS, FACE_ORDER, MODES, ALGS, LETTERS, PIECE_OF, NET_PLACE, COLOR_NAME, SPEFFZ_FACES,
     parseAlg, invertAlg, apply, solved, conjugate, isSolved, pieceName, faceOfSticker,
-    judgeSetup, traceKind, traceMemo, errorText, generateFor, pairs, lettersOf, fmt, esc,
+    judgeSetup, traceKind, traceMemo, errorText, generateFor, pairs, lettersOf, fmt, esc, tokenAlg, optimalMemo,
+    buildNet, paintCells,
     requestScramble, withTimeout, randomMoveScramble,
     showView, currentView: () => currentView,
     onView: (name, fn) => { (viewHooks[name] = viewHooks[name] || []).push(fn); },
@@ -1871,6 +1876,10 @@
     loadPractice, openGuide, timerTag: null,
     showTimer: () => showView('crono'),
     timerState, trainLetters,
+    // For the smart cube: drive the clock as Space would, and redraw competition mode.
+    clock: { phase: () => timer.phase, press: timerPress, mark: markResult, cancel: timerCancel },
+    refreshFocus: () => { if (focus.on) renderFocus(); },
+    resultExtra: null, scrHtml: null,
     scramble: () => $('scr').value.trim(),
     data: {
       times: () => times,

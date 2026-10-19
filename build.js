@@ -10,9 +10,14 @@ fs.mkdirSync(out, { recursive: true });
 fs.copyFileSync(path.join(__dirname, 'manifest.webmanifest'), path.join(out, 'manifest.webmanifest'));
 // The stream overlay is a self-contained page that OBS loads as a browser source.
 fs.copyFileSync(path.join(__dirname, 'overlay.html'), path.join(out, 'overlay.html'));
+// Third-party code with the version in its name (the smart cube library), loaded only when needed.
+fs.mkdirSync(path.join(out, 'vendor'), { recursive: true });
+for (const f of fs.readdirSync(path.join(__dirname, 'vendor'))) {
+  fs.copyFileSync(path.join(__dirname, 'vendor', f), path.join(out, 'vendor', f));
+}
 
 // Static files get a content hash in their URL, so browsers and the service worker never keep stale copies.
-const ASSETS = ['app.css', 'core.js', 'learn.js', 'social.js', 'stream.js'];
+const ASSETS = ['app.css', 'core.js', 'learn.js', 'social.js', 'stream.js', 'cube.js'];
 const versions = {};
 const all = crypto.createHash('sha1');
 for (const f of ASSETS) {

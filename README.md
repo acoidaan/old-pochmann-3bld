@@ -4,6 +4,7 @@ App para aprender a resolver el cubo de Rubik a ciegas (3BLD) con el método Old
 
 - **Practicar**: dónde va cada letra, setups paso a paso, comprobación y memo recomendado.
 - **Cronómetro**: memo y ejecución por separado, historial y estadísticas.
+- **Cubo inteligente** (GAN por Bluetooth, en Chrome o Edge): sigue el scramble giro a giro, pasa a ejecución con el primer giro, para el crono al resolver y, si es DNF, dice en qué letra y en qué parte falló. Con `?cubo=virtual` hay un cubo virtual para probarlo sin cubo.
 - **Entrenar**: setups de aristas y esquinas, con spoiler del cubo (tecla `?`).
 - **Aprender**: tutorial interactivo de 9 lecciones.
 - **Retos**: mismo scramble para tus amigos, con vista previa en Discord.
@@ -13,4 +14,4 @@ Publicada en https://old-pochmann-3bld.vercel.app
 
 ## Cómo se publica
 
-Cada push a `main` se despliega solo en Vercel. `build.js` genera `public/` (versiona los assets y dibuja los iconos); las funciones de `api/` usan Vercel Blob para retos y sincronización.
+Cada push a `main` se despliega solo en Vercel. `build.js` genera `public/` (versiona los assets y dibuja los iconos); las funciones de `api/` usan Vercel Blob para retos y sincronización. `vendor/` lleva [gan-web-bluetooth](https://github.com/afedotov/gan-web-bluetooth) empaquetado con esbuild (licencias en `vendor/THIRD_PARTY_LICENSES.txt`).
