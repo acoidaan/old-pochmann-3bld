@@ -142,6 +142,7 @@
               <option value="corners">Solo esquinas</option>
             </select>
             <button class="btn" type="button" id="newScr" title="Estado aleatorio, como los scrambles oficiales de la WCA">Nuevo scramble</button>
+            <button class="btn" type="button" id="readCube" hidden title="Mezcla tu cubo inteligente como quieras y la app saca el scramble de ese estado">Leer el cubo</button>
           </div>
         </div>
         <div class="field">
@@ -193,7 +194,10 @@
         <div class="cube-follow-main">
           <span class="field-title">Scramble</span>
           <p class="cube-scr" id="cubeScr"></p>
-          <div class="actions"><button class="btn" type="button" id="cubeNewScr">Nuevo scramble</button></div>
+          <div class="actions">
+            <button class="btn" type="button" id="cubeNewScr">Nuevo scramble</button>
+            <button class="btn" type="button" id="cubeUseState" hidden>Usar mi cubo como scramble</button>
+          </div>
         </div>
       </div>
       <div class="focus-top focus-only" id="focusTop">
@@ -290,6 +294,7 @@
         </form>
         <p class="tr-feedback" id="trFeedback" aria-live="polite"></p>
         <p class="tr-stats" id="trStats"></p>
+        <p class="tr-stats" id="trFromSolves" hidden></p>
         <div class="mastery" id="trMastery"></div>
         <p class="m-legend">Verde: dominada (3 aciertos seguidos). Rosa: para repasar. Las que fallas te salen más a menudo.</p>
         <div class="actions">

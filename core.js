@@ -665,7 +665,17 @@
       }
     };
     self.postMessage({ ready: true });
-    self.onmessage = (ev) => self.postMessage({ scramble: make(ev.data) });
+    self.onmessage = (ev) => {
+      const d = ev.data;
+      // A state read from a smart cube: the scramble is the inverse of its solution.
+      if (d && d.facelets) {
+        let s = null;
+        try { s = Cube.inverse(Cube.fromString(d.facelets).solve()); } catch (e) { s = null; }
+        self.postMessage({ scramble: s });
+        return;
+      }
+      self.postMessage({ scramble: make(d) });
+    };
   }
   // Same-origin copies (installed app, works offline) first; the CDN otherwise.
   async function scramblerLibrary() {
@@ -695,6 +705,25 @@
     }));
     scrReady.catch(() => {});
     return scrReady;
+  }
+  // The solver pads short solutions with turns that cancel (L2 L2, U2 D2 … D2 U2): take them out.
+  function simplifyAlg(str) {
+    const AXIS = { U: 0, D: 0, R: 1, L: 1, F: 2, B: 2 };
+    const out = [];
+    for (const m of parseAlg(str)) {
+      let k = out.length - 1;
+      while (k >= 0 && AXIS[out[k].base] === AXIS[m.base] && out[k].base !== m.base) k--;
+      if (k >= 0 && out[k].base === m.base && AXIS[out[k].base] === AXIS[m.base]) {
+        out[k].turns = (out[k].turns + m.turns) % 4;
+        if (!out[k].turns) out.splice(k, 1);
+      } else out.push({ base: m.base, turns: m.turns });
+    }
+    return out.map((m) => m.base + (m.turns === 2 ? '2' : m.turns === 3 ? "'" : '')).join(' ');
+  }
+  function solveState(facelets) {
+    return startScrambler()
+      .then(() => new Promise((res) => { scrQueue.push(res); scrWorker.postMessage({ facelets }); }))
+      .then((s) => (s == null ? Promise.reject(new Error('no se puede resolver ese estado')) : simplifyAlg(s)));
   }
   const withTimeout = (pr, ms) => Promise.race([pr, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))]);
   function requestScramble(kind) {
@@ -1445,14 +1474,36 @@
     $('trStats').textContent = ses.n
       ? `Esta sesión: ${ses.n} intentos · ${ses.ok} aciertos (${Math.round((100 * ses.ok) / ses.n)} %)`
         + (ses.ok ? ` · media ${(ses.time / ses.ok).toFixed(1).replace('.', ',')} s por acierto` : '')
-      : 'Escribe el setup como lo harías con el cubo; vale cualquier setup correcto, no solo el de tu tabla.';
+      : trainer.hint || 'Escribe el setup como lo harías con el cubo; vale cualquier setup correcto, no solo el de tu tabla.';
     const data = trainData[kind] || {};
     $('trMastery').innerHTML = trainLetters(kind).map((L) => {
       const st = data[L];
-      const cls = !st || !st.seen ? '' : st.streak >= 3 ? 'good' : st.w >= 2 ? 'weak' : 'seen';
-      const tip = !st || !st.seen ? 'sin practicar' : `${st.right} de ${st.seen} aciertos, racha ${st.streak}`;
+      const fresh = !st || (!st.seen && !st.dnf);
+      const cls = fresh ? '' : st.streak >= 3 ? 'good' : st.w >= 2 ? 'weak' : 'seen';
+      const tip = fresh ? 'sin practicar' : `${st.right} de ${st.seen} aciertos, racha ${st.streak}${st.dnf ? `, falló en ${st.dnf} ${st.dnf === 1 ? 'intento' : 'intentos'}` : ''}`;
       return `<span class='m-cell ${cls}' title='${L}: ${tip}'>${L}</span>`;
     }).join('');
+    renderFromSolves();
+  }
+  // Letters that went wrong in a timed solve (found by the smart cube) come up more until you get them
+  // right three times in a row.
+  function renderFromSolves() {
+    const data = trainData[trainer.kind] || {};
+    const list = trainLetters(trainer.kind).filter((L) => data[L] && data[L].dnf && data[L].streak < 3);
+    const el = $('trFromSolves');
+    el.hidden = !list.length;
+    el.innerHTML = list.length
+      ? `Fallaste en tus intentos: <b>${list.join(', ')}</b>. Te saldrán más a menudo hasta que las aciertes 3 veces seguidas.`
+      : '';
+  }
+  function flagLetter(kind, L) {
+    const st = statOf(kind, L);
+    st.dnf = (st.dnf || 0) + 1;
+    st.streak = 0;
+    st.w = Math.min(16, Math.max(st.w * 2 + 1, 4));
+    saveTrain();
+    emit('changed', { what: 'train' });
+    renderTrainStats();
   }
   function setTrainKind(kind) {
     trainer.kind = kind;
@@ -1911,7 +1962,9 @@
     showTimer: () => showView('crono'),
     timerState, trainLetters,
     // For the smart cube: the setup trainer and the guided execution.
-    trainer: { state: () => ({ kind: trainer.kind, letter: trainer.letter, phase: trainer.phase, t0: trainer.t0 }), next: (keep) => nextCard(false, keep), cubeAnswer },
+    trainer: { state: () => ({ kind: trainer.kind, letter: trainer.letter, phase: trainer.phase, t0: trainer.t0 }), next: (keep) => nextCard(false, keep), cubeAnswer, flag: flagLetter,
+      hint: (text) => { if (trainer.hint !== text) { trainer.hint = text; renderTrainStats(); } } },
+    solveState, simplifyAlg,
     guideApi: {
       open: () => !$('guide').hidden, steps: () => guide.steps, index: () => guide.i,
       go: (i) => { guide.i = Math.min(guide.steps.length - 1, Math.max(0, i)); renderGuide(); },

@@ -288,6 +288,7 @@
     }
     clearTimeout(cube.wait);
     const changed = !cube.state || key(st) !== key(cube.state);
+    if (changed) handMoves = isSolved(st) ? [] : null;
     cube.state = st;
     if (cube.status !== 'on') { setStatus('on'); say(''); }
     if (changed && attempt && attempt.running) {
@@ -300,6 +301,8 @@
   }
 
   // ================= The scramble, move by move =================
+  // Every turn since the cube was last solved (null when unknown), for «Leer el cubo».
+  let handMoves = null;
   const follow = { scr: null, moves: [], prefix: new Map(), half: new Map(), prog: 0, halfway: false, off: [], lost: true, target: null };
   function setScramble(scr) {
     if (scr === follow.scr) return;
@@ -382,6 +385,8 @@
     try { m = parseAlg(mv)[0]; } catch (e) { return; }
     if (!m) return;
     cube.state = apply(cube.state, m.text);
+    if (isSolved(cube.state)) handMoves = [];
+    else if (handMoves) handMoves.push(m.text);
     const ph = O.clock.phase();
     if (attempt && attempt.running && (ph === 'memo' || ph === 'exec')) {
       if (ph === 'memo') O.clock.press();   // the first turn ends the memo
@@ -518,7 +523,13 @@
     last.ok = !!(ev.detail && ev.detail.ok);
     last.exec = ev.detail ? ev.detail.exec : 0;
     last.at = ev.detail ? ev.detail.at : Date.now();
-    showReport(last, last.ok);
+    const r = showReport(last, last.ok);
+    // A DNF whose failing letter is clear: that letter comes up more in «Entrenar».
+    if (!last.ok && r && r.fail && !last.fed) {
+      last.fed = r.fail;
+      O.trainer.flag(r.fail.kind, r.fail.L);
+      showReport(last, last.ok);
+    }
     if (last.auto && last.ok) $('clockPhase').textContent = 'Resuelto · lo ha comprobado el cubo';
   });
 
@@ -667,6 +678,7 @@
     const memo = typedMemo(a);
     const lines = [];
     let main = '';
+    let fail = null;   // the letter that went wrong in the execution, when it is clear
     if (ok) {
       main = 'Resuelto, y lo ha comprobado el cubo.';
     } else if (memo) {
@@ -682,7 +694,9 @@
       } else {
         // Every letter before this one went as the memo says: the cube is where the last one left it.
         const t = toks[i];
-        main = stageText(nth(toks, i), stageOf(t, r.cur, r.j, r.after), t);
+        const s = stageOf(t, r.cur, r.j, r.after);
+        main = stageText(nth(toks, i), s, t);
+        if (t.kind !== 'parity') fail = { kind: t.kind, L: t.L };
       }
       lines.push(`Comparado con tu memo de «Practicar»: <b>${esc(memo.text)}</b>.`);
     } else {
@@ -704,6 +718,7 @@
         const toks = [...r.done, next];
         const s = stageOf(next, cur, r.j, r.after);
         main += ` ${stageText(nth(toks, toks.length - 1), s, next)}`;
+        fail = { kind: next.kind, L: next.L };
       }
       lines.push('Si escribes en «Practicar» el memo que hiciste y vuelves aquí, te digo también si el error estaba en el memo o en la ejecución.');
     }
@@ -714,7 +729,7 @@
     }
     if (a.scrState && key(a.start) !== key(a.scrState)) lines.push('Ojo: al empezar, el cubo no tenía el scramble de la app.');
     if (a.gap) lines.push('El cubo perdió algún giro por el camino, así que el análisis puede no ser exacto.');
-    return { ok, main, lines };
+    return { ok, main, lines, fail };
   }
   function showReport(a, savedOk) {
     const box = $('cubeReport');
@@ -729,7 +744,9 @@
     box.innerHTML = `<p>${head}</p>`
       + `<p class=sub>${moves} giros en la ejecución${savedOk == null ? '' : pace}.</p>`
       + r.lines.map((l) => `<p class=sub>${l}</p>`).join('')
-      + (savedOk === true && !r.ok ? '<p class=sub>Lo has guardado como resuelto, pero el cubo dice que no lo estaba.</p>' : '');
+      + (savedOk === true && !r.ok ? '<p class=sub>Lo has guardado como resuelto, pero el cubo dice que no lo estaba.</p>' : '')
+      + (a.fed ? `<p class=sub>La <b>${a.fed.L}</b> (${a.fed.kind === 'edge' ? 'arista' : 'esquina'}) te saldrá más a menudo en «Entrenar».</p>` : '');
+    return r;
   }
   // Typed the memo afterwards: look again when coming back.
   O.onView('crono', () => { if (last && !last.ok && !attempt) showReport(last, last.ok); });
@@ -850,6 +867,7 @@
     const line = $('trCubeLine');
     line.hidden = !on;
     // The card's text says how to answer: swap it while answering on the cube, put it back after.
+    O.trainer.hint(on ? 'Haz cada letra en el cubo tal como esté, no hace falta que esté resuelto. Si te equivocas, deshaz o empieza la letra desde ahí.' : null);
     const desc = $('trDesc');
     if (!on) {
       if (tr.descSet != null && desc.innerHTML === tr.descSet) desc.innerHTML = tr.descSaved;
@@ -865,8 +883,6 @@
         tr.descFor = want;
       }
     }
-    const stats = $('trStats');
-    if (/^Escribe el setup/.test(stats.textContent)) stats.textContent = 'Haz cada letra en el cubo tal como esté, no hace falta que esté resuelto. Si te equivocas, deshaz o empieza la letra desde ahí.';
     const P = tr.path;
     if (!P) { line.innerHTML = ''; return; }
     const segs = tr.setup ? ['Setup', tr.algName, 'Deshacer'] : [tr.algName];
@@ -1050,6 +1066,8 @@
       else scr.innerHTML = v ? `<span class="cube-chips">${v.chips}</span><span class="cube-hint ${v.tone}">${v.hint}</span>` : '<span class="cube-hint">No hay scramble: pulsa «Nuevo scramble».</span>';
     }
     if (cube.status === 'on') renderBar();
+    $('readCube').hidden = !on;
+    $('cubeUseState').hidden = !(on && ph === 'idle' && follow.lost && !isSolved(cube.state));
     trSync();
     if (O.guideApi.open()) { if (on && !gd.path) guideStart(); else renderGuideCube(); }
     // Competition mode: the turns and letters at the bottom, kept after the attempt until the next one.
@@ -1175,6 +1193,44 @@
     simSolve(n > 2 ? 1 + Math.floor(Math.random() * (n - 2)) : 0);
   });
 
+  // ================= Reading the cube =================
+  // Scrambled by hand however you like: the app works out a scramble for that state (the inverse of a
+  // solution) and makes it the current one, so the memo, the checks and the timer all use it.
+  function freshFacelets(ms) {
+    return new Promise((resolve) => {
+      const sub = cube.link && cube.link.events$.subscribe((ev) => { if (ev && ev.type === 'FACELETS') { done(); } });
+      const t = setTimeout(() => done(), ms);
+      function done() { clearTimeout(t); try { if (sub) sub.unsubscribe(); } catch (e) { /* closed */ } setTimeout(resolve, 0); }
+      request('REQUEST_FACELETS');
+    });
+  }
+  async function readCube(btn, tell) {
+    if (!cube.state) return;
+    const label = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Leyendo…';
+    try {
+      await freshFacelets(600);
+      if (!cube.state) throw new Error('desconectado');
+      if (isSolved(cube.state)) { tell('El cubo está resuelto: mézclalo como quieras y vuelve a pulsar.', 'ko'); return; }
+      // Your own turns since it was solved, if the app saw them all; otherwise a solver's scramble.
+      let scr = handMoves ? O.simplifyAlg(handMoves.join(' ')) : '';
+      const ok = scr && parseAlg(scr).length <= 30 && key(norm(apply(solved(), scr))) === key(cube.state);
+      if (!ok) scr = await O.withTimeout(O.solveState(toFacelets(cube.state)), 30000);
+      O.loadPractice(scr, '', '');
+      tell(`Scramble leído de tu cubo (${parseAlg(scr).length} movimientos). Haz tu memo y compruébalo, o pulsa «Generar memo recomendado» para verlo.`, 'ok');
+    } catch (e) {
+      tell('No he podido sacar el scramble ahora mismo (el generador no ha cargado). Vuelve a probar en unos segundos.', 'ko');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = label;
+      render();
+    }
+  }
+  const tellPractice = (msg, tone) => { const out = $('result'); out.className = `result ${tone || ''}`; out.innerHTML = `<p>${msg}</p>`; };
+  $('readCube').addEventListener('click', () => readCube($('readCube'), tellPractice));
+  $('cubeUseState').addEventListener('click', () => readCube($('cubeUseState'), (msg, tone) => say(tone === 'ok' ? 'Listo: el scramble de la app es ahora el de tu cubo.' : msg, tone)));
+
   // ================= Buttons =================
   $('cubeConnect').addEventListener('click', () => { unlockAudio(); connectGan(); });
   $('cubeSim').addEventListener('click', () => { unlockAudio(); say(''); attach(simLink(), 'sim'); });
@@ -1187,6 +1243,7 @@
     if (!cube.link) return;
     request('REQUEST_RESET');
     cube.state = solved();
+    handMoves = [];
     locate();
     render();
     setTimeout(() => request('REQUEST_FACELETS'), 300);
