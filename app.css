@@ -360,6 +360,25 @@ body.focus .clock:focus-visible { outline: none; }
 .focus-hint { margin: 0; font-size: 13px; color: var(--muted); }
 .focus-hint .on-touch { display: none; }
 @media (hover: none) { .focus-hint .on-touch { display: inline; } .focus-hint .on-keys { display: none; } }
+/* With a smart cube: the turns and the letters as they happen, at the bottom. */
+body.focus .focus-moves {
+  position: absolute; left: 16px; right: 16px; z-index: 1; gap: 4px; justify-items: center; text-align: center;
+  bottom: max(16px, env(safe-area-inset-bottom, 0px));
+}
+body.focus[data-timer="idle"] .focus-moves { bottom: calc(max(16px, env(safe-area-inset-bottom, 0px)) + 76px); }
+.focus-moves:empty { display: none !important; }
+.live-letters { margin: 0; font-family: var(--font-display); font-weight: 700; font-size: clamp(18px, 4.4vw, 28px); letter-spacing: .04em; }
+/* Fits its content, centred; when too long, the oldest turns slide out on the left. */
+.live-moves {
+  margin: 0; display: inline-flex; justify-content: flex-end; align-items: baseline; gap: .45em;
+  max-width: 100%; overflow: hidden; white-space: nowrap; font-family: var(--font-mono);
+  font-size: clamp(14px, 3.6vw, 20px); color: var(--muted);
+}
+.live-moves > * { flex: none; }
+.live-moves .new { color: var(--accent); }
+.live-n { font-family: var(--font-body); font-size: .75em; margin-right: .3em; }
+.cube-scr .live-letters { font-size: 20px; }
+.cube-scr .live-moves { font-size: 16px; justify-self: start; }
 /* While timing, nothing but the time. */
 body.focus:not([data-timer="idle"]) .focus-top,
 body.focus:not([data-timer="idle"]) .focus-bottom { visibility: hidden; }

@@ -12,6 +12,7 @@
   const LIB_CDN = 'https://cdn.jsdelivr.net/npm/gan-web-bluetooth@3.0.2/+esm';
   const MAC_KEY = 'op3bld:cube-mac:v1';
   const CHECK_MS = 700;   // after a manual stop, wait this long for the last turn to arrive
+  const QUIET_MS = 3000;  // after the cube stops the clock, presses are ignored this long
   const key = (st) => st.join(',');
 
   // ================= Cube frame =================
@@ -291,7 +292,7 @@
     if (cube.status !== 'on') { setStatus('on'); say(''); }
     if (changed && attempt && attempt.running) {
       // Before the first turn this is just the real starting state; later, the cube had lost track.
-      if (!attempt.moves.length) { attempt.start = st; attempt.states = [st]; } else { attempt.gap = true; attempt.states.push(st); }
+      if (!attempt.moves.length) { attempt.start = st; attempt.states = [st]; liveStart(attempt, st); } else { attempt.gap = true; attempt.states.push(st); }
     }
     if (attempt && attempt.checking) { finishCheck(isSolved(st)); return; }
     if (changed && !locate()) { follow.lost = true; follow.off = []; }
@@ -384,29 +385,35 @@
     const ph = O.clock.phase();
     if (attempt && attempt.running && (ph === 'memo' || ph === 'exec')) {
       if (ph === 'memo') O.clock.press();   // the first turn ends the memo
-      attempt.moves.push(m.text);
-      attempt.states.push(cube.state);
+      record(m.text);
       if (isSolved(cube.state)) {
         attempt.auto = true;
         attempt.running = false;
         O.clock.press();
         O.clock.mark(true);
+        // Blindfolded, you will still hit the timer to stop it: that press must not start a new attempt.
+        O.clock.quiet(QUIET_MS);
       }
     } else if (attempt && attempt.checking) {
       // Stopped by hand a moment before the last turn arrived.
-      attempt.moves.push(m.text);
-      attempt.states.push(cube.state);
+      record(m.text);
       if (isSolved(cube.state)) finishCheck(true);
     } else if (ph === 'idle') {
       followMove(m.text);
     }
     render();
   }
+  function record(mv) {
+    attempt.moves.push(mv);
+    attempt.states.push(cube.state);
+    liveMove(attempt, mv, cube.state);
+  }
   document.addEventListener('op3:timer', (ev) => {
     const d = ev.detail || {};
     if (d.phase === 'memo' && !attempt && cube.status === 'on' && cube.state) {
       const scrState = (() => { try { return norm(apply(solved(), d.scramble || '')); } catch (e) { return null; } })();
       attempt = { running: true, scramble: d.scramble || '', scrState, start: cube.state, states: [cube.state], moves: [], gap: false };
+      liveStart(attempt, cube.state);
       $('cubeReport').innerHTML = '';
       $('cubeReport').className = 'result cube-report';
       request('REQUEST_FACELETS');   // make sure the starting state is the real one
@@ -530,6 +537,45 @@
         : `Fallo en ${where}: el ${s.alg} no salió bien.`;
     }
     return `Fallo en ${where}: el setup y el ${s.alg} estaban bien, pero al deshacer el setup (${code(s.undo)}) algo falló.`;
+  }
+  // ---- Live, during the attempt: the turns and each letter as soon as it is complete ----
+  const CAND_ALGS = CANDS.map((t) => ({ t, alg: O.tokenAlg(t) }));
+  function liveCands(st) {
+    const m = new Map();
+    for (const { t, alg } of CAND_ALGS) {
+      const k = key(apply(st, alg));
+      if (!m.has(k)) m.set(k, t);
+    }
+    return m;
+  }
+  function liveStart(a, st) { a.live = { done: [], cands: liveCands(st) }; }
+  function liveMove(a, mv, st) {
+    const L = a.live;
+    if (!L) return;
+    const t = L.cands.get(key(st));
+    if (t) {
+      L.done.push(t);
+      L.cands = liveCands(st);
+    }
+  }
+  function lettersLine(done) {
+    const e = done.filter((t) => t.kind === 'edge').map((t) => t.L);
+    const c = done.filter((t) => t.kind === 'corner').map((t) => t.L);
+    const parts = [];
+    if (e.length) parts.push(O.pairs(e));
+    if (done.some((t) => t.kind === 'parity')) parts.push('paridad');
+    if (c.length) parts.push(O.pairs(c));
+    return parts.join(' · ');
+  }
+  const LIVE_MOVES = 14;
+  function liveHtml(a) {
+    if (!a || !a.live || !a.moves.length) return '';
+    // Quarter turns of the same face read better together (R R → R2).
+    const shown = simplify(a.moves.slice(-3 * LIVE_MOVES)).map(moveText).slice(-LIVE_MOVES);
+    const moves = shown.map((m, i) => (i === shown.length - 1 ? `<b class="new">${m}</b>` : `<span>${m}</span>`)).join(' ');
+    const letters = lettersLine(a.live.done);
+    return `<p class="live-letters">${letters || '&nbsp;'}</p>`
+      + `<p class="live-moves"><span class="live-n">${a.moves.length} giros</span>${moves}</p>`;
   }
   function doneText(done) {
     const e = done.filter((t) => t.kind === 'edge').map((t) => t.L);
@@ -658,10 +704,12 @@
       setScramble(O.scramble());
       const v = followView();
       const scr = $('cubeScr');
-      if (ph !== 'idle') scr.innerHTML = '<span class="cube-hint">Intento en marcha.</span>';
+      if (ph !== 'idle') scr.innerHTML = liveHtml(attempt) || '<span class="cube-hint">Memorizando: el primer giro empieza la ejecución.</span>';
       else scr.innerHTML = v ? `<span class="cube-chips">${v.chips}</span><span class="cube-hint ${v.tone}">${v.hint}</span>` : '<span class="cube-hint">No hay scramble: pulsa «Nuevo scramble».</span>';
     }
     if (cube.status === 'on') renderBar();
+    // Competition mode: the turns and letters at the bottom, kept after the attempt until the next one.
+    $('focusMoves').innerHTML = liveHtml(attempt || last);
     O.refreshFocus();
   }
   document.addEventListener('op3:scramble', () => { if (cube.status === 'on') render(); });

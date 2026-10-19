@@ -1053,7 +1053,7 @@
 
   // ================= BLD timer =================
   const TIMES_KEY = 'op3bld:times:v1';
-  const timer = { phase: 'idle', t0: 0, t1: 0, t2: 0, raf: 0, scramble: '' };
+  const timer = { phase: 'idle', t0: 0, t1: 0, t2: 0, raf: 0, scramble: '', quietUntil: 0 };
   let times = (() => { try { return JSON.parse(localStorage.getItem(TIMES_KEY)) || []; } catch (e) { return []; } })();
   const saveTimes = () => { try { localStorage.setItem(TIMES_KEY, JSON.stringify(times.slice(-500))); } catch (e) { /* not kept */ } };
   const esc = (txt) => String(txt).replace(/[&<>'"]/g, (ch) => '&#' + ch.charCodeAt(0) + ';');
@@ -1125,6 +1125,8 @@
   function timerPress() {
     const now = performance.now();
     if (timer.phase === 'idle') {
+      // Just stopped by the smart cube: the blindfolded tap meant to stop it must not start a new attempt.
+      if (now < timer.quietUntil) return;
       timer.phase = 'memo'; timer.t0 = now; timer.scramble = $('scr').value.trim();
       $('verdict').hidden = true;
       $('afterResult').hidden = true;
@@ -1877,7 +1879,10 @@
     showTimer: () => showView('crono'),
     timerState, trainLetters,
     // For the smart cube: drive the clock as Space would, and redraw competition mode.
-    clock: { phase: () => timer.phase, press: timerPress, mark: markResult, cancel: timerCancel },
+    clock: {
+      phase: () => timer.phase, press: timerPress, mark: markResult, cancel: timerCancel,
+      quiet: (ms) => { timer.quietUntil = performance.now() + ms; },
+    },
     refreshFocus: () => { if (focus.on) renderFocus(); },
     resultExtra: null, scrHtml: null,
     scramble: () => $('scr').value.trim(),
