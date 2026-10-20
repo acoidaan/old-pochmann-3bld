@@ -147,7 +147,14 @@ const save = (p, name, opts) => p.screenshot({ path: path.join(OUT, name), ...op
       await ft('z2');
       const upTo = k === 0 ? SOLVE.length : 6;
       for (let i = 0; i < upTo; i++) await play(SOLVE[i], PACE[i] * (k === 0 ? 1.15 : 1));
-      if (k === 0) { await p.clock.runFor(1500); await ft('z2'); }
+      if (k === 0) {
+        await p.clock.runFor(1500);
+        // The analysis of that solve.
+        await p.waitForFunction(() => document.querySelector('.fr-an-box'), null, { timeout: 15000 });
+        await (await p.$('#splits')).screenshot({ path: path.join(OUT, 'fridrich-analisis.png') });
+        done.push('fridrich-analisis.png');
+        await ft('z2');
+      }
     }
     await ft("R U R'");
     await p.clock.runFor(400);

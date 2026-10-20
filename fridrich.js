@@ -18,16 +18,20 @@
   const K = {
     times: 'cfop:times:v1', set: 'cfop:settings:v1', learn: 'cfop:learn:v1', train: 'cfop:train:v1',
     view: 'cfop:view:v1', scr: 'cfop:scramble:v1', pick: 'cfop:pick:v1', theme: 'op3bld:theme:v1',
+    crossTr: 'cfop:crosstr:v1', deleted: 'cfop:deleted:v1', learnAt: 'cfop:learn-at:v1', sync: 'op3bld:sync:v1', synced: 'cfop:synced:v1',
   };
   const load = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; } catch (e) { return d; } };
   const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* this visit only */ } };
-  const settings = { inspect: false, help: true, sound: true, cross: 'U', timed: true, trMode: 'cube', ...load(K.set, {}) };
+  const settings = { inspect: false, help: true, sound: true, vibrate: true, cross: 'U', timed: true, trMode: 'cube', chart: 50, ...load(K.set, {}) };
   if (!(settings.cross in C.DOWN)) settings.cross = 'U';
   const saveSettings = () => save(K.set, settings);
   let times = load(K.times, []);
   if (!Array.isArray(times)) times = [];
   const learn = load(K.learn, {});
+  const learnAt = load(K.learnAt, {});
   const train = load(K.train, {});
+  // Something that is synced between devices changed: sent a few seconds later.
+  const changed = () => emit('changed', null);
 
   // ================= Times =================
   const value = (r) => (r.pen === 'dnf' ? Infinity : r.t + (r.pen === 2 ? 2000 : 0));
@@ -340,6 +344,8 @@
   const timer = { phase: 'idle', t0: 0, t: 0, insp0: 0, hold: 0, held: false, inspHold: false, raf: 0, pen: 0, line: null, startState: null, last: null };
   function setPhase(p) {
     timer.phase = p;
+    document.body.dataset.timer = p === 'run' || p === 'inspect' || p === 'ihold' || p === 'iready' ? 'run' : 'idle';
+    if (typeof holdScreen === 'function') holdScreen(focus.on || p === 'run' || p === 'inspect');
     renderClock();
     emit('timer', timerState());
   }
@@ -398,19 +404,37 @@
       const sp = C.splits(timer.line, settings.cross);
       if (sp && sp.steps[0].done) {
         r.sp = { f: sp.face, s: sp.steps.map((s) => (s.done ? [Math.round(s.time), s.moves, s.recog == null ? null : Math.round(s.recog), s.case || null, s.skip ? 1 : 0] : null)) };
+        r.rc = reconstruction(timer.line, sp);
+        // How good each step was: worked out just after (the pair searches take a moment).
+        const line = timer.line;
+        setTimeout(() => {
+          try { r.an = packAnalysis(C.analyze(line, sp)); } catch (e) { r.an = null; }
+          if (!r.an) return;
+          save(K.times, times);
+          if (timer.last === r) renderSplits(r);
+          renderPhases();
+          renderHistory();
+          changed();
+        }, 40);
       }
     }
     timer.insp0 = 0;
     times.push(r);
     if (times.length > 2000) times = times.slice(-2000);
+    // The turns of each solve are kept for the last 500.
+    for (let i = 0; i < times.length - 500; i++) { delete times[i].rc; delete times[i].an; }
     save(K.times, times);
+    changed();
     timer.last = r;
     // The next turn is scrambling again, not a new solve.
     if (follow && cube && cube.on && !locate(follow, cube.state)) markLost();
     if (follow && follow.pos >= follow.n) { follow.pos = 0; follow.lost = true; }
     $('clockTime').textContent = fmtRes(r);
     setPhase('done');
-    if (cube && cube.on && isSolved(cube.state) && settings.sound) window.SmartCube.chime();
+    if (cube && cube.on && isSolved(cube.state)) {
+      if (settings.sound) window.SmartCube.chime();
+      buzz([80, 60, 180]);
+    }
     renderSplits(r);
     renderStats();
     emit('result', r);
@@ -504,19 +528,20 @@
       const before = prevState;
       prevState = st;
       if (timer.phase === 'run') {
-        if (timer.line) timer.line.push({ t: t - timer.t0, st });
+        if (timer.line) timer.line.push({ t: t - timer.t0, st, m: mv });
         if (isSolved(st)) stopRun(t);
-      } else if (settings.timed && view === 'crono' && done(follow) && (timer.phase === 'idle' || timer.phase === 'inspect' || timer.phase === 'done') && !trActive()) {
+      } else if (settings.timed && view === 'crono' && done(follow) && (timer.phase === 'idle' || timer.phase === 'inspect' || timer.phase === 'done') && !trActive() && !ctActive()) {
         // The first turn after scrambling starts the clock.
         startRun(t, before);
-        timer.line.push({ t: 0, st });
-      } else if (follow && !trActive()) {
+        timer.line.push({ t: 0, st, m: mv });
+      } else if (follow && !trActive() && !ctActive()) {
         if (timer.phase === 'done') setPhase('idle');
         const was = done(follow);
         followMove(follow, st, mv);
         if (!was && done(follow) && settings.timed && settings.inspect && timer.phase === 'idle') startInspection();
       }
       if (trActive()) trMove(mv, st, t);
+      if (ctActive()) ctMove(mv, st, t);
       renderScramble();
       renderLive();
       renderClock();
@@ -710,7 +735,7 @@
     } else if (stage === 1) {
       const names = SLOT_NAMES(read.g);
       html = `<p class="fr-note"><b>F2L:</b> ${read.n} de 4 parejas.</p><ul class="fr-slots">${read.pairs.map((p, i) => `<li class="${p ? 'on' : ''}">${p ? '✓ ' : ''}${esc(names[i])}</li>`).join('')}</ul>`
-        + '<p class="hint">Junta cada esquina blanca con su arista arriba y métela en su hueco a la vez.</p>';
+        + pairHtml(read, st, names);
     } else html = '<p class="fr-note">No reconozco este caso.</p>';
     if (nowBox.dataset.h !== html) {
       nowBox.dataset.h = html;
@@ -718,6 +743,35 @@
       const b = $('liveCrossBtn');
       if (b) b.addEventListener('click', () => { liveCross = true; nowBox.dataset.h = ''; renderLive(); });
     }
+  }
+  // The next pair: for each empty slot, the fewest turns that put it in keeping what is done. Worked out a
+  // moment after the cube stops moving (a few milliseconds; up to a few tenths in hard positions).
+  let pairHint = { key: null, sols: null };
+  let pairTimer = 0;
+  function pairHtml(read, st, names) {
+    const k = key(st);
+    if (pairHint.key !== k) {
+      clearTimeout(pairTimer);
+      pairTimer = setTimeout(() => {
+        if (!cube || !cube.on || key(cube.state) !== k) return;
+        pairHint = { key: k, sols: C.pairSolutions(read.g, 600000) };
+        $('liveNow').dataset.h = '';
+        renderLive();
+      }, 220);
+      return '<p class="hint">Buscando la pareja más corta…</p>';
+    }
+    const sols = pairHint.sols || [];
+    if (!sols.length) return '<p class="hint">Junta cada esquina blanca con su arista arriba y métela en su hueco a la vez.</p>';
+    const line = (x, best) => {
+      const v = C.slotToFront(x.slot);
+      const moves = v ? inHand(x.moves, faceMapFor(v)) : x.moves;
+      return `<li class="${best ? 'best' : ''}"><span class="fr-pair-name">${esc(names[x.slot])}</span>`
+        + `<span class="fr-pair-moves">${v ? `<span class="muted">${esc(v)}</span> ` : ''}${algHtml(moves)}</span>`
+        + `<span class="muted">${x.length} ${x.length === 1 ? 'giro' : 'giros'}</span></li>`;
+    };
+    return `<p class="fr-note"><b>La pareja más corta:</b> ponla delante a la derecha${C.slotToFront(sols[0].slot) ? ` (gira el cubo con <b>${esc(C.slotToFront(sols[0].slot))}</b>)` : ''} y mete:</p>`
+      + `<ul class="fr-pairs">${sols.map((x, i) => line(x, i === 0)).join('')}</ul>`
+      + '<p class="hint">Cada línea es la forma más corta de meter esa pareja sin romper lo que ya tienes, con su hueco delante a la derecha. Hay otras igual de cortas.</p>';
   }
   // The case, how to hold it, its turns (done, next) and how far along.
   function caseHtml(t, note) {
@@ -758,6 +812,121 @@
     return out;
   }
 
+  // ================= Reconstruction =================
+  // The turns of each step, as held with the cross colour down and green in front (the cube cannot tell how
+  // you turn it in your hands: a «y» shows up as the other faces). The two quarter turns the cube sends for a
+  // half turn become one; a turn and its undo are kept, they are part of what happened.
+  function halves(list) {
+    const out = [];
+    list.forEach((mv) => {
+      const m = parseAlg(mv)[0];
+      const last = out[out.length - 1];
+      if (last && last.base === m.base && last.turns === m.turns && m.turns !== 2 && !last.merged) { last.turns = 2; last.merged = true; } else out.push({ base: m.base, turns: m.turns });
+    });
+    return out.map(moveText);
+  }
+  function reconstruction(line, sp) {
+    const map = faceMapFor(C.DOWN[sp.face]);
+    return sp.steps.map((st) => (st.done ? halves(line.slice(st.from + 1, st.to + 1).map((e) => e.m).filter(Boolean))
+      .map((m) => inHand(m, map)).join(' ') : null));
+  }
+  function reconText(r) {
+    const rot = C.DOWN[r.sp.f];
+    const lines = [];
+    if (rot) lines.push(`${rot} // inspección`);
+    C.STEPS.forEach((st, i) => { if (r.rc[i] != null) lines.push(`${r.rc[i] || '—'} // ${st.name}`); });
+    return lines.join('\n');
+  }
+  function reconHtml(r) {
+    if (!r || !r.rc) return '';
+    const rot = C.DOWN[r.sp.f];
+    const rows = C.STEPS.map((st, i) => {
+      const x = r.sp.s[i];
+      if (!x || r.rc[i] == null) return '';
+      return `<li><b>${st.name}</b> <span class="muted">${f1(x[0])} s · ${r.rc[i] ? r.rc[i].split(' ').length : 0} giros</span><span class="fr-recon-moves">${r.rc[i] ? algHtml(r.rc[i]) : '<i>nada</i>'}</span></li>`;
+    }).join('');
+    return `<ol class="fr-recon">${rot ? `<li><b>Inspección</b> <span class="muted">${esc(C.crossName(r.sp.f))} abajo</span><span class="fr-recon-moves">${algHtml(rot)}</span></li>` : ''}${rows}</ol>`
+      + `<div class="actions"><button class="btn" type="button" data-copy-rc="${times.indexOf(r)}">Copiar reconstrucción</button></div>`;
+  }
+  document.addEventListener('click', async (ev) => {
+    const b = ev.target.closest('[data-copy-rc]');
+    if (!b) return;
+    const r = times[Number(b.dataset.copyRc)];
+    if (!r || !r.rc) return;
+    try { await navigator.clipboard.writeText(reconText(r)); toast('Reconstrucción copiada'); } catch (e) { toast('No he podido copiarla'); }
+  });
+
+  // ================= How good the solve was =================
+  // Kept small in the solve: c [mine, shortest]; p per pair [slots, mine, shortest, best slot, its length,
+  // time to start, pauses, paused ms, time]; l per last-layer step [mine, shortest, pauses, paused ms], 0 if
+  // skipped; z ms paused; m all turns; i the ideal.
+  function packAnalysis(a) {
+    if (!a) return null;
+    return {
+      c: [a.cross.mine, a.cross.opt],
+      p: a.pairs.map((x) => [x.slots.join(''), x.mine, x.opt, x.best ? x.best.slot : -1, x.best ? x.best.length : null, Math.round(x.look), x.pauses, Math.round(x.pauseMs), Math.round(x.time)]),
+      l: a.ll.map((x) => (x === null ? null : x.skip ? 0 : [x.mine, x.opt, x.pauses, Math.round(x.pauseMs)])),
+      z: Math.round(a.pause), m: a.mine, i: a.ideal,
+    };
+  }
+  const slotNames = (face) => SLOT_NAMES(C.canon(solved(), face));
+  const extra = (mine, opt) => (opt == null ? '' : mine - opt > 0 ? ` <b class="fr-extra">+${mine - opt}</b>` : ' <span class="fr-perfect" aria-label="lo más corto">✓</span>');
+  const anRow = (name, mine, opt, note) => `<tr><th scope="row">${name}</th><td class="fr-an-n">${mine}${extra(mine, opt)}</td><td class="fr-an-n">${opt == null ? '—' : opt}</td><td class="fr-an-note">${note}</td></tr>`;
+  function analysisHtml(r) {
+    const a = r.an;
+    if (!a || !r.sp) return '';
+    const names = slotNames(r.sp.f);
+    const eff = a.m ? Math.round((a.i / a.m) * 100) : 100;
+    const rows = [];
+    rows.push(anRow('Cruz', a.c[0], a.c[1], a.c[0] > a.c[1] ? `Se podía en ${a.c[1]}.` : 'La más corta.'));
+    a.p.forEach((x, k) => {
+      const [slots, mine, opt, bestSlot, bestLen, look, pauses, pauseMs] = x;
+      const who = slots.split('').map((i) => names[Number(i)]).join(' + ') || 'pareja';
+      const notes = [];
+      if (slots.length > 1) notes.push('dos a la vez');
+      if (opt != null && mine > opt) notes.push(`se podía en ${opt}`);
+      if (bestSlot >= 0 && !slots.includes(String(bestSlot)) && bestLen != null && opt != null && bestLen < opt) notes.push(`la pareja más fácil era ${names[bestSlot]} (${bestLen})`);
+      if (look >= 1500) notes.push(`tardaste ${f1(look)} s en empezarla`);
+      if (pauses) notes.push(`${pauses} ${pauses === 1 ? 'pausa' : 'pausas'} a mitad (${f1(pauseMs)} s)`);
+      const note = notes.length ? notes.join(' · ') : 'La más corta';
+      rows.push(anRow(`Pareja ${k + 1} <span class="muted">${esc(who)}</span>`, mine, opt, esc(note.charAt(0).toUpperCase() + note.slice(1)) + '.'));
+    });
+    a.l.forEach((x, k) => {
+      const st = C.STEPS[k + 2];
+      const sp = r.sp.s[k + 2];
+      const c = sp && sp[3] ? C.caseById(sp[3]) : null;
+      if (x === null) return;
+      if (x === 0) { rows.push(`<tr><th scope="row">${st.name}</th><td class="fr-an-n muted" colspan="2">salto</td><td class="fr-an-note">Te lo saltaste: suerte.</td></tr>`); return; }
+      const [mine, opt, pauses, pauseMs] = x;
+      const notes = [];
+      if (mine > opt) notes.push(mine - opt <= 2 ? 'giros de U de más' : 'otro algoritmo o giros de más');
+      if (sp && sp[2] != null && sp[2] >= 1500) notes.push(`reconocerlo: ${f1(sp[2])} s`);
+      if (pauses) notes.push(`${pauses} ${pauses === 1 ? 'pausa' : 'pausas'} a mitad (${f1(pauseMs)} s)`);
+      const note = notes.length ? notes.join(' · ') : 'perfecto';
+      rows.push(anRow(`${st.name}${c ? ` <span class="muted">${esc(c.name)}</span>` : ''}`, mine, opt, esc(note.charAt(0).toUpperCase() + note.slice(1)) + '.'));
+    });
+    // What to work on: the biggest losses first.
+    const tips = [];
+    const pairExtra = a.p.reduce((s2, x) => s2 + (x[2] == null ? 0 : Math.max(0, x[1] - x[2])), 0);
+    const llExtra = a.l.reduce((s2, x) => s2 + (x ? Math.max(0, x[0] - x[1]) : 0), 0);
+    const f2lPause = a.p.reduce((s2, x) => s2 + x[7] + (x[5] >= 1000 ? x[5] : 0), 0);
+    const missed = a.p.filter((x) => x[3] >= 0 && !x[0].includes(String(x[3])) && x[4] != null && x[2] != null && x[4] + 2 <= x[2]).length;
+    if (f2lPause >= 2000) tips.push(`En el F2L estuviste parado ${f1(f2lPause)} s en total (antes de empezar cada pareja y a mitad de ellas): gira algo más despacio pero sin pararte, y busca la siguiente pareja mientras metes la anterior.`);
+    if (pairExtra >= 6) tips.push(`El F2L se llevó ${pairExtra} giros de más. Con el cubo conectado, «Practicar sin crono» te enseña la forma más corta de cada pareja.`);
+    if (missed >= 2) tips.push(`En ${missed} parejas había otra mucho más corta: antes de cada pareja, mira las cuatro y empieza por la más fácil.`);
+    if (a.c[0] - a.c[1] >= 2) tips.push(`La cruz se podía en ${a.c[1]} y usaste ${a.c[0]}: practícala en «Entrenar la cruz».`);
+    const slowRec = r.sp.s.slice(2).map((x, k) => (x && x[2] >= 1500 ? [C.STEPS[k + 2].name, x[2]] : null)).filter(Boolean);
+    if (slowRec.length) tips.push(`Tardaste en reconocer ${slowRec.map(([n, t]) => `${n} (${f1(t)} s)`).join(', ')}: entrénalo en «Entrenar» → «Reconocer».`);
+    if (llExtra >= 4) tips.push(`La última capa se llevó ${llExtra} giros de más: mira desde qué lado empiezas cada algoritmo (la ayuda en directo te lo dice).`);
+    return `<div class="fr-an">
+      <p class="fr-an-sum"><b class="fr-eff ${eff >= 90 ? 'ok' : eff >= 75 ? 'mid' : 'low'}">${eff} %</b> <span>de eficiencia: <b>${a.m}</b> giros; con lo más corto de cada paso (y tus mismas parejas) serían <b>${a.i}</b>.${a.z >= 1000 ? ` Pausas de más de 1 s a mitad de un paso: <b>${f1(a.z)} s</b>.` : ''}</span></p>
+      <table class="fr-an-table"><thead><tr><th scope="col">Paso</th><th scope="col">Tus giros</th><th scope="col">Lo más corto</th><th scope="col">Nota</th></tr></thead><tbody>${rows.join('')}</tbody></table>
+      ${tips.length ? `<p class="fr-an-h">Qué mejorar</p><ul class="fr-tips">${tips.slice(0, 3).map((t) => `<li>${esc(t)}</li>`).join('')}</ul>`
+        : `<p class="fr-note">${a.m <= a.i ? 'Nada que mejorar en giros: ahora, más rápido.' : `Solo ${a.m - a.i} ${a.m - a.i === 1 ? 'giro' : 'giros'} de más: muy bien. Lo que queda es ir más rápido.`}</p>`}
+      <p class="hint">Giros contados como los nota el cubo: un giro de cara, también los dobles; las capas del medio cuentan dos. «Lo más corto»: la cruz más corta, cada pareja por el camino más corto sin romper lo hecho, y los algoritmos de J Perm desde el mejor lado.</p>
+    </div>`;
+  }
+
   // ================= After a solve: the splits =================
   function renderSplits(r) {
     const box = $('splits');
@@ -782,12 +951,15 @@
     }).join('');
     box.innerHTML = `<div class="fr-splits-head"><span class="field-title">Tu solve por fases · ${esc(C.crossName(r.sp.f))}</span><b>${fmtRes(r)}</b></div>
       <div class="fr-bar">${bar}</div>
-      <div class="fr-table"><table><thead><tr><th scope="col">Paso</th><th scope="col">Tiempo</th><th scope="col">Giros</th><th scope="col">Caso</th><th scope="col">Reconocer + hacer</th></tr></thead><tbody>${rows}</tbody></table></div>`
+      <div class="fr-table" tabindex="0" role="region" aria-label="Tiempos de cada paso"><table><thead><tr><th scope="col">Paso</th><th scope="col">Tiempo</th><th scope="col">Giros</th><th scope="col">Caso</th><th scope="col">Reconocer + hacer</th></tr></thead><tbody>${rows}</tbody></table></div>`
+      + (r.an ? `<details class="fr-an-box" open><summary>Análisis: cómo de óptimo fue cada paso</summary>${analysisHtml(r)}</details>` : r.rc ? '<p class="hint">Analizando el solve…</p>' : '')
+      + (r.rc ? `<details class="fr-recon-box"><summary>Reconstrucción: tus giros paso a paso</summary>${reconHtml(r)}</details>` : '')
       + (total ? '' : '');
   }
 
   // ================= Stats and history =================
   let histShown = 25;
+  const openRc = new Set();
   function renderStats() {
     const ok = times.filter((r) => r.pen !== 'dnf');
     const best = ok.length ? Math.min(...ok.map(value)) : null;
@@ -802,7 +974,9 @@
     ];
     $('stats').innerHTML = times.length ? cells.map(([k, v]) => `<div class="stat"><span>${k}</span><b>${v}</b></div>`).join('') : '';
     renderPhases();
+    renderChart();
     renderHistory();
+    renderFocus();
   }
   // Average of each step over the last 12 solves timed with the cube.
   function renderPhases() {
@@ -817,7 +991,9 @@
     const vals = groups.map(([name, idx]) => [name, idx.reduce((a, i) => a + avg(i), 0), idx.length > 1 ? recogAvg(idx) : null]);
     const total = vals.reduce((a, v) => a + v[1], 0) || 1;
     $('phaseBar').innerHTML = vals.map(([name, t]) => `<span class="fr-seg fr-seg-${name.toLowerCase()}" style="flex-grow:${Math.max(1, t)}"><b>${name}</b> ${f1(t)}</span>`).join('');
-    $('phaseLegend').innerHTML = vals.map(([name, t, rec]) => `<span><b>${name}</b> ${f1(t)} s · ${Math.round((t / total) * 100)} %${rec != null ? ` <span class="muted">(${f1(rec)} s reconociendo)</span>` : ''}</span>`).join('');
+    const effs = withSp.filter((r) => r.an && r.an.m).map((r) => r.an.i / r.an.m);
+    $('phaseLegend').innerHTML = vals.map(([name, t, rec]) => `<span><b>${name}</b> ${f1(t)} s · ${Math.round((t / total) * 100)} %${rec != null ? ` <span class="muted">(${f1(rec)} s reconociendo)</span>` : ''}</span>`).join('')
+      + (effs.length ? `<span><b>Eficiencia media</b> ${Math.round((effs.reduce((a, x) => a + x, 0) / effs.length) * 100)} % <span class="muted">(${effs.length} ${effs.length === 1 ? 'solve' : 'solves'})</span></span>` : '');
   }
   function renderHistory() {
     const box = $('history');
@@ -832,26 +1008,41 @@
           + `<td>${step(r, [0])}</td><td>${step(r, [1])}</td><td>${step(r, [2, 3])}</td><td>${step(r, [4, 5])}</td><td class="fr-cases">${esc(cases(r))}</td>`
           + `<td class="fr-acts"><button class="x" type="button" data-pen="2" data-i="${i}" aria-label="Poner o quitar +2 al solve ${i + 1}" aria-pressed="${r.pen === 2}">+2</button>`
           + `<button class="x" type="button" data-pen="dnf" data-i="${i}" aria-label="Marcar o desmarcar DNF el solve ${i + 1}" aria-pressed="${r.pen === 'dnf'}">DNF</button>`
-          + `<button class="x" type="button" data-del="${i}" aria-label="Borrar el solve ${i + 1}">×</button></td></tr>`;
+          + `<button class="x" type="button" data-del="${i}" aria-label="Borrar el solve ${i + 1}">×</button>`
+          + (r.rc ? `<button class="x" type="button" data-rc="${r.at}" aria-expanded="${openRc.has(r.at)}" aria-label="Ver el análisis y los giros del solve ${i + 1}">ver</button>` : '')
+          + '</td></tr>'
+          + (r.rc && openRc.has(r.at) ? `<tr class="fr-recon-row"><td colspan="9">${analysisHtml(r)}${reconHtml(r)}</td></tr>` : '');
       }).join('')}</tbody></table>`;
     $('histMore').hidden = times.length <= histShown;
   }
   $('history').addEventListener('click', (ev) => {
     const b = ev.target.closest('button');
     if (!b) return;
+    if (b.dataset.rc != null) {
+      const at = Number(b.dataset.rc);
+      if (openRc.has(at)) openRc.delete(at); else openRc.add(at);
+      renderHistory();
+      return;
+    }
     if (b.dataset.del != null) {
       const i = Number(b.dataset.del);
       if (b.dataset.armed !== '1') { b.dataset.armed = '1'; b.textContent = '¿Borrar?'; b.classList.add('armed'); setTimeout(() => { if (b.isConnected) { b.dataset.armed = ''; b.textContent = '×'; b.classList.remove('armed'); } }, 3000); return; }
       if (times[i] === timer.last) timer.last = null;
+      const gone = load(K.deleted, []);
+      gone.push(times[i].at);
+      save(K.deleted, gone.slice(-3000));
       times.splice(i, 1);
     } else if (b.dataset.pen) {
       const r = times[Number(b.dataset.i)];
       const p = b.dataset.pen === '2' ? 2 : 'dnf';
       r.pen = r.pen === p ? 0 : p;
-    } else return;
+      r.ed = Date.now();
+    } else if (b.dataset.copyRc != null) return;
+    else return;
     save(K.times, times);
     renderStats();
     emit('result', null);
+    changed();
   });
   $('histMore').addEventListener('click', () => { histShown += 50; renderHistory(); });
 
@@ -949,7 +1140,10 @@
     if (l) {
       learn[id] = l.dataset.learn;
       if (learn[id] === 'new') delete learn[id];
+      learnAt[id] = Date.now();
       save(K.learn, learn);
+      save(K.learnAt, learnAt);
+      changed();
       card.querySelectorAll('[data-learn]').forEach((b) => b.setAttribute('aria-pressed', String(b === l)));
       renderPick();
       return;
@@ -1017,7 +1211,7 @@
     return pool[pool.length - 1];
   }
   const tr = { c: null, target: null, setup: '', follow: null, map: null, ready: 0, first: 0, goal: 0, busy: false, result: null, qStart: 0, qAuf: '', qView: '', answered: false, err: '', hand: null };
-  const trActive = () => view === 'entrenar' && settings.trMode === 'cube' && cube && cube.on && !!tr.c;
+  const trActive = () => view === 'entrenar' && settings.trMode === 'cube' && cube && cube.on && !!tr.c && !ctActive();
   function renderTrMode() {
     const m = settings.trMode;
     $('trModeCube').setAttribute('aria-pressed', String(m === 'cube'));
@@ -1099,7 +1293,8 @@
       if (key(apply(from, moves.join(' '))) !== key(target)) moves = null;
     } catch (e) { moves = null; }
     tr.busy = false;
-    if (tr.c !== c) return;
+    // Another case, or another way of training, came meanwhile.
+    if (tr.c !== c || settings.trMode !== 'cube') return;
     if (!moves) { tr.err = 'No he podido preparar el caso: el generador de scrambles no ha cargado. Comprueba la conexión y vuelve a intentarlo.'; renderTrain(); return; }
     tr.target = target;
     tr.setup = moves.join(' ');
@@ -1143,8 +1338,10 @@
       rec.last = total;
       train[tr.c.id] = rec;
       save(K.train, train);
+      changed();
       tr.result = { total, recog, exec: total - recog };
       if (settings.sound) window.SmartCube.chime(true);
+      buzz([60]);
       renderTrain();
       setTimeout(() => { if (trActive()) trAdvance(); }, 1400);
       return;
@@ -1239,6 +1436,7 @@
     rec.qsum = (rec.qsum || 0) + ms;
     train[c.id] = rec;
     save(K.train, train);
+    changed();
     document.querySelectorAll('[data-answer]').forEach((x) => {
       x.disabled = true;
       if (x.dataset.answer === c.id) x.classList.add('right');
@@ -1263,6 +1461,7 @@
     rec.mok = (rec.mok || 0) + (ok ? 1 : 0);
     train[c.id] = rec;
     save(K.train, train);
+    changed();
     document.querySelectorAll('[data-answer]').forEach((x) => {
       x.disabled = true;
       if (x.dataset.answer === c.id) x.classList.add('right');
@@ -1286,17 +1485,535 @@
   });
   onView('entrenar', () => { if (!tr.c || (settings.trMode === 'cube' && cube && cube.on && !tr.follow && !tr.busy)) trNext(); else renderTrain(); });
 
+  // ================= How it is going: a chart =================
+  // Every solve (dots, DNFs left out), with the ao5 and the ao12 at each one. One axis, thin lines, the last
+  // values labelled at the end; hovering shows that solve.
+  const CHART = { w: 640, h: 220, l: 40, r: 78, t: 12, b: 26 };
+  function renderChart() {
+    const box = $('chartBox');
+    box.hidden = times.length < 3;
+    document.querySelectorAll('[data-chart]').forEach((b) => b.setAttribute('aria-pressed', String(Number(b.dataset.chart) === settings.chart)));
+    if (box.hidden) return;
+    // Drawn at the size it is shown, so text and dots keep their size.
+    CHART.w = Math.max(300, Math.round($('chart').clientWidth || 640));
+    CHART.h = CHART.w < 520 ? 190 : 220;
+    const from = settings.chart ? Math.max(0, times.length - settings.chart) : 0;
+    const pts = [];
+    for (let i = from; i < times.length; i++) {
+      const upTo = times.slice(0, i + 1);
+      const a5 = avgOf(upTo, 5);
+      const a12 = avgOf(upTo, 12);
+      pts.push({ i, v: value(times[i]), a5: a5 === Infinity ? null : a5, a12: a12 === Infinity ? null : a12 });
+    }
+    const vals = pts.flatMap((p) => [p.v, p.a5, p.a12]).filter((x) => x != null && x !== Infinity);
+    if (!vals.length) { box.hidden = true; return; }
+    let lo = Math.min(...vals); let hi = Math.max(...vals);
+    if (hi - lo < 1000) { hi += 500; lo -= 500; }
+    const pad = (hi - lo) * 0.08; lo = Math.max(0, lo - pad); hi += pad;
+    const W = CHART.w - CHART.l - CHART.r; const H = CHART.h - CHART.t - CHART.b;
+    const x = (k) => CHART.l + (pts.length < 2 ? W / 2 : (k / (pts.length - 1)) * W);
+    const y = (v) => CHART.t + H - ((v - lo) / (hi - lo)) * H;
+    // Ticks: round seconds.
+    const span = (hi - lo) / 1000;
+    const stepS = [0.5, 1, 2, 5, 10, 20, 30, 60].find((st) => span / st <= 5) || 120;
+    let grid = '';
+    for (let v = Math.ceil(lo / 1000 / stepS) * stepS; v * 1000 <= hi; v += stepS) {
+      grid += `<line class="fr-grid" x1="${CHART.l}" x2="${CHART.l + W}" y1="${y(v * 1000).toFixed(1)}" y2="${y(v * 1000).toFixed(1)}"/><text class="fr-tick" x="${CHART.l - 8}" y="${(y(v * 1000) + 4).toFixed(1)}" text-anchor="end">${v % 1 ? v.toFixed(1) : v}</text>`;
+    }
+    const line = (field, cls) => {
+      let d = ''; let pen = false;
+      pts.forEach((p, k) => {
+        if (p[field] == null) { pen = false; return; }
+        d += `${pen ? 'L' : 'M'}${x(k).toFixed(1)} ${y(p[field]).toFixed(1)} `;
+        pen = true;
+      });
+      return d ? `<path class="${cls}" d="${d.trim()}"/>` : '';
+    };
+    const dots = pts.map((p, k) => (p.v === Infinity ? '' : `<circle class="fr-dot" cx="${x(k).toFixed(1)}" cy="${y(p.v).toFixed(1)}" r="2.6"/>`)).join('');
+    const lastOf = (field) => { for (let k = pts.length - 1; k >= 0; k--) if (pts[k][field] != null) return { k, v: pts[k][field] }; return null; };
+    const endLabel = (field, cls, name) => {
+      const e = lastOf(field);
+      return e ? `<text class="fr-end ${cls}" x="${CHART.l + W + 6}" y="${(y(e.v) + 4).toFixed(1)}">${name} ${fmt(e.v)}</text>` : '';
+    };
+    const l5 = lastOf('a5'); const l12 = lastOf('a12');
+    // Keep the two end labels apart.
+    let labels = endLabel('a5', 'a5', 'ao5') + endLabel('a12', 'a12', 'ao12');
+    if (l5 && l12 && Math.abs(y(l5.v) - y(l12.v)) < 14) {
+      const up = y(l5.v) < y(l12.v) ? 'a5' : 'a12';
+      labels = `<text class="fr-end ${up}" x="${CHART.l + W + 6}" y="${(Math.min(y(l5.v), y(l12.v)) - 3).toFixed(1)}">${up === 'a5' ? `ao5 ${fmt(l5.v)}` : `ao12 ${fmt(l12.v)}`}</text>`
+        + `<text class="fr-end ${up === 'a5' ? 'a12' : 'a5'}" x="${CHART.l + W + 6}" y="${(Math.max(y(l5.v), y(l12.v)) + 11).toFixed(1)}">${up === 'a5' ? `ao12 ${fmt(l12.v)}` : `ao5 ${fmt(l5.v)}`}</text>`;
+    }
+    $('chart').innerHTML = `<svg viewBox="0 0 ${CHART.w} ${CHART.h}" role="img" aria-label="Tus tiempos de los últimos ${pts.length} solves, con la ao5 y la ao12">
+      ${grid}<text class="fr-tick" x="${CHART.l}" y="${CHART.h - 6}">#${from + 1}</text><text class="fr-tick" x="${CHART.l + W}" y="${CHART.h - 6}" text-anchor="end">#${times.length}</text>
+      ${dots}${line('a12', 'fr-l a12')}${line('a5', 'fr-l a5')}${labels}
+      <line class="fr-cross-hair" id="chartHair" x1="0" x2="0" y1="${CHART.t}" y2="${CHART.t + H}" visibility="hidden"/>
+      <rect class="fr-hit" x="${CHART.l}" y="${CHART.t}" width="${W}" height="${H}"/></svg><div class="fr-tip" id="chartTip" hidden></div>`;
+    $('chartLegend').innerHTML = '<span><i class="fr-key dot"></i>Cada solve</span><span><i class="fr-key a5"></i>ao5</span><span><i class="fr-key a12"></i>ao12</span>';
+    const svg = $('chart').querySelector('svg');
+    const hit = svg.querySelector('.fr-hit');
+    const move = (ev) => {
+      const rect = svg.getBoundingClientRect();
+      const px = ((ev.clientX - rect.left) / rect.width) * CHART.w;
+      const k = Math.max(0, Math.min(pts.length - 1, Math.round(((px - CHART.l) / W) * (pts.length - 1))));
+      const p = pts[k];
+      const hair = $('chartHair');
+      hair.setAttribute('x1', x(k)); hair.setAttribute('x2', x(k)); hair.setAttribute('visibility', 'visible');
+      const tip = $('chartTip');
+      tip.hidden = false;
+      tip.innerHTML = `<b>#${p.i + 1}</b> ${fmtRes(times[p.i])}${p.a5 != null ? `<br>ao5 ${fmt(p.a5)}` : ''}${p.a12 != null ? `<br>ao12 ${fmt(p.a12)}` : ''}`;
+      const left = (x(k) / CHART.w) * rect.width;
+      tip.style.left = `${Math.min(rect.width - 120, Math.max(0, left + 10))}px`;
+    };
+    hit.addEventListener('pointermove', move);
+    hit.addEventListener('pointerdown', move);
+    hit.addEventListener('pointerleave', () => { $('chartHair').setAttribute('visibility', 'hidden'); $('chartTip').hidden = true; });
+  }
+  document.querySelectorAll('[data-chart]').forEach((b) => b.addEventListener('click', () => {
+    settings.chart = Number(b.dataset.chart);
+    saveSettings();
+    renderChart();
+  }));
+  let chartW = 0;
+  window.addEventListener('resize', () => {
+    clearTimeout(chartW);
+    chartW = setTimeout(() => { if (view === 'crono' && !$('chartBox').hidden) renderChart(); }, 150);
+  });
+  onView('crono', () => setTimeout(renderChart, 0));
+
+  // ================= Competition mode =================
+  // Only the clock, full screen, and the whole screen is the button (like a stackmat), the screen kept on.
+  // Enter with the button or F; leave with Salir, Esc or the phone's back gesture.
+  const focus = { on: false };
+  const screenLock = { lock: null, want: false, asking: false };
+  function holdScreen(on) {
+    screenLock.want = on;
+    if (!on) { const l = screenLock.lock; screenLock.lock = null; try { if (l) l.release(); } catch (e) { /* released */ } return; }
+    if (screenLock.lock || screenLock.asking || !navigator.wakeLock || document.visibilityState !== 'visible') return;
+    screenLock.asking = true;
+    try {
+      navigator.wakeLock.request('screen').then((l) => {
+        screenLock.asking = false;
+        if (!screenLock.want) { l.release().catch(() => {}); return; }
+        screenLock.lock = l;
+        l.addEventListener('release', () => { if (screenLock.lock === l) screenLock.lock = null; });
+      }).catch(() => { screenLock.asking = false; });
+    } catch (e) { screenLock.asking = false; }
+  }
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && screenLock.want) holdScreen(true); });
+  function renderFocus() {
+    if (!focus.on) return;
+    $('focusScr').innerHTML = $('scr').innerHTML;
+    const from = new Date();
+    from.setHours(0, 0, 0, 0);
+    const today = times.filter((t) => t.at >= from.getTime());
+    const ok = today.filter((t) => t.pen !== 'dnf');
+    const parts = [];
+    if (today.length) {
+      parts.push(`Hoy <b>${today.length}</b>`);
+      if (ok.length) parts.push(`mejor <b>${fmt(Math.min(...ok.map(value)))}</b>`);
+      const a5 = avgOf(today, 5);
+      if (a5 != null) parts.push(`ao5 <b>${fmt(a5)}</b>`);
+    }
+    if (timer.last) parts.push(`último <b>${fmtRes(timer.last)}</b>`);
+    $('focusStats').innerHTML = parts.join(' · ');
+    $('focusNew').disabled = $('newScr').disabled;
+    // With the cube and the help on: the step and the case, in one line.
+    let live = '';
+    if (cube && cube.on && (settings.help || timer.phase !== 'run')) {
+      const info = liveInfo(cube.state);
+      const t = info.track || (info.held && info.stage >= 2 ? prog.last : null);
+      if (t && t.rec && t.rec.case) live = `<p class="live-letters">${esc(C.STEPS[t.stage].name)} · ${esc(t.rec.case.name)}</p><p class="live-moves">${esc([t.rec.pre, t.rec.case.alg, t.rec.post].filter(Boolean).join(' '))}</p>`;
+      else if (timer.phase === 'run' && info.stage < 6) live = `<p class="live-letters">${esc(C.STEPS[info.stage].name)}${info.stage === 1 ? ` · ${(info.held ? (prog.pairs || []) : info.read.pairs).filter(Boolean).length}/4` : ''}</p>`;
+    }
+    const fl = $('focusLive');
+    if (fl.dataset.h !== live) { fl.dataset.h = live; fl.innerHTML = live; }
+  }
+  function setFocus(on, fromHistory) {
+    if (focus.on === on) return;
+    focus.on = on;
+    document.body.classList.toggle('focus', on);
+    holdScreen(on || timer.phase === 'run');
+    if (on) {
+      if (view !== 'crono') showView('crono');
+      renderFocus();
+      try {
+        const el = document.documentElement;
+        if (el.requestFullscreen && !document.fullscreenElement) el.requestFullscreen({ navigationUI: 'hide' }).catch(() => {});
+      } catch (e) { /* the overlay alone is enough */ }
+      try { history.pushState({ frFocus: true }, ''); } catch (e) { /* sandboxed */ }
+    } else {
+      try { if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {}); } catch (e) { /* already out */ }
+      if (!fromHistory) { try { if (history.state && history.state.frFocus) history.back(); } catch (e) { /* sandboxed */ } }
+    }
+  }
+  window.addEventListener('popstate', () => { if (focus.on) setFocus(false, true); });
+  $('focusOpen').addEventListener('click', () => setFocus(true));
+  $('focusExit').addEventListener('click', () => setFocus(false));
+  $('focusNew').addEventListener('click', () => { if (timer.phase !== 'run') newScramble(); });
+  ['fr:scramble', 'fr:timer', 'fr:cube', 'fr:result'].forEach((e) => document.addEventListener(e, () => setTimeout(renderFocus, 0)));
+  document.addEventListener('keydown', (ev) => {
+    if (typing(ev.target) || ev.ctrlKey || ev.metaKey || ev.altKey) return;
+    if ((ev.key === 'f' || ev.key === 'F') && view === 'crono' && timer.phase !== 'run' && !ev.repeat) { ev.preventDefault(); setFocus(!focus.on); return; }
+    if (ev.key === 'Escape' && focus.on && !['inspect', 'ihold', 'iready', 'run', 'hold', 'ready'].includes(timer.phase)) { ev.preventDefault(); setFocus(false); }
+  });
+
+  // ================= Vibration =================
+  // Desktop Chrome has vibrate() too, but nothing to shake: only on touch screens.
+  const canVibrate = typeof navigator.vibrate === 'function' && !!window.matchMedia && matchMedia('(pointer: coarse)').matches;
+  const vibes = [];   // what vibrated, for tests
+  function buzz(pattern) {
+    if (!settings.vibrate || !canVibrate) return;
+    try { navigator.vibrate(pattern); vibes.push(pattern); } catch (e) { /* no vibration */ }
+  }
+
+  // ================= Install and new versions =================
+  let installEvt = null;
+  const installBtns = [...document.querySelectorAll('.install')];
+  window.addEventListener('beforeinstallprompt', (ev) => {
+    ev.preventDefault();
+    installEvt = ev;
+    installBtns.forEach((b) => { b.hidden = false; });
+  });
+  installBtns.forEach((b) => b.addEventListener('click', async () => {
+    if (!installEvt) return;
+    installEvt.prompt();
+    try { await installEvt.userChoice; } catch (e) { /* dismissed */ }
+    installEvt = null;
+    installBtns.forEach((x) => { x.hidden = true; });
+  }));
+  // A new version replaces the service worker and its cache: a page whose build no longer has a cache is
+  // out of date. Offer a reload, never in the middle of a solve.
+  function offerUpdate() {
+    const show = () => { $('updateBar').hidden = false; };
+    if (timer.phase !== 'run' && timer.phase !== 'inspect') { show(); return; }
+    const wait = () => { if (timer.phase !== 'run' && timer.phase !== 'inspect') { document.removeEventListener('fr:timer', wait); show(); } };
+    document.addEventListener('fr:timer', wait);
+  }
+  function watchUpdates(reg) {
+    const meta = document.querySelector('meta[name=op3-build]');
+    const mine = meta && /^[0-9a-f]{10}$/.test(meta.content) ? `op3bld-${meta.content}` : null;
+    if (!mine || !window.caches) return;
+    let offered = false;
+    const compare = () => {
+      if (offered) return;
+      caches.keys().then((keys) => {
+        const live = keys.filter((k) => k.startsWith('op3bld-'));
+        if (live.length && !live.includes(mine)) { offered = true; offerUpdate(); }
+      }).catch(() => {});
+    };
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      const sw = navigator.serviceWorker.controller;
+      if (!sw || sw.state === 'activated') { compare(); return; }
+      sw.addEventListener('statechange', () => { if (sw.state === 'activated') compare(); });
+    });
+    let last = Date.now();
+    const poll = () => { last = Date.now(); reg.update().catch(() => {}); };
+    setInterval(poll, 30 * 60e3);
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && Date.now() - last > 5 * 60e3) poll(); });
+  }
+  $('updateGo').addEventListener('click', () => location.reload());
+  $('updateLater').addEventListener('click', () => { $('updateBar').hidden = true; });
+
+  // ================= Sync between devices =================
+  // The same code as in the 3BLD page (op3bld:sync:v1): set it up in either and both use it. Fridrich keeps
+  // its own copy on the server, under another key, merged solve by solve.
+  const ALPHA = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const normCode = (c) => String(c || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const prettyCode = (c) => normCode(c).replace(/(.{4})(?=.)/g, '$1-');
+  const randomCode = (n) => {
+    const a = new Uint8Array(n);
+    if (window.crypto && crypto.getRandomValues) crypto.getRandomValues(a); else a.forEach((_, i) => { a[i] = Math.floor(Math.random() * 256); });
+    return [...a].map((b) => ALPHA[b % 32]).join('');
+  };
+  async function sha(text) {
+    const h = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+    return [...new Uint8Array(h)].map((b) => b.toString(16).padStart(2, '0')).join('');
+  }
+  async function api(path, body) {
+    const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const tm = setTimeout(() => ctrl && ctrl.abort(), 15000);
+    try {
+      const r = await fetch(path, {
+        method: body ? 'POST' : 'GET', headers: body ? { 'content-type': 'application/json' } : {},
+        body: body ? JSON.stringify(body) : undefined, cache: 'no-store', signal: ctrl ? ctrl.signal : undefined,
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || `error ${r.status}`);
+      return j;
+    } catch (e) { throw new Error(e.name === 'AbortError' ? 'el servidor no responde' : e.message); } finally { clearTimeout(tm); }
+  }
+  let pingP = null;
+  const backend = () => { if (!pingP) pingP = api('api/ping').then((j) => !!(j.ok && j.store), () => false); return pingP; };
+  const syncState = () => load(K.sync, null);
+  function syncData() {
+    const keep = times.length - 200;   // the turns and the analysis of the last 200 solves travel; older ones stay here
+    return {
+      v: 1,
+      times: times.map((r, i) => (i < keep && (r.rc || r.an) ? (({ rc, an, ...x }) => x)(r) : r)),
+      deleted: load(K.deleted, []), learn, learnAt, train, crossTr: load(K.crossTr, []).slice(-300),
+    };
+  }
+  function mergeIn(remote) {
+    if (!remote || typeof remote !== 'object') return false;
+    let changedHere = false;
+    const dead = new Set([...load(K.deleted, []), ...(Array.isArray(remote.deleted) ? remote.deleted : [])]);
+    save(K.deleted, [...dead].slice(-3000));
+    const byAt = new Map(times.map((r) => [r.at, r]));
+    (Array.isArray(remote.times) ? remote.times : []).forEach((r) => {
+      if (!r || typeof r.at !== 'number' || typeof r.t !== 'number') return;
+      const mine = byAt.get(r.at);
+      if (!mine) { byAt.set(r.at, r); changedHere = true; } else if ((r.ed || 0) > (mine.ed || 0)) { mine.pen = r.pen; mine.ed = r.ed; changedHere = true; }
+      if (mine && !mine.rc && r.rc) { mine.rc = r.rc; changedHere = true; }
+      if (mine && !mine.an && r.an) { mine.an = r.an; changedHere = true; }
+    });
+    const merged = [...byAt.values()].filter((r) => !dead.has(r.at)).sort((a, b) => a.at - b.at).slice(-2000);
+    if (merged.length !== times.length) changedHere = true;
+    times = merged;
+    save(K.times, times);
+    const rl = remote.learn && typeof remote.learn === 'object' ? remote.learn : {};
+    const ra = remote.learnAt && typeof remote.learnAt === 'object' ? remote.learnAt : {};
+    Object.keys({ ...rl, ...ra }).forEach((id) => {
+      if (!C.caseById(id)) return;
+      if ((ra[id] || 0) > (learnAt[id] || 0)) {
+        if (rl[id]) learn[id] = rl[id]; else delete learn[id];
+        learnAt[id] = ra[id];
+        changedHere = true;
+      }
+    });
+    save(K.learn, learn);
+    save(K.learnAt, learnAt);
+    const total = (x) => (x ? (x.n || 0) + (x.qn || 0) + (x.mn || 0) : 0);
+    Object.entries(remote.train && typeof remote.train === 'object' ? remote.train : {}).forEach(([id, x]) => {
+      if (C.caseById(id) && total(x) > total(train[id])) { train[id] = x; changedHere = true; }
+    });
+    save(K.train, train);
+    const ct = load(K.crossTr, []);
+    const seen = new Set(ct.map((x) => x.at));
+    (Array.isArray(remote.crossTr) ? remote.crossTr : []).forEach((x) => { if (x && typeof x.at === 'number' && !seen.has(x.at)) { ct.push(x); changedHere = true; } });
+    save(K.crossTr, ct.sort((a, b) => a.at - b.at).slice(-1000));
+    return changedHere;
+  }
+  let syncing = null;
+  async function syncNow(manual) {
+    const st = syncState();
+    if (!st || !st.code) return;
+    if (syncing) return syncing;
+    syncing = (async () => {
+      setSyncStatus('Sincronizando…');
+      try {
+        if (!(window.crypto && crypto.subtle)) throw new Error('este navegador no lo permite');
+        if (!(await backend())) throw new Error('no hay conexión con el servidor');
+        const k = await sha(`cfop:${normCode(st.code)}`);
+        const remote = await api(`api/sync?k=${k}`);
+        const changedHere = mergeIn(remote.data);
+        await api(`api/sync?k=${k}`, { data: syncData() });
+        save(K.synced, Date.now());
+        setSyncStatus(`Sincronizado ${changedHere ? 'y actualizado con tus otros dispositivos' : 'correctamente'}.`);
+        if (changedHere) {
+          renderStats();
+          if (view === 'casos') renderCases();
+          renderPick();
+          if (manual) toast('Datos actualizados');
+        }
+      } catch (e) { setSyncStatus(`No se ha podido sincronizar: ${e.message}.`, true); }
+    })();
+    try { await syncing; } finally { syncing = null; }
+  }
+  let pushTimer = 0;
+  document.addEventListener('fr:changed', () => {
+    if (!syncState()) return;
+    clearTimeout(pushTimer);
+    pushTimer = setTimeout(() => syncNow(false), 5000);
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && syncState() && Date.now() - load(K.synced, 0) > 60000) syncNow(false);
+  });
+  function setSyncStatus(text, bad) {
+    const el = $('syncStatus');
+    if (!el) return;
+    el.textContent = text;
+    el.className = `hint${bad ? ' bad' : ''}`;
+  }
+  function renderSync() {
+    const box = $('syncBox');
+    const st = syncState();
+    if (!st) {
+      box.innerHTML = '<p>Guarda en la nube tus tiempos, lo que estás aprendiendo y lo que has entrenado, y úsalos en el móvil y en el ordenador. Si ya la tienes activada en la página de 3BLD, aquí se activa sola con el mismo código.</p>'
+        + '<div class="actions"><button class="btn primary" type="button" id="syncOn">Activar sincronización</button></div>'
+        + '<div class="field"><label for="syncCode">¿Ya la activaste en otro dispositivo? Escribe su código</label>'
+        + '<div class="inrow"><input id="syncCode" class="text-input" type="text" spellcheck="false" autocomplete="off" autocapitalize="characters" placeholder="XXXX-XXXX-XXXX-XXXX">'
+        + '<button class="btn" type="button" id="syncJoin">Usar este código</button></div></div>'
+        + '<p class="hint" id="syncStatus"></p>';
+      $('syncOn').addEventListener('click', () => activate(randomCode(16)));
+      $('syncJoin').addEventListener('click', () => {
+        const code = normCode($('syncCode').value);
+        if (code.length !== 16 || [...code].some((c) => !ALPHA.includes(c))) { setSyncStatus('Ese código no es válido: son 16 letras y números.', true); return; }
+        activate(code);
+      });
+      return;
+    }
+    const last = load(K.synced, 0);
+    box.innerHTML = '<p>Tu código de sincronización (el mismo que en la página de 3BLD):</p>'
+      + `<p class="code-box">${esc(prettyCode(st.code))}</p>`
+      + '<p class="hint">Escríbelo en «Ajustes» en tu otro dispositivo. Quien tenga este código puede ver y cambiar tus datos, así que no lo compartas.</p>'
+      + '<div class="actions"><button class="btn primary" type="button" id="syncNow">Sincronizar ahora</button><button class="btn" type="button" id="syncCopy">Copiar código</button></div>'
+      + `<p class="hint" id="syncStatus">${last ? `Última sincronización: ${new Date(last).toLocaleString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}.` : ''}</p>`;
+    $('syncNow').addEventListener('click', () => syncNow(true));
+    $('syncCopy').addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(prettyCode(st.code)); toast('Código copiado'); } catch (e) { toast('Cópialo a mano'); }
+    });
+  }
+  async function activate(code) {
+    if (!(window.crypto && crypto.subtle)) { setSyncStatus('Este navegador no permite activar la sincronización.', true); return; }
+    if (!(await backend())) { setSyncStatus('No hay conexión con el servidor.', true); return; }
+    // The 3BLD page reads the same entry, with the key it uses.
+    save(K.sync, { code: normCode(code), key: await sha(`op3bld:${normCode(code)}`), last: 0 });
+    renderSync();
+    await syncNow(true);
+  }
+  onView('ajustes', renderSync);
+
+  // ================= Entrenar la cruz =================
+  // A scramble, 15 s to plan the whole cross, then do it in one go. With the smart cube the app counts the
+  // turns and the time and compares with the shortest; without it, it shows the shortest at the end.
+  const ct = { phase: 'idle', scr: '', state: null, best: null, follow: null, insp0: 0, t0: 0, moves: [], result: null, raf: 0 };
+  const ctActive = () => view === 'entrenar' && ct.phase !== 'idle' && ct.phase !== 'done' && cube && cube.on;
+  async function ctNew() {
+    ct.phase = 'loading';
+    ct.result = null;
+    renderCt();
+    let scr;
+    try { scr = M.simplifyAlg(await M.withTimeout(M.requestScramble('full'), 30000)); } catch (e) { scr = M.randomMoveScramble(); }
+    ct.scr = scr;
+    ct.state = apply(solved(), scr);
+    ct.best = C.bestCross(ct.state, settings.cross);
+    ct.moves = [];
+    ct.phase = 'scramble';
+    if (cube && cube.on) {
+      ct.follow = makeFollow(solved(), parseAlg(scr).map((m) => m.text));
+      if (!locate(ct.follow, cube.state)) { ct.follow.lost = !isSolved(cube.state); ct.follow.pos = 0; }
+    } else ct.follow = null;
+    renderCt();
+  }
+  function ctPlan() {
+    ct.phase = 'plan';
+    ct.insp0 = now();
+    ctTick();
+    renderCt();
+  }
+  function ctTick() {
+    cancelAnimationFrame(ct.raf);
+    const step = () => {
+      const el = $('ctClock');
+      if (!el) return;
+      if (ct.phase === 'plan') {
+        const left = 15000 - (now() - ct.insp0);
+        el.textContent = left > 0 ? String(Math.ceil(left / 1000)) : left > -2000 ? '+2' : 'DNF';
+      } else if (ct.phase === 'do') el.textContent = fmt(now() - ct.t0);
+      else return;
+      ct.raf = requestAnimationFrame(step);
+    };
+    ct.raf = requestAnimationFrame(step);
+  }
+  function ctMove(mv, st, t) {
+    if (ct.phase === 'scramble' && ct.follow) {
+      followMove(ct.follow, st, mv);
+      if (done(ct.follow)) ctPlan();
+      renderCt();
+      return;
+    }
+    if (ct.phase === 'plan') { ct.phase = 'do'; ct.t0 = t; ct.moves = []; ctTick(); }
+    if (ct.phase !== 'do') return;
+    ct.moves.push(mv);
+    if (C.readFace(st, settings.cross).cross === 4) ctFinish(t);
+    else renderCt();
+  }
+  function ctFinish(t) {
+    cancelAnimationFrame(ct.raf);
+    const used = ct.moves.length ? halves(ct.moves) : null;
+    const map = faceMapFor(C.DOWN[settings.cross]);
+    ct.result = {
+      at: Date.now(), opt: ct.best.length, t: t ? Math.round(t - ct.t0) : null,
+      n: used ? used.length : null, mine: used ? used.map((m) => inHand(m, map)).join(' ') : null,
+      over: ct.insp0 && (ct.t0 || now()) - ct.insp0 > 15000,
+    };
+    if (used) {
+      const list = load(K.crossTr, []);
+      list.push({ at: ct.result.at, opt: ct.result.opt, n: ct.result.n, t: ct.result.t });
+      save(K.crossTr, list.slice(-1000));
+      changed();
+      if (settings.sound) window.SmartCube.chime(true);
+      buzz([60]);
+    }
+    ct.phase = 'done';
+    renderCt();
+  }
+  function ctStats() {
+    const list = load(K.crossTr, []).slice(-20);
+    if (!list.length) return '';
+    const extra = list.reduce((a, x) => a + (x.n - x.opt), 0) / list.length;
+    const tAvg = list.reduce((a, x) => a + (x.t || 0), 0) / list.length;
+    return `Últimas ${list.length}: de media ${extra.toFixed(1)} giros más que la más corta, en ${f1(tAvg)} s.`;
+  }
+  function renderCt() {
+    const box = $('crossTr');
+    if (!box) return;
+    const name = C.crossName(settings.cross);
+    let html = '';
+    if (ct.phase === 'idle') {
+      html = '<div class="actions"><button class="btn primary" type="button" id="ctGo">Empezar</button></div>';
+    } else if (ct.phase === 'loading') html = '<p class="fr-note">Generando un scramble…</p>';
+    else {
+      const F = ct.follow;
+      const moves = parseAlg(ct.scr).map((m) => m.text);
+      html += `<p class="fr-scr fr-ct-scr">${moves.map((m, i) => `<span class="sm${F && !F.lost && ct.phase === 'scramble' ? (i < F.pos ? ' done' : i === F.pos ? (F.halfway ? ' next half' : ' next') : '') : ''}">${esc(m)}</span>`).join(' ')}</p>`;
+      if (ct.phase === 'scramble') {
+        if (F) {
+          html += F.lost ? '<p class="hint bad">Tu cubo no está resuelto: resuélvelo (o «Está resuelto» en el cronómetro) y mézclalo con esto.</p>'
+            : F.off.length ? `<p class="hint bad">Ese giro no toca. Deshaz: <b>${esc(undoText(F))}</b></p>`
+              : '<p class="hint">Mézclalo (blanco arriba, verde delante). Al acabar empiezan los 15 s.</p>';
+        } else html += '<p class="hint">Mezcla tu cubo con esto (blanco arriba, verde delante) y pulsa «Ya está» para empezar los 15 s.</p><div class="actions"><button class="btn primary" type="button" id="ctPlan">Ya está</button></div>';
+      } else if (ct.phase === 'plan' || ct.phase === 'do') {
+        html += `<div class="fr-ct-clock"><span class="field-title">${ct.phase === 'plan' ? `Planea la ${esc(name)} entera` : 'Haciéndola…'}</span><b id="ctClock">${ct.phase === 'plan' ? '15' : '0.00'}</b></div>`;
+        html += cube && cube.on
+          ? `<p class="hint">${ct.phase === 'plan' ? `Pon el ${esc(COLOR_NAME[settings.cross])} abajo y hazla de una vez: empiezo a contar con tu primer giro.` : `${ct.moves.length} giros…`}</p>`
+          : '<div class="actions"><button class="btn primary" type="button" id="ctDone">La he hecho</button></div>';
+      } else if (ct.phase === 'done') {
+        const r = ct.result || {};
+        const b = ct.best;
+        if (r.n != null) {
+          const extra = r.n - r.opt;
+          html += `<p class="fr-big ${extra <= 0 ? 'ok' : ''}">${extra <= 0 ? '¡La más corta!' : `${r.n} giros: ${extra} más que la más corta`}</p>`
+            + `<p class="fr-note">Tu cruz, en ${f1(r.t)} s${r.over ? ' (pasaste de los 15 s planeando)' : ''}: ${algHtml(r.mine)}</p>`;
+        }
+        html += `<p class="fr-note">La más corta (${b.length} ${b.length === 1 ? 'giro' : 'giros'}): ${b.rotation ? `<span class="muted">${esc(b.rotation)}</span> ` : ''}${b.moves ? algHtml(b.moves) : '<i>ya estaba hecha</i>'}</p>`
+          + '<div class="actions"><button class="btn primary" type="button" id="ctGo">Otra</button></div>';
+      }
+    }
+    const stats = ctStats();
+    html += stats ? `<p class="hint">${esc(stats)}</p>` : '';
+    box.innerHTML = html;
+    const go = $('ctGo'); if (go) go.addEventListener('click', ctNew);
+    const pl = $('ctPlan'); if (pl) pl.addEventListener('click', ctPlan);
+    const dn = $('ctDone'); if (dn) dn.addEventListener('click', () => ctFinish(null));
+    if (ct.phase === 'plan' || ct.phase === 'do') ctTick();
+  }
+  onView('entrenar', renderCt);
+
   // ================= Settings =================
   function renderSettings() {
     $('setInspect').checked = settings.inspect;
     $('setHelp').checked = settings.help;
     $('setSound').checked = settings.sound;
+    $('setVibrate').checked = settings.vibrate;
+    $('setVibrateRow').hidden = !canVibrate;
     $('setCross').value = settings.cross;
     const th = load(K.theme, 'auto') || 'auto';
     document.querySelectorAll('[data-theme-set]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.themeSet === th)));
   }
   $('setInspect').addEventListener('change', (e) => { settings.inspect = e.target.checked; saveSettings(); renderClock(); });
   $('setHelp').addEventListener('change', (e) => { settings.help = e.target.checked; saveSettings(); });
+  $('setVibrate').addEventListener('change', (e) => { settings.vibrate = e.target.checked; saveSettings(); });
   $('setSound').addEventListener('change', (e) => { settings.sound = e.target.checked; saveSettings(); if (settings.sound) window.SmartCube.unlockAudio(); });
   $('setCross').addEventListener('change', (e) => { settings.cross = e.target.value; saveSettings(); renderCross(); track = null; tr.c = null; });
   document.querySelectorAll('[data-theme-set]').forEach((b) => b.addEventListener('click', () => {
@@ -1306,7 +2023,7 @@
     renderSettings();
   }));
   $('exportData').addEventListener('click', () => {
-    const blob = new Blob([JSON.stringify({ times, learn, train, settings }, null, 1)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify({ times, learn, train, settings, crossTr: load(K.crossTr, []) }, null, 1)], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = `fridrich-${new Date().toISOString().slice(0, 10)}.json`;
@@ -1318,11 +2035,15 @@
     if (b.dataset.armed !== '1') { b.dataset.armed = '1'; b.textContent = `¿Borrar ${times.length} tiempos? Pulsa otra vez`; setTimeout(() => { b.dataset.armed = ''; b.textContent = 'Borrar tiempos'; }, 4000); return; }
     b.dataset.armed = '';
     b.textContent = 'Borrar tiempos';
+    const gone = load(K.deleted, []);
+    times.forEach((r) => gone.push(r.at));
+    save(K.deleted, gone.slice(-3000));
     times = [];
     save(K.times, times);
     renderStats();
     renderSplits(null);
     toast('Tiempos borrados');
+    changed();
     emit('result', null);
   });
 
@@ -1384,7 +2105,7 @@
     },
     last: () => timer.last,
     // For tests.
-    _: { simSolution, caseTarget, tr, settings, follow: () => follow, makeFollow, partialKeys, setScramble, makeTry },
+    _: { simSolution, caseTarget, tr, settings, follow: () => follow, makeFollow, partialKeys, setScramble, makeTry, ct, vibes, syncNow, mergeIn, offerUpdate, focus: () => focus.on },
   };
 
   // ================= Start =================
@@ -1396,8 +2117,10 @@
   const lastWithSp = times.length ? times[times.length - 1] : null;
   if (lastWithSp && lastWithSp.sp) renderSplits(lastWithSp);
   if (scramble) setScramble(scramble); else { renderScramble(); newScramble(); }
+  // Sync set up on the 3BLD page (or another tab): bring this page up to date.
+  if (syncState()) setTimeout(() => syncNow(false), 1500);
   setTimeout(() => { if (typeof Worker !== 'undefined') M.startScrambler().catch(() => {}); }, 400);
   if ('serviceWorker' in navigator && document.querySelector('link[rel=manifest]')) {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
+    navigator.serviceWorker.register('sw.js').then(watchUpdates).catch(() => {});
   }
 })();

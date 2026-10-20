@@ -317,6 +317,9 @@ const SOLVE = ["D R' F2 L", "U R U' R'", "U' F' U F", "L' U' L", "U B U' B'", "F
 
   // ================= Entrenar: with the cube =================
   await p.click('[data-pick="oll"]');
+  // The virtual cube back to solved and held white up, as after any solve.
+  await p.evaluate(() => document.getElementById('cubeSync').click());
+  await p.waitForTimeout(400);
   await p.click('#trModeCube');
   await p.waitForFunction(() => window.Fridrich._.tr.follow, null, { timeout: 30000 });
   const t1 = await p.evaluate(() => ({ id: window.Fridrich._.tr.c.id, setup: window.Fridrich._.tr.setup, text: document.getElementById('trBox').innerText }));
@@ -333,7 +336,7 @@ const SOLVE = ["D R' F2 L", "U R U' R'", "U' F' U F", "L' U' L", "U B U' B'", "F
   });
   check('train/cube: the cube really is in that case', read.id === t1.id, JSON.stringify(read));
   await p.evaluate((a) => window.Fridrich.cube().link.play([a], 20), read.alg);
-  await p.waitForTimeout(200);
+  await p.waitForFunction(() => /✓/.test(document.getElementById('trBox').innerText), null, { timeout: 4000 }).catch(() => {});
   const res = await p.evaluate(() => ({ text: document.getElementById('trBox').innerText, rec: JSON.parse(localStorage.getItem('cfop:train:v1')) }));
   check('train/cube: solved the step → ✓ with recognition and execution times', /✓/.test(res.text) && /Reconocer [\d.]+ s · hacer [\d.]+ s/.test(res.text) && res.rec[t1.id].n === 1, res.text.slice(0, 200));
   await p.waitForFunction(() => { const t = window.Fridrich._.tr; return t.follow && !t.result && !t.ready; }, null, { timeout: 30000 });

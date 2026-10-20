@@ -126,11 +126,15 @@ En [`/fridrich`](https://old-pochmann-3bld.vercel.app/fridrich), una segunda pá
 
 | Sección | Para qué |
 |:--|:--|
-| **Cronómetro** | Mantén `Espacio` (o el reloj) y suelta para empezar, como en un stackmat, con inspección WCA opcional (+2 y DNF). La **cruz más corta** del scramble (búsqueda completa, unos 6 giros de media). Historial con +2/DNF, ao5, ao12 y ao100. |
-| **Con el cubo** | Sigue el scramble y empieza con tu primer giro (girar el cubo entero no cuenta); para solo al resolverlo. Saca los **tiempos de cada paso** (cruz, F2L, OLL 1, OLL 2, PLL 1, PLL 2) con sus giros, TPS, el caso que te salió y cuánto tardaste en **reconocerlo** y en **hacerlo**, y te dice en qué paso se te va el tiempo de media. En directo, te dice el caso y el algoritmo, qué cara poner delante y si hay que girar arriba antes o después, y marca por dónde vas. «Practicar sin crono» hace lo mismo sin cronometrar. |
+| **Cronómetro** | Mantén `Espacio` (o el reloj) y suelta para empezar, como en un stackmat, con inspección WCA opcional (+2 y DNF). La **cruz más corta** del scramble (búsqueda completa, unos 6 giros de media). Historial con +2/DNF, ao5, ao12 y ao100, y la **gráfica** de tus tiempos con ao5 y ao12 (últimos 50, 200 o todos). **Modo competición** (`F`): solo el reloj y el scramble, a pantalla completa, con toda la pantalla como botón. |
+| **Con el cubo** | Sigue el scramble y empieza con tu primer giro (girar el cubo entero no cuenta); para solo al resolverlo (y el móvil vibra). Saca los **tiempos de cada paso** (cruz, F2L, OLL 1, OLL 2, PLL 1, PLL 2) con sus giros, TPS, el caso que te salió y cuánto tardaste en **reconocerlo** y en **hacerlo**, y te dice en qué paso se te va el tiempo de media. En directo, te dice el caso y el algoritmo, qué cara poner delante y si hay que girar arriba antes o después, y marca por dónde vas; en el F2L, **la pareja más corta** de las que quedan y cómo meterla. «Practicar sin crono» hace lo mismo sin cronometrar. |
+| **Después de cada solve** | El **análisis**: cuántos giros hiciste en cada paso (la cruz, cada pareja, cada algoritmo) contra lo más corto posible, la eficiencia total, las pausas de más de 1 s y qué mejorar primero; y la eficiencia media con los tiempos por fase. La **reconstrucción**: tus giros paso a paso como los hiciste (con el blanco abajo), para copiarla. Las dos también en el historial («ver»). |
 | **Casos** | Los 16 casos dibujados como en J Perm, con su algoritmo, cómo reconocerlos y si los estás aprendiendo o te los sabes. **Pruébalo**: con el cubo resuelto, una mezcla que te deja en ese caso (el algoritmo al revés, o una que no lo delata), cómo queda y cómo resolverlo para que vuelva a quedar resuelto. |
-| **Entrenar** | **Cubo inteligente:** te dice cómo dejar tu cubo en un caso (desde como esté, con un scramble que no lo delata), lo resuelves y mide reconocer + hacer. **Cubo normal:** te da una mezcla desde resuelto, adivinas qué caso te ha quedado y te dice cómo resolverlo. **Reconocer:** te enseña un caso desde cualquier lado y dices cuál es (teclas `1`–`7`). Salen más los que menos has hecho y los más lentos. |
+| **Entrenar** | **Cubo inteligente:** te dice cómo dejar tu cubo en un caso (desde como esté, con un scramble que no lo delata), lo resuelves y mide reconocer + hacer. **Cubo normal:** te da una mezcla desde resuelto, adivinas qué caso te ha quedado y te dice cómo resolverlo. **Reconocer:** te enseña un caso desde cualquier lado y dices cuál es (teclas `1`–`7`). Salen más los que menos has hecho y los más lentos. **La cruz:** un scramble, 15 s para planearla y hacerla de una vez; te dice cuántos giros te sobraron y la más corta. |
+| **Ajustes** | Sonido y vibración, inspección, color de la cruz, la ayuda. **Sincronizar** con el mismo código de la página de 3BLD: tiempos, casos y entrenamientos en todos tus dispositivos. **Instalar** como app y aviso de **versión nueva**. |
 | **Overlay** | El mismo de OBS: cuando usas esta página, enseña el cronómetro con cruz, F2L, OLL y PLL, el caso que estás haciendo con su algoritmo, tus medias de hoy y cuántos algoritmos te sabes. |
+
+![El análisis de un solve: giros de cada paso contra lo más corto, la eficiencia y qué mejorar](docs/img/fridrich-analisis.png)
 
 ### Los algoritmos
 
@@ -162,6 +166,8 @@ Los de [J Perm](https://jperm.net/3x3/cfop) ([2-look OLL](https://jperm.net/algs
 - **A mitad de un algoritmo.** Casi todos deshacen la cruz o el F2L un momento. La ayuda sigue todas las formas de hacer el caso (desde cualquier lado, con o sin giro de U antes) y marca por dónde vas; si haces otra cosa, se queda en el paso al que habías llegado hasta que el cubo vuelve (o hasta 40 giros, si de verdad lo has deshecho).
 - **Los tiempos de cada paso.** Con los estados del cubo tras cada giro, cada paso acaba la primera vez que se cumple con los anteriores. Como un paso solo cuenta si los anteriores siguen hechos, que un *R U R'* deshaga la cruz un momento no confunde nada. Reconocer es el tiempo hasta el primer giro del paso.
 - **La cruz más corta.** Búsqueda en anchura sobre las cuatro aristas de la cruz (190 080 posiciones, se calcula una vez en unos 50 ms); la solución baja por las distancias.
+- **La pareja más corta.** IDA* sin giros de D que no rompe la cruz ni las parejas hechas, con dos tablas exactas como cota (la cruz y cada pareja por separado, 576 posiciones por hueco). Unos 4 ms de mediana.
+- **El análisis.** Cuenta los giros como los nota el cubo (un giro de cara, también los dobles; las capas del medio cuentan dos; girar el cubo entero no cuenta). Lo más corto de cada paso: la cruz más corta; para cada pareja, la más corta desde cómo estaba el cubo cuando la empezaste (y si había otra pareja más fácil); para OLL y PLL, el algoritmo de J Perm desde el mejor lado, con los giros de U justos. La eficiencia es la suma de lo más corto entre tus giros.
 
 ## El método
 
@@ -231,7 +237,8 @@ Cada letra se resuelve como **setup → algoritmo → deshacer el setup**. Cualq
 | Entrenar | `Intro` · `?` | Comprobar · spoiler del cubo |
 | Aprender | `←` `→` | Lección anterior o siguiente |
 | Fridrich · Cronómetro | `Espacio` | Mantén y suelta para empezar (o la inspección); pulsa para parar |
-| | `Esc` | Cancelar |
+| | `Esc` | Cancelar (o salir del modo competición) |
+| | `F` | Modo competición |
 | Fridrich · Entrenar | `1`–`7` · `Intro` | Responder en «Reconocer» · siguiente |
 
 ## Arquitectura
@@ -321,8 +328,9 @@ Todo se guarda en `localStorage`, en tu dispositivo:
 | `op3bld:sync:v1` | Código de sincronización |
 | `op3bld:stream:v1` · `op3bld:overlay:last` | Ajustes del overlay · último estado recibido por el overlay |
 | `op3bld:cube-mac:v1` · `op3bld:cube-fx:v1` · `op3bld:train-cube:v1` | MAC de cada cubo (la usan las dos páginas) · sonido y vibración · responder escribiendo o con el cubo |
-| `cfop:times:v1` | Fridrich: solves (los últimos 2000) con penalización, scramble y, con el cubo, cada paso `[tiempo, giros, reconocer, caso, salto]` |
-| `cfop:learn:v1` · `cfop:train:v1` · `cfop:pick:v1` | Fridrich: casos que aprendes o te sabes · lo entrenado por caso · los casos elegidos |
+| `cfop:times:v1` | Fridrich: solves (los últimos 2000) con penalización, scramble y, con el cubo, cada paso `[tiempo, giros, reconocer, caso, salto]`, la reconstrucción y el análisis (de los últimos 500) |
+| `cfop:learn:v1` · `cfop:learn-at:v1` · `cfop:train:v1` · `cfop:pick:v1` | Fridrich: casos que aprendes o te sabes · cuándo cambió cada uno (para sincronizar) · lo entrenado por caso · los casos elegidos |
+| `cfop:crosstr:v1` · `cfop:deleted:v1` · `cfop:synced:v1` | Fridrich: cruces entrenadas · solves borrados (para que no vuelvan al sincronizar) · última sincronización |
 | `cfop:settings:v1` · `cfop:scramble:v1` · `cfop:view:v1` | Fridrich: inspección, ayuda, sonido, color de la cruz… · scramble actual · última vista |
 
 ### Sin conexión y versiones

@@ -5,6 +5,7 @@ const { SITE } = require('../env');
 const fs = require('fs');
 const axeSrc = fs.readFileSync(require.resolve('axe-core/axe.min.js'), 'utf8');
 let problems = 0;
+const SOLVE = ["D R' F2 L", "U R U' R'", "U' F' U F", "L' U' L", "U B U' B'", "F R U R' U' F'", "R U R' U R U2 R'", "R U R' U' R' F R2 U' R' U' R U R' F'", "R U' R U R U R U' R' U' R2"];
 (async () => {
   const b = await chromium.launch();
   const sizes = [['pixel7', { ...devices['Pixel 7'] }, 'light'], ['pixel7', { ...devices['Pixel 7'] }, 'dark'], ['1280', { viewport: { width: 1280, height: 900 } }, 'dark'], ['1280', { viewport: { width: 1280, height: 900 } }, 'light']];
@@ -29,6 +30,21 @@ let problems = 0;
     await p.evaluate(() => window.Fridrich.cube().link.turn("z2 R U R' U R U2 R' z2"));
     await p.waitForTimeout(100);
     await run('crono + cube');
+    // A whole solve: the analysis and the reconstruction, also opened in the history.
+    await p.evaluate(() => window.Fridrich.cube().link.turn("z2 R U2 R' U' R U' R' z2"));
+    await p.evaluate((sol) => {
+      const M = window.CubeModel; const link = window.Fridrich.cube().virtualLink(); const out = [];
+      link.events$.subscribe((e) => { if (e.type === 'MOVE') out.push(e.move); });
+      link.turn(`z2 ${M.invertAlg(sol.join(' '))} z2`);
+      window.Fridrich._.setScramble(M.simplifyAlg(out.join(' ')));
+    }, SOLVE);
+    await p.evaluate((x) => window.Fridrich.cube().link.turn(x), await p.evaluate(() => window.Fridrich.scramble()));
+    await p.evaluate(() => window.Fridrich.cube().link.turn('z2'));
+    for (const a of SOLVE) await p.evaluate((x) => window.Fridrich.cube().link.play([x], 20), a);
+    await p.waitForFunction(() => document.querySelector('.fr-an-box'), null, { timeout: 15000 });
+    await p.evaluate(() => window.Fridrich.cube().link.turn('z2'));
+    await p.evaluate(() => { document.querySelector('.fr-recon-box').open = true; document.querySelector('#history [data-rc]').click(); });
+    await run('crono · análisis y reconstrucción');
     for (const v of ['casos', 'ajustes']) {
       await p.evaluate((x) => window.Fridrich.showView(x), v);
       await p.waitForTimeout(150);

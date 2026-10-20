@@ -34,6 +34,7 @@
       <h1>Fridrich reducido</h1>
       <p>CFOP en 2 pasos · algoritmos de J Perm</p>
     </div>
+    <button class="btn install" type="button" hidden>Instalar app</button>
     <a class="fr-switch" href="./">Old Pochmann 3BLD<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
   </header>
 
@@ -50,7 +51,18 @@
       <section class="panel" aria-labelledby="hTimer">
         <div class="panel-head">
           <h2 id="hTimer">Cronómetro</h2>
-          <span class="hint fr-keys"><kbd>Espacio</kbd>: mantén y suelta para empezar, pulsa para parar · <kbd>Esc</kbd> cancela</span>
+          <button class="btn focus-open" type="button" id="focusOpen" aria-keyshortcuts="f" title="Solo el cronómetro, a pantalla completa (tecla F)">
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+            Modo competición
+          </button>
+          <span class="hint fr-keys"><kbd>Espacio</kbd>: mantén y suelta para empezar, pulsa para parar · <kbd>Esc</kbd> cancela · <kbd>F</kbd> modo competición</span>
+        </div>
+        <div class="focus-top focus-only" id="focusTop">
+          <div class="focus-bar">
+            <button class="btn" type="button" id="focusExit" aria-keyshortcuts="Escape">Salir</button>
+          </div>
+          <p class="focus-scr" id="focusScr"></p>
+          <button class="btn" type="button" id="focusNew">Nuevo scramble</button>
         </div>
 
         <div class="cube-bar" id="cubeBar">
@@ -95,6 +107,11 @@
         </section>
 
         <section class="fr-splits" id="splits" aria-label="Tiempos por fase del último solve" hidden></section>
+        <div class="focus-moves focus-only" id="focusLive"></div>
+        <div class="focus-bottom focus-only" id="focusBottom">
+          <p class="focus-stats" id="focusStats"></p>
+          <p class="focus-hint"><span class="on-touch">Mantén el dedo en la pantalla y suelta para empezar · toca para parar</span><span class="on-keys">Mantén <kbd>Espacio</kbd> (o la pantalla) y suelta para empezar · <kbd>Esc</kbd> sale</span></p>
+        </div>
 
         <form class="cube-sim" id="cubeSimBox" hidden>
           <span class="field-title">Cubo virtual</span>
@@ -110,6 +127,18 @@
         </form>
 
         <div class="stats" id="stats"></div>
+        <section class="fr-chart" id="chartBox" aria-labelledby="hChart" hidden>
+          <div class="fr-chart-head">
+            <h3 id="hChart" class="field-title">Cómo vas</h3>
+            <div class="seg small" role="group" aria-label="Cuántos solves">
+              <button type="button" data-chart="50" aria-pressed="true">Últimos 50</button>
+              <button type="button" data-chart="200" aria-pressed="false">200</button>
+              <button type="button" data-chart="0" aria-pressed="false">Todos</button>
+            </div>
+          </div>
+          <div class="fr-chart-plot" id="chart"></div>
+          <p class="fr-chart-legend" id="chartLegend"></p>
+        </section>
         <section class="fr-phases" id="phases" aria-labelledby="hPhases" hidden>
           <h3 id="hPhases" class="field-title">Dónde se va el tiempo <span class="muted" id="phasesN"></span></h3>
           <div class="fr-phase-bar" id="phaseBar"></div>
@@ -162,6 +191,11 @@
           <div class="fr-pick-cases" id="trPick"></div>
         </details>
       </section>
+      <section class="panel" aria-labelledby="hCrossTr">
+        <div class="panel-head"><h2 id="hCrossTr">Entrenar la cruz</h2></div>
+        <p class="hint">Mezcla, planea la cruz entera en la inspección y hazla de una vez, sin parar. Después te enseño la más corta para que compares. Con el cubo inteligente, además, cuento tus giros y tu tiempo.</p>
+        <div class="fr-crosstr" id="crossTr" aria-live="polite"></div>
+      </section>
     </div>
 
     <!-- ================= Ajustes ================= -->
@@ -172,6 +206,7 @@
           <label class="check"><input type="checkbox" id="setInspect"> Inspección de 15 s (como en la WCA: +2 si pasas de 15, DNF si pasas de 17)</label>
           <label class="check"><input type="checkbox" id="setHelp"> Con el cubo, decirme el caso y el algoritmo también mientras corre el crono</label>
           <label class="check"><input type="checkbox" id="setSound"> Sonido al resolver y al acabar un caso</label>
+          <label class="check" id="setVibrateRow"><input type="checkbox" id="setVibrate"> Vibrar al resolver (en el móvil)</label>
           <div class="field">
             <label for="setCross">Color de la cruz</label>
             <select id="setCross" class="text-input">
@@ -194,13 +229,17 @@
           </div>
         </div>
       </section>
+      <section class="panel" aria-labelledby="hSync">
+        <div class="panel-head"><h2 id="hSync">Sincronizar entre dispositivos</h2></div>
+        <div class="sync" id="syncBox"></div>
+      </section>
       <section class="panel" aria-labelledby="hStream">
         <div class="panel-head"><h2 id="hStream">Overlay para OBS</h2></div>
         <div class="stream" id="streamBox"></div>
       </section>
       <section class="panel" aria-labelledby="hData">
         <div class="panel-head"><h2 id="hData">Tus datos</h2></div>
-        <p>Todo se guarda solo en este navegador: tus tiempos, los casos que estás aprendiendo y lo que has entrenado.</p>
+        <p>Tus tiempos, los casos que estás aprendiendo y lo que has entrenado se guardan en este navegador (y, si activas la sincronización, también en tus otros dispositivos).</p>
         <div class="actions">
           <button class="btn" type="button" id="exportData">Descargar copia</button>
           <button class="btn" type="button" id="clearTimes">Borrar tiempos</button>
@@ -232,6 +271,11 @@
   </form>
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+<div class="update-bar" id="updateBar" role="status" hidden>
+  <span>Hay una versión nueva de la app.</span>
+  <button class="btn primary" type="button" id="updateGo">Actualizar</button>
+  <button class="x" type="button" id="updateLater" aria-label="Ahora no" title="Ahora no">×</button>
+</div>
 
 <script src="cubemodel.js"></script>
 <script src="cfop.js"></script>
