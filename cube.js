@@ -412,9 +412,11 @@
       if (isSolved(cube.state)) finishCheck(true);
     } else if (ph === 'idle') {
       followMove(m.text);
-      if (trActive()) trMove(m.text);
-      if (guideActive()) guideMove(m.text);
     }
+    // The trainer and the guided execution follow the cube whatever the clock is doing
+    // (a timed solve following the guide, for instance).
+    if (trActive()) trMove(m.text);
+    if (guideActive()) guideMove(m.text);
     render();
   }
   function record(mv) {
@@ -504,7 +506,15 @@
     try { navigator.vibrate([80, 60, 180]); fxLog.push('vibrate'); } catch (e) { /* no vibration */ }
   }
   const fxLog = [];   // what was played, for tests
-  function celebrate() { chime(); buzz(); }
+  // Once per solve, even if the clock and the guide both see it.
+  let cheeredAt = -1e9;
+  function celebrate() {
+    const now = performance.now();
+    if (now - cheeredAt < 1500) return;
+    cheeredAt = now;
+    chime();
+    buzz();
+  }
   function renderFx() {
     $('fxSound').setAttribute('aria-pressed', String(fx.sound));
     $('fxVibrate').setAttribute('aria-pressed', String(fx.vibrate));

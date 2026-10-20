@@ -178,6 +178,38 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check('guide without a cube: no cube line', gs.cube === null);
   await p.click('#guideClose');
 
+  // ================= Guide during a timed attempt =================
+  // With the clock running (memo, then execution), the guide still follows the cube, and the end
+  // is celebrated once even though the clock stops by itself at the same turn.
+  {
+    await p.evaluate(() => window.OP3.showView('crono'));
+    await p.click('#cubeSim');
+    await p.waitForFunction(() => window.OP3.cube.status === 'on');
+    await p.click('#cubeSync');
+    await wait(150);
+    const scr2 = await p.evaluate(() => window.OP3.randomMoveScramble(14));
+    await p.evaluate((x) => { const el = document.getElementById('scr'); el.value = x; el.dispatchEvent(new Event('input')); }, scr2);
+    const memo2 = await p.evaluate(() => { const m = window.OP3.optimalMemo(); return [window.OP3.pairs(m.edges.letters), window.OP3.pairs(m.corners.letters)]; });
+    await p.evaluate(([e, c]) => { for (const [id, v] of [['memoE', e], ['memoC', c]]) { const el = document.getElementById(id); el.value = v; el.dispatchEvent(new Event('input')); } }, memo2);
+    await turn(scr2);
+    await wait(3200);
+    await p.keyboard.press('Space');
+    await wait(100);
+    await p.evaluate(() => window.OP3.showView('practicar'));
+    await p.click('#guideOpen');
+    const steps2 = await p.evaluate(() => window.OP3.guideApi.steps().filter((x) => !x.end).map((x) => (x.isAlg ? x.seq : x.move)));
+    await turn(steps2[0]);
+    await turn(steps2[1]);
+    let g2 = await p.evaluate(() => ({ i: window.OP3.guideApi.index(), phase: window.OP3.clock.phase() }));
+    check('timer running: the guide still follows the cube', g2.i === 2 && g2.phase === 'exec', JSON.stringify(g2));
+    await p.evaluate(() => { window.OP3.cube.fxLog.length = 0; });
+    await turn(steps2.slice(2).join(' '));
+    await wait(100);
+    g2 = await p.evaluate(() => ({ prog: document.getElementById('guideProg').textContent, fx: window.OP3.cube.fxLog.filter((x) => x === 'chime').length, last: window.OP3.data.times().slice(-1)[0] }));
+    check('…the end: guide done, attempt saved as solved, one chime', g2.prog === 'Terminado' && g2.last.ok === true && g2.fx === 1, JSON.stringify({ prog: g2.prog, fx: g2.fx, ok: g2.last && g2.last.ok }));
+    await p.click('#guideClose');
+  }
+
   // ================= Phone =================
   {
     const c2 = await browser.newContext({ ...devices['Pixel 7'] });
