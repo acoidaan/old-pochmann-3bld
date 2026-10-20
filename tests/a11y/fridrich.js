@@ -32,6 +32,7 @@ let problems = 0;
     for (const v of ['casos', 'ajustes']) {
       await p.evaluate((x) => window.Fridrich.showView(x), v);
       await p.waitForTimeout(150);
+      if (v === 'casos') await p.click('[data-case="sune"] [data-try]');
       await run(v);
     }
     await p.evaluate(() => window.Fridrich.showView('entrenar'));
@@ -39,6 +40,11 @@ let problems = 0;
     await run('entrenar · reconocer');
     await p.click('[data-answer]');
     await run('entrenar · reconocer (respuesta)');
+    await p.click('#trModeHand');
+    await p.waitForFunction(() => window.Fridrich._.tr.hand, null, { timeout: 30000 });
+    await run('entrenar · cubo normal');
+    await p.click('[data-answer]');
+    await run('entrenar · cubo normal (respuesta)');
     await p.click('#trModeCube');
     await p.waitForFunction(() => window.Fridrich._.tr.follow || window.Fridrich._.tr.err, null, { timeout: 30000 });
     await run('entrenar · con el cubo');

@@ -797,6 +797,55 @@
   });
   $('histMore').addEventListener('click', () => { histShown += 50; renderHistory(); });
 
+  // ================= A case by hand =================
+  // From a solved cube held with the cross colour down and green in front: the turns that leave it in the
+  // case (J Perm's algorithm backwards, or a mix that does not give the case away), what it then looks like,
+  // and how to solve it so that it ends solved: the side in front, the top turn before, the algorithm and
+  // the top turn after.
+  async function makeTry(c, hidden) {
+    const rot = C.DOWN[settings.cross];
+    const ref = rot ? apply(solved(), rot) : solved();
+    const inv = invertAlg(c.alg);
+    if (!hidden) {
+      const g = apply(ref, inv);
+      return { c, hidden: false, setup: inv, g, front: C.colour(g, 22), top: C.colour(g, 4), pre: '', post: '' };
+    }
+    const v = rnd(C.VIEWS);
+    const a1 = rnd(C.AUF);
+    const a2 = rnd(C.AUF);
+    const held = v ? apply(ref, v) : ref;   // the side that will be in front when solving it
+    const target = norm(apply(held, [a1, inv, a2].filter(Boolean).join(' ')));
+    const s = await M.withTimeout(M.solveState(toFacelets(target)), 25000);
+    if (key(apply(solved(), s)) !== key(target)) throw new Error('la mezcla no llega al caso');
+    return {
+      c, hidden: true, setup: inHand(s, faceMapFor(rot)), g: C.canon(target, settings.cross),
+      front: C.colour(held, 22), top: C.colour(held, 4), pre: a2 ? invertAlg(a2) : '', post: a1 ? invertAlg(a1) : '',
+    };
+  }
+  const cap = (x) => x[0].toUpperCase() + x.slice(1);
+  const setupChips = (alg) => parseAlg(alg).map((m) => `<span class="sm">${esc(m.text)}</span>`).join(' ');
+  const tryHow = (t) => `${esc(cap(t.top))} arriba y el <b>${esc(t.front)}</b> delante: ${t.pre ? `<b class="fr-auf">${esc(t.pre)}</b> · ` : ''}${algHtml(t.c.alg)}${t.post ? ` · <b class="fr-auf">${esc(t.post)}</b>` : ''}`;
+  const holdText = () => `${esc(COLOR_NAME[settings.cross])} abajo y verde delante`;
+  function tryHtml(t) {
+    const step = C.STEPS.find((s) => s.id === t.c.step);
+    return `<ol class="fr-try-steps">
+      <li><span>Con el cubo resuelto, ${holdText()}, haz:</span><p class="fr-setup">${setupChips(t.setup)}</p></li>
+      <li><span>Te queda <b>${esc(t.c.name)}</b> (${esc(step.name)}):</span><div class="fr-try-pic">${topView(t.g, { mode: modeOf(t.c.step), arrows: t.c.step.startsWith('pll'), label: `Así queda: ${t.c.name}` })}</div></li>
+      <li><span>Resuélvelo: ${tryHow(t)}</span></li>
+    </ol>
+    <div class="actions"><button class="btn" type="button" data-try-mode="hidden">${t.hidden ? 'Otra mezcla' : 'Una mezcla que no lo delate'}</button>${t.hidden ? '<button class="btn" type="button" data-try-mode="short">La mezcla corta</button>' : ''}</div>
+    <p class="hint">${t.hidden ? 'Una mezcla cualquiera que acaba en este caso, visto desde otro lado: así practicas reconocerlo.' : 'La mezcla corta es el algoritmo al revés: fácil de hacer, pero se nota qué caso es.'} Al resolverlo, el cubo queda resuelto otra vez.</p>`;
+  }
+  async function showTry(card, c, hidden) {
+    const box = card.querySelector('.fr-try');
+    box.hidden = false;
+    if (hidden) box.innerHTML = '<p class="fr-note">Preparando una mezcla…</p>';
+    let t;
+    try { t = await makeTry(c, hidden); } catch (e) { t = await makeTry(c, false); toast('No he podido generar la mezcla: te pongo la corta'); }
+    box.innerHTML = tryHtml(t);
+    card.querySelector('[data-try]').setAttribute('aria-expanded', 'true');
+  }
+
   // ================= Casos =================
   const STATUS = [['new', 'Nuevo'], ['learning', 'Aprendiendo'], ['known', 'Me lo sé']];
   const statusOf = (id) => learn[id] || 'new';
@@ -806,6 +855,7 @@
     const bits = [];
     if (t.n) bits.push(`con el cubo: media ${f1(t.sum / t.n)} s${t.rsum != null ? ` (${f1(t.rsum / t.n)} reconociendo)` : ''} · mejor ${f1(t.best)} s · ${t.n} ${t.n === 1 ? 'vez' : 'veces'}`);
     if (t.qn) bits.push(`reconociendo: ${Math.round((t.qok / t.qn) * 100)} % · ${f1(t.qsum / t.qn)} s`);
+    if (t.mn) bits.push(`con tu cubo: ${Math.round((t.mok / t.mn) * 100)} % acertados (${t.mn})`);
     return bits.join(' · ');
   }
   function renderCases() {
@@ -823,9 +873,11 @@
           </div>
           <div class="fr-card-foot">
             <div class="seg small" role="group" aria-label="${esc(c.name)}: cómo lo llevas">${STATUS.map(([v, l]) => `<button type="button" data-learn="${v}" aria-pressed="${statusOf(c.id) === v}">${l}</button>`).join('')}</div>
+            <button class="btn" type="button" data-try aria-expanded="false">Pruébalo</button>
             <button class="btn" type="button" data-train="${c.id}">Entrenar</button>
             <p class="hint fr-card-stats">${esc(trainLine(c.id))}</p>
           </div>
+          <div class="fr-try" hidden></div>
         </article>`).join('')}</div>
       </section>`;
     }).join('');
@@ -844,6 +896,15 @@
       renderPick();
       return;
     }
+    const tryBtn = ev.target.closest('[data-try]');
+    if (tryBtn) {
+      const box = card.querySelector('.fr-try');
+      if (!box.hidden) { box.hidden = true; tryBtn.setAttribute('aria-expanded', 'false'); return; }
+      showTry(card, C.caseById(id), false);
+      return;
+    }
+    const mode = ev.target.closest('[data-try-mode]');
+    if (mode) { showTry(card, C.caseById(id), mode.dataset.tryMode === 'hidden'); return; }
     if (ev.target.closest('[data-train]')) {
       pick = [id];
       save(K.pick, pick);
@@ -886,24 +947,35 @@
     const pool = C.CASES.filter((c) => pick.includes(c.id));
     const w = pool.map((c) => {
       const t = train[c.id] || {};
-      const n = settings.trMode === 'cube' ? t.n || 0 : t.qn || 0;
-      const slow = settings.trMode === 'cube' ? (t.n ? t.sum / t.n / 1000 : 4) : (t.qn ? (t.qsum / t.qn) / 1000 + (1 - t.qok / t.qn) * 3 : 3);
+      const m = settings.trMode;
+      const n = m === 'cube' ? t.n || 0 : m === 'hand' ? t.mn || 0 : t.qn || 0;
+      const slow = m === 'cube' ? (t.n ? t.sum / t.n / 1000 : 4)
+        : m === 'hand' ? (t.mn ? 1 + (1 - t.mok / t.mn) * 4 : 3)
+          : (t.qn ? (t.qsum / t.qn) / 1000 + (1 - t.qok / t.qn) * 3 : 3);
       return (c.id === avoid && pool.length > 1 ? 0.15 : 1) * (1 + 3 / (1 + n)) * (0.5 + slow);
     });
     let x = Math.random() * w.reduce((a, b) => a + b, 0);
     for (let i = 0; i < pool.length; i++) { x -= w[i]; if (x <= 0) return pool[i]; }
     return pool[pool.length - 1];
   }
-  const tr = { c: null, target: null, setup: '', follow: null, map: null, ready: 0, first: 0, goal: 0, busy: false, result: null, qStart: 0, qAuf: '', qView: '', answered: false, err: '' };
+  const tr = { c: null, target: null, setup: '', follow: null, map: null, ready: 0, first: 0, goal: 0, busy: false, result: null, qStart: 0, qAuf: '', qView: '', answered: false, err: '', hand: null };
   const trActive = () => view === 'entrenar' && settings.trMode === 'cube' && cube && cube.on && !!tr.c;
+  function renderTrMode() {
+    const m = settings.trMode;
+    $('trModeCube').setAttribute('aria-pressed', String(m === 'cube'));
+    $('trModeHand').setAttribute('aria-pressed', String(m === 'hand'));
+    $('trModeLook').setAttribute('aria-pressed', String(m === 'look'));
+  }
   function setTrMode(m) {
     settings.trMode = m;
     saveSettings();
-    $('trModeCube').setAttribute('aria-pressed', String(m === 'cube'));
-    $('trModeLook').setAttribute('aria-pressed', String(m === 'look'));
+    renderTrMode();
     trNext();
   }
+  if (!['cube', 'hand', 'look'].includes(settings.trMode)) settings.trMode = 'cube';
+  renderTrMode();
   $('trModeCube').addEventListener('click', () => setTrMode('cube'));
+  $('trModeHand').addEventListener('click', () => setTrMode('hand'));
   $('trModeLook').addEventListener('click', () => setTrMode('look'));
   // A state with the first two layers solved (cross colour down) whose last layer shows this case, from a
   // random side and with the rest of the last layer random as it would be.
@@ -928,6 +1000,17 @@
       tr.qAuf = rnd(C.AUF);
       tr.qView = rnd(C.VIEWS);
       tr.qStart = now();
+      renderTrain();
+      return;
+    }
+    if (settings.trMode === 'hand') {
+      const c = tr.c;
+      tr.hand = null;
+      renderTrain();
+      let t;
+      try { t = await makeTry(c, true); } catch (e) { t = await makeTry(c, false); }
+      if (tr.c !== c || settings.trMode !== 'hand') return;
+      tr.hand = t;
       renderTrain();
       return;
     }
@@ -1031,9 +1114,23 @@
       </div>`;
       return;
     }
+    if (settings.trMode === 'hand') {
+      const t = tr.hand;
+      const options = C.CASES.filter((x) => x.step === c.step);
+      box.dataset.h = '';
+      box.innerHTML = !t ? '<p class="fr-note">Preparando una mezcla…</p>' : `<div class="fr-train-head">
+        <span class="field-title">${step.name} · ${esc(step.long)}</span>
+        <p class="fr-note"><b>1.</b> Con el cubo resuelto, ${holdText()}, mezcla:</p>
+        <p class="fr-setup">${setupChips(t.setup)}</p>
+        <p class="fr-note"><b>2.</b> ¿Qué caso te ha quedado?</p>
+        <div class="fr-options">${options.map((x, i) => `<button class="btn" type="button" data-answer="${x.id}"><kbd>${i + 1}</kbd> ${esc(x.name)}</button>`).join('')}</div>
+        <div class="fr-feedback" id="trFeedback" aria-live="polite"></div>
+      </div><p class="hint">${esc(trainLine(c.id))}</p>`;
+      return;
+    }
     if (!cube || !cube.on) {
-      box.innerHTML = `<div class="fr-train-off"><p>Para entrenar con tu cubo, conéctalo en el <a href="#crono">cronómetro</a>. La app te dice cómo dejarlo en un caso, lo resuelves y te mide cuánto tardas en reconocerlo y en hacerlo.</p>
-        <p class="hint">Sin cubo, prueba «Reconocer»: te enseño casos y dices cuál es.</p>
+      box.innerHTML = `<div class="fr-train-off"><p>Para entrenar con tu cubo inteligente, conéctalo en el <a href="#crono">cronómetro</a>. La app te dice cómo dejarlo en un caso, lo resuelves y te mide cuánto tardas en reconocerlo y en hacerlo.</p>
+        <p class="hint">Con un cubo cualquiera, prueba «Cubo normal»: te digo cómo mezclarlo, adivinas el caso y te digo cómo resolverlo. Sin cubo, «Reconocer».</p>
         <div class="fr-train-card">${casePicture(c)}<div><b>${esc(c.name)}</b>${algHtml(c.alg)}</div></div></div>`;
       return;
     }
@@ -1072,6 +1169,7 @@
     if (b) answer(b.dataset.answer);
   });
   function answer(id) {
+    if (settings.trMode === 'hand') { answerHand(id); return; }
     if (settings.trMode !== 'look' || !tr.c || tr.answered) return;
     tr.answered = true;
     const ms = now() - tr.qStart;
@@ -1095,8 +1193,33 @@
     if (ok) setTimeout(() => { if (tr.answered && settings.trMode === 'look' && view === 'entrenar') trNext(); }, 1100);
     else $('trNextQ').addEventListener('click', () => trNext());
   }
+  // «Cubo normal»: after guessing, what it was and how to solve it (the cube ends solved for the next one).
+  function answerHand(id) {
+    const t = tr.hand;
+    if (!t || tr.answered) return;
+    tr.answered = true;
+    const c = t.c;
+    const ok = id === c.id;
+    const rec = train[c.id] || {};
+    rec.mn = (rec.mn || 0) + 1;
+    rec.mok = (rec.mok || 0) + (ok ? 1 : 0);
+    train[c.id] = rec;
+    save(K.train, train);
+    document.querySelectorAll('[data-answer]').forEach((x) => {
+      x.disabled = true;
+      if (x.dataset.answer === c.id) x.classList.add('right');
+      else if (x.dataset.answer === id) x.classList.add('wrong');
+    });
+    const fb = $('trFeedback');
+    fb.className = `fr-feedback ${ok ? 'ok' : 'ko'}`;
+    fb.innerHTML = `<p class="fr-big ${ok ? 'ok' : ''}">${ok ? '✓' : '✗ Era'} ${esc(c.name)}</p>
+      <div class="fr-train-card">${topView(t.g, { mode: modeOf(c.step), arrows: c.step.startsWith('pll'), label: `Así queda: ${c.name}` })}<div><span class="hint">${esc(c.look)}</span></div></div>
+      <p class="fr-note"><b>3.</b> Resuélvelo: ${tryHow(t)}</p>
+      <div class="actions"><button class="btn primary" type="button" id="trNextQ">Siguiente</button></div>`;
+    $('trNextQ').addEventListener('click', () => trNext());
+  }
   document.addEventListener('keydown', (ev) => {
-    if (view !== 'entrenar' || settings.trMode !== 'look' || typing(ev.target)) return;
+    if (view !== 'entrenar' || (settings.trMode !== 'look' && settings.trMode !== 'hand') || typing(ev.target)) return;
     const n = Number(ev.key);
     if (n >= 1 && n <= 7) {
       const b = document.querySelectorAll('[data-answer]')[n - 1];
@@ -1202,7 +1325,7 @@
     },
     last: () => timer.last,
     // For tests.
-    _: { simSolution, caseTarget, tr, settings, follow: () => follow, makeFollow, partialKeys, setScramble },
+    _: { simSolution, caseTarget, tr, settings, follow: () => follow, makeFollow, partialKeys, setScramble, makeTry },
   };
 
   // ================= Start =================

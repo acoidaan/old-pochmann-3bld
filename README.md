@@ -128,8 +128,8 @@ En [`/fridrich`](https://old-pochmann-3bld.vercel.app/fridrich), una segunda pá
 |:--|:--|
 | **Cronómetro** | Mantén `Espacio` (o el reloj) y suelta para empezar, como en un stackmat, con inspección WCA opcional (+2 y DNF). La **cruz más corta** del scramble (búsqueda completa, unos 6 giros de media). Historial con +2/DNF, ao5, ao12 y ao100. |
 | **Con el cubo** | Sigue el scramble y empieza con tu primer giro (girar el cubo entero no cuenta); para solo al resolverlo. Saca los **tiempos de cada paso** (cruz, F2L, OLL 1, OLL 2, PLL 1, PLL 2) con sus giros, TPS, el caso que te salió y cuánto tardaste en **reconocerlo** y en **hacerlo**, y te dice en qué paso se te va el tiempo de media. En directo, te dice el caso y el algoritmo, qué cara poner delante y si hay que girar arriba antes o después, y marca por dónde vas. «Practicar sin crono» hace lo mismo sin cronometrar. |
-| **Casos** | Los 16 casos dibujados como en J Perm, con su algoritmo, cómo reconocerlos y si los estás aprendiendo o te los sabes. |
-| **Entrenar** | **Con el cubo:** te dice cómo dejar tu cubo en un caso (desde como esté, con un scramble que no lo delata), lo resuelves y mide reconocer + hacer. **Reconocer:** te enseña un caso desde cualquier lado y dices cuál es (teclas `1`–`7`). Salen más los que menos has hecho y los más lentos. |
+| **Casos** | Los 16 casos dibujados como en J Perm, con su algoritmo, cómo reconocerlos y si los estás aprendiendo o te los sabes. **Pruébalo**: con el cubo resuelto, una mezcla que te deja en ese caso (el algoritmo al revés, o una que no lo delata), cómo queda y cómo resolverlo para que vuelva a quedar resuelto. |
+| **Entrenar** | **Cubo inteligente:** te dice cómo dejar tu cubo en un caso (desde como esté, con un scramble que no lo delata), lo resuelves y mide reconocer + hacer. **Cubo normal:** te da una mezcla desde resuelto, adivinas qué caso te ha quedado y te dice cómo resolverlo. **Reconocer:** te enseña un caso desde cualquier lado y dices cuál es (teclas `1`–`7`). Salen más los que menos has hecho y los más lentos. |
 | **Overlay** | El mismo de OBS: cuando usas esta página, enseña el cronómetro con cruz, F2L, OLL y PLL, el caso que estás haciendo con su algoritmo, tus medias de hoy y cuántos algoritmos te sabes. |
 
 ### Los algoritmos
@@ -360,14 +360,14 @@ Hace falta Node 18 o superior. No hay que instalar nada para la app en sí.
 node build.js                    # genera public/
 cd tests && npm install
 node server.js                   # sirve public/ con una API falsa en http://localhost:8793
-npm test                         # todas las pruebas (unas 335 comprobaciones)
+npm test                         # todas las pruebas (unas 340 comprobaciones)
 ```
 
 `tests/server.js` imita la API, así que retos y sincronización funcionan en local sin Vercel ni Blob. Con `vercel dev` se prueba la API de verdad.
 
 **Despliegue.** Cada push a `main` se despliega solo en Vercel: instala `package.json` (`@vercel/blob`, `@vercel/og`, `cubejs`), ejecuta `node build.js` y publica `public/` y `api/`. Hace falta un almacén de Vercel Blob conectado al proyecto (variable `BLOB_READ_WRITE_TOKEN`); sin él, la app funciona igual pero sin retos ni sincronización. `vercel.json` sirve `cubejs` desde jsDelivr en el mismo dominio (para el generador sin conexión), traduce `/r/:id` a `/api/r`, sirve `/fridrich` desde `fridrich.html` y fija las cabeceras de caché de `sw.js` y `vendor/`.
 
-**Pruebas.** Doce suites en Chromium con Playwright (unas 335 comprobaciones) y cuatro auditorías con axe-core; ver [tests/README.md](tests/README.md).
+**Pruebas.** Doce suites en Chromium con Playwright (unas 340 comprobaciones) y cuatro auditorías con axe-core; ver [tests/README.md](tests/README.md).
 
 ## Créditos y licencias
 

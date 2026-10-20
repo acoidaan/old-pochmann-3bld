@@ -207,6 +207,34 @@ const SOLVE = ["D R' F2 L", "U R U' R'", "U' F' U F", "L' U' L", "U B U' B'", "F
   await p.click('[data-case="ua"] [data-learn="known"]');
   check('casos: what I am learning is kept', await p.evaluate(() => { const l = JSON.parse(localStorage.getItem('cfop:learn:v1')); return l.sune === 'learning' && l.ua === 'known'; }));
 
+  // ================= «Pruébalo»: mix → the case → how to solve it =================
+  await p.click('[data-case="antisune"] [data-try]');
+  let tryText = await p.evaluate(() => document.querySelector('[data-case="antisune"] .fr-try').innerText.replace(/\s+/g, ' '));
+  check('try: the short mix is the algorithm backwards, then the case and its algorithm', /blanco abajo y verde delante, haz: R U R' U R U2 R'/.test(tryText) && /Te queda Antisune/.test(tryText) && /verde delante: R U2 R' U' R U' R'/.test(tryText), tryText);
+  await p.click('[data-case="antisune"] [data-try-mode="hidden"]');
+  await p.waitForFunction(() => !/Preparando/.test(document.querySelector('[data-case="antisune"] .fr-try').textContent), null, { timeout: 30000 });
+  tryText = await p.evaluate(() => document.querySelector('[data-case="antisune"] .fr-try').innerText.replace(/\s+/g, ' '));
+  check('try: or a mix that does not give it away', /Te queda Antisune/.test(tryText) && !/haz: R U R' U R U2 R'/.test(tryText) && /Otra mezcla/.test(tryText), tryText);
+  // Every case, both ways: doing the mix (held white down, green in front) and then the advice ends solved.
+  const tries = await p.evaluate(async () => {
+    const M = window.CubeModel; const C = window.Cfop; const make = window.Fridrich._.makeTry;
+    const out = [];
+    for (const c of C.CASES) {
+      for (const hidden of [false, true]) {
+        const t = await make(c, hidden);
+        let g = M.apply(M.apply(M.solved(), 'z2'), t.setup);   // as held
+        const read = C.readCube(M.norm(g), 'U');
+        const rec = C.recognize(read.g, read.stage, c);
+        const turn = C.VIEWS.find((v) => C.colour(v ? M.apply(g, v) : g, 22) === t.front);
+        g = M.apply(g, [turn, t.pre, c.alg, t.post].filter(Boolean).join(' '));
+        out.push({ id: c.id, hidden, isCase: !!rec, solved: M.isSolved(M.norm(g)) });
+      }
+    }
+    return out;
+  });
+  const badTries = tries.filter((x) => !x.isCase || !x.solved);
+  check('try: all 16 cases, short and hidden mixes, land on the case and end solved', tries.length === 32 && !badTries.length, JSON.stringify(badTries));
+
   // ================= Entrenar: recognising =================
   await p.click('[data-case="sune"] [data-train]');
   await p.click('#trModeLook');
@@ -224,6 +252,27 @@ const SOLVE = ["D R' F2 L", "U R U' R'", "U' F' U F", "L' U' L", "U B U' B'", "F
   check('train/look: a wrong answer → ✗ and what it was', new RegExp(`✗ Era ${q2.name.replace(/[()]/g, '\\$&')}`).test(fb), fb);
   const tr = await p.evaluate(() => JSON.parse(localStorage.getItem('cfop:train:v1')));
   check('train/look: both counted', tr.sune.qn === 1 && tr.sune.qok === 1 && tr[q2.id].qn === 1 && tr[q2.id].qok === 0, JSON.stringify(tr));
+
+  // ================= Entrenar: a normal cube =================
+  await p.click('[data-pick="all"]');
+  await p.click('#trModeHand');
+  await p.waitForFunction(() => window.Fridrich._.tr.hand, null, { timeout: 30000 });
+  const h1 = await p.evaluate(() => ({ id: window.Fridrich._.tr.hand.c.id, text: document.getElementById('trBox').innerText }));
+  check('train/hand: how to mix a solved cube, then «¿Qué caso te ha quedado?»', /blanco abajo y verde delante, mezcla:/.test(h1.text) && /¿Qué caso te ha quedado\?/.test(h1.text), h1.text.slice(0, 200));
+  await p.click(`[data-answer="${h1.id}"]`);
+  const h2 = await p.evaluate(() => document.getElementById('trFeedback').innerText.replace(/\s+/g, ' '));
+  check('train/hand: right → ✓, what it looks like and how to solve it', /✓/.test(h2) && /Resuélvelo: Amarillo arriba y el \w+ delante/.test(h2), h2);
+  await p.click('#trNextQ');
+  await p.waitForFunction(() => window.Fridrich._.tr.hand && !window.Fridrich._.tr.answered, null, { timeout: 30000 });
+  const h3 = await p.evaluate(() => window.Fridrich._.tr.hand.c);
+  const other = await p.evaluate(() => [...document.querySelectorAll('[data-answer]')].map((b) => b.dataset.answer).find((x) => x !== window.Fridrich._.tr.hand.c.id));
+  if (other) {
+    await p.click(`[data-answer="${other}"]`);
+    const h4 = await p.evaluate(() => document.getElementById('trFeedback').innerText);
+    check('train/hand: wrong → ✗ and what it was', new RegExp(`✗ Era ${h3.name.replace(/[()]/g, '\\$&')}`).test(h4), h4);
+  }
+  const trh = await p.evaluate(() => JSON.parse(localStorage.getItem('cfop:train:v1')));
+  check('train/hand: counted apart', trh[h1.id].mn >= 1 && trh[h1.id].mok >= 1, JSON.stringify(trh[h1.id]));
 
   // ================= Entrenar: with the cube =================
   await p.click('[data-pick="oll"]');

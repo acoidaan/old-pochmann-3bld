@@ -120,6 +120,15 @@
 .fr-card-stats { margin: 0; flex-basis: 100%; }
 .fr-card .btn { font-size: 13px; padding: 4px 10px; }
 
+/* «Pruébalo»: mix, what it looks like, how to solve it */
+.fr-try { grid-column: 1 / -1; display: grid; gap: 10px; padding: 12px; border: 1px dashed var(--line); border-radius: 10px; background: var(--surface); }
+.fr-try-steps { margin: 0; padding-left: 20px; display: grid; gap: 10px; font-size: 14px; }
+.fr-try-steps .fr-setup { font-size: clamp(16px, 3vw, 20px); margin-top: 4px; }
+.fr-try-pic { width: 110px; margin-top: 6px; }
+.fr-try .actions .btn { font-size: 13px; padding: 4px 10px; }
+.fr-try .hint { margin: 0; }
+.fr-auf { font-family: var(--font-mono); }
+
 /* ---------- Entrenar ---------- */
 .fr-pick { display: grid; gap: 10px; }
 .fr-pick summary { cursor: pointer; font-weight: 700; font-size: 14px; color: var(--muted); }
@@ -156,6 +165,10 @@
 .fr-feedback.ok { color: var(--ok); }
 .fr-feedback.ko { color: var(--accent); }
 .fr-feedback .fr-alg { color: var(--ink); }
+.fr-feedback { display: grid; gap: 8px; }
+.fr-feedback .fr-note { color: var(--ink); }
+.fr-feedback .fr-big.ok { color: var(--ok); }
+.fr-feedback.ko .fr-big { color: var(--accent); }
 .fr-feedback .btn { margin-left: 4px; }
 @media (hover: none) { .fr-options kbd { display: none; } }
 

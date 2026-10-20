@@ -127,14 +127,15 @@
   };
   // The case a last-layer step shows: which side to hold in front, the turn of the top before it (only some
   // PLLs need one), J Perm's algorithm and the turn after it.
-  function recognize(g, stage) {
+  // `only`: look for that case alone (to say how to solve a case that is known).
+  function recognize(g, stage, only) {
     const step = LL[stage - 2];
     if (!step) return null;
     if (step === 'pll2') {
       const auf = AUF.find((u) => u && allOk(apply(g, u)));
       if (auf) return { step, auf, front: colour(g, 22), view: '', pre: '', post: auf, g };
     }
-    const cases = CASES.filter((c) => c.step === step);
+    const cases = only ? [only] : CASES.filter((c) => c.step === step);
     for (const pre of AUF) {
       for (const view of VIEWS) {
         const gv = view ? apply(g, view) : g;
