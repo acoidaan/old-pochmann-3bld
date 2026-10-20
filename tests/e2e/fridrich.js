@@ -142,14 +142,26 @@ const SOLVE = ["D R' F2 L", "U R U' R'", "U' F' U F", "L' U' L", "U B U' B'", "F
   check('cross: and it really does the cross', crossOk);
   await p.click('#crossShow');
 
-  // Solve it, white down.
+  // Solve it, white down. After every turn, which step the help is on: it must never go back.
+  await p.evaluate(() => {
+    window.__steps = [];
+    document.addEventListener('fr:cube', () => {
+      const lis = [...document.querySelectorAll('#liveSteps li')];
+      window.__steps.push(lis.findIndex((li) => li.className === 'cur'));
+    });
+  });
   await turn('z2');
   s = await st();
   check('cube: turning the whole cube is not a turn: still waiting', /empieza al girar/i.test(s.label), s.label);
   await p.evaluate((a) => window.Fridrich.cube().link.play([a], 20), SOLVE[0]);
   s = await st();
   check('cube: the first turn started the clock', s.phase === 'run', JSON.stringify(s));
-  for (const part of SOLVE.slice(1, 5)) await p.evaluate((a) => window.Fridrich.cube().link.play([a], 20), part);
+  // Inserting a pair undoes the cross for a moment: the help stays on F2L.
+  await turn('U R');
+  s = await st();
+  check('live: half way through inserting a pair (cross undone) → still F2L, not back to the cross', s.steps[0] === 'done' && s.steps[1] === 'cur' && /F2L/.test(s.live) && !/aristas/.test(s.live), JSON.stringify(s));
+  await turn("U' R'");
+  for (const part of SOLVE.slice(2, 5)) await p.evaluate((a) => window.Fridrich.cube().link.play([a], 20), part);
   await p.waitForTimeout(150);
   s = await st();
   check('live: F2L done → OLL 1 recognised as I-Shape, with how to hold it', /I-Shape/.test(s.live) && /delante/.test(s.live) && s.steps[1] === 'done' && s.steps[2] === 'cur', JSON.stringify(s));
@@ -171,6 +183,9 @@ const SOLVE = ["D R' F2 L", "U R U' R'", "U' F' U F", "L' U' L", "U B U' B'", "F
   ts = await times();
   const last = ts[ts.length - 1];
   check('cube: solved → the clock stops by itself', s.phase === 'done' && ts.length === 2 && last.scr === scr, JSON.stringify(s));
+  const seen = await p.evaluate(() => window.__steps.filter((x) => x >= 0));
+  const backs = seen.filter((x, i) => i && x < seen[i - 1]);
+  check('live: through the whole solve the step never goes back (cross and F2L come apart mid-algorithm)', seen.length >= 50 && !backs.length, `${seen.length} turns · ${seen.join('')}`);
   const cases = last.sp ? last.sp.s.slice(2).map((x) => x && x[3]) : null;
   check('splits: six steps saved, white cross', last.sp && last.sp.f === 'U' && last.sp.s.every(Boolean), JSON.stringify(last.sp));
   check('splits: the cases were I-Shape, Sune, Headlights, Ua', JSON.stringify(cases) === JSON.stringify(['i', 'sune', 'head', 'ua']), JSON.stringify(cases));
@@ -192,6 +207,32 @@ const SOLVE = ["D R' F2 L", "U R U' R'", "U' F' U F", "L' U' L", "U B U' B'", "F
   s = await st();
   check('practice: no clock, turns do not start one', s.phase !== 'run' && (await p.evaluate(() => document.getElementById('clock').hidden)), JSON.stringify(s));
   check('practice: the live help is on', s.live != null, s.live);
+  // A Sune done from another side than the one suggested, and a slip in the middle.
+  await p.evaluate(() => document.getElementById('cubeSync').click());
+  await p.waitForTimeout(400);
+  await turn("z2 R U2 R' U' R U' R'");   // white down: the last layer is a Sune
+  s = await st();
+  check('mid-alg: a Sune on the cube → Sune', /Sune/.test(s.live || ''), s.live);
+  const alt = await p.evaluate(() => {
+    const C = window.Cfop;
+    const read = C.readCube(window.Fridrich.cube().state, 'U');
+    const all = C.recognizeAll(read.g, read.stage);
+    const other = all.find((r) => r.view || r.pre) || all[0];
+    return { n: all.length, seq: [other.view, other.pre, other.case.alg].filter(Boolean).join(' '), front: other.front };
+  });
+  const altMoves = alt.seq.split(' ');
+  const firstTurns = altMoves.filter((m) => !/^y/.test(m)).slice(0, 4).length;
+  const upTo = altMoves.findIndex((m, i) => altMoves.slice(0, i + 1).filter((x) => !/^y/.test(x)).length === firstTurns);
+  await turn(altMoves.slice(0, upTo + 1).join(' '));
+  s = await st();
+  check('mid-alg: done from another side → still Sune, following that way', alt.n > 1 && /Sune/.test(s.live || '') && new RegExp(`el ${alt.front} delante`).test(s.live) && s.steps[3] === 'cur', `${alt.seq} · ${s.live}`);
+  await turn("F R");
+  s = await st();
+  check('mid-alg: a turn off the algorithm → the step and the case stay', /Sune/.test(s.live || '') && /Sigues con el algoritmo/.test(s.live) && s.steps[1] === 'done' && s.steps[3] === 'cur', JSON.stringify(s));
+  await turn("R' F'");
+  await turn(altMoves.slice(upTo + 1).join(' '));
+  s = await st();
+  check('mid-alg: finished → on to PLL', s.steps[3] === 'done' && /PLL|Resuelto/.test(s.live || ''), JSON.stringify(s));
   await p.click('[data-timed="1"]');
   await p.evaluate(() => document.getElementById('cubeSync').click());
   await p.waitForTimeout(400);

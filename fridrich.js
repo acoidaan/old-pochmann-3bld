@@ -383,6 +383,7 @@
     timer.line = cube && cube.on ? [{ t: 0, st: startState || cube.state }] : null;
     timer.startState = startState || (cube && cube.state);
     track = null;
+    resetProg();
     setPhase('run');
     tick();
     renderLive();
@@ -499,6 +500,7 @@
       renderAll();
     },
     onMove: (mv, st, t) => {
+      moveCount++;
       const before = prevState;
       prevState = st;
       if (timer.phase === 'run') {
@@ -573,24 +575,32 @@
     return true;
   }
   let liveCross = false;
-  // Part way through the case being done: where along its turns (the first two layers come apart in the
-  // middle of most algorithms, so the stage alone would say F2L).
+  // Part way through the case being done: where along its turns. The first two layers (and the cross) come
+  // apart in the middle of most algorithms, so the stage alone would say F2L or even cross. Every way of
+  // doing the case is followed: from any side, with the top turned before or not.
   function onTrack(st) {
     if (!track) return false;
     const k = key(st);
-    const i = track.keys.indexOf(k);
-    if (i >= 0 && i < track.keys.length - 1) { track.pos = i; return true; }
-    const h = track.half.indexOf(k);
-    if (h >= 0) { track.pos = track.halfAt[h]; return true; }
+    for (let p = 0; p < track.paths.length; p++) {
+      const path = track.paths[p];
+      const i = path.keys.indexOf(k);
+      const h = i >= 0 && i < path.keys.length - 1 ? -1 : path.half.indexOf(k);
+      if ((i >= 0 && i < path.keys.length - 1) || h >= 0) {
+        // Keep to the way already being done while it still matches.
+        if (p !== track.cur && track.pos > 0 && track.paths[track.cur].keys.includes(k)) continue;
+        track.cur = p;
+        track.pos = i >= 0 && h < 0 ? i : path.halfAt[h];
+        track.rec = path.rec;
+        track.moves = path.moves;
+        return true;
+      }
+    }
     return false;
   }
-  // Recognise the case of a last-layer step and keep its turns, as the cube will report them.
-  function startTrack(read) {
-    const rec = C.recognize(read.g, read.stage);
-    if (!rec) { track = null; return null; }
+  function pathFor(g, rec) {
     const seq = [rec.pre, rec.case ? rec.case.alg : '', rec.post].filter(Boolean).join(' ');
     const moves = parseAlg(seq).map((m) => m.text);
-    let s = rec.view ? apply(read.g, rec.view) : read.g;   // held with that side in front
+    let s = rec.view ? apply(g, rec.view) : g;   // held with that side in front
     const keys = [key(norm(s))];
     const half = [];
     const halfAt = [];
@@ -601,17 +611,57 @@
       partialKeys(before, after).forEach((x) => { half.push(x); halfAt.push(j); });
       keys.push(key(after));
     });
-    track = { stage: read.stage, face: read.face, rec, moves, keys, half, halfAt, pos: 0 };
+    return { rec, moves, keys, half, halfAt };
+  }
+  // Recognise the case of a last-layer step and keep the turns of every way to do it.
+  function startTrack(read) {
+    const all = C.recognizeAll(read.g, read.stage);
+    if (!all.length) { track = null; return null; }
+    const paths = all.map((rec) => pathFor(read.g, rec));
+    track = { stage: read.stage, face: read.face, paths, cur: 0, pos: 0, rec: paths[0].rec, moves: paths[0].moves };
     return track;
   }
-  // What the live help shows: the step (the case's, while doing it) and the case.
+  // How far the cube has got in this solve. Inserting a pair or doing an algorithm undoes the cross or the
+  // F2L for a moment: the help stays on the step reached (and its case) until the cube is back, unless it
+  // stays below for too long (then it really went back).
+  let moveCount = 0;
+  let prog = { face: null, max: -1, since: null, last: null, pairs: null };
+  const resetProg = () => { prog = { face: null, max: -1, since: null, last: null, pairs: null }; };
+  const HOLD_MOVES = 40;
   function liveInfo(st) {
-    const read = C.readCube(st, settings.cross);
-    if (isSolved(st)) { track = null; return { read, stage: 6, track: null }; }
-    if (onTrack(st)) return { read, stage: track.stage, track };
+    const pref = settings.cross;
+    let read = C.readCube(st, pref);
+    if (isSolved(st)) { track = null; resetProg(); return { read, stage: 6, track: null }; }
+    if (onTrack(st)) {
+      if (prog.face !== track.face) resetProg();
+      prog.face = track.face;
+      prog.max = Math.max(prog.max, track.stage);
+      prog.since = null;
+      prog.last = track;
+      return { read, stage: track.stage, track };
+    }
     track = null;
-    if (read.stage >= 2 && read.stage < 6) startTrack(read);
-    return { read, stage: read.stage, track };
+    // In the middle of an algorithm another colour can read as far on by chance: stay with the cross colour
+    // while the other one is not further on than what the solve had reached.
+    if (prog.face === pref && read.face !== pref && read.stage <= prog.max) read = C.readFace(st, pref);
+    if (read.face !== prog.face) resetProg();
+    prog.face = read.face;
+    if (read.stage >= 2 && read.stage < 6) { startTrack(read); prog.last = track; }
+    if (read.stage === 1) prog.pairs = read.pairs;
+    // Only the cross colour is held: one turn away from solved, the opposite colour reads as «PLL» too.
+    if (read.stage >= prog.max || read.face !== pref) {
+      prog.max = read.stage;
+      prog.since = null;
+      return { read, stage: read.stage, track };
+    }
+    if (prog.since == null) prog.since = moveCount;
+    if (moveCount - prog.since > HOLD_MOVES) {
+      resetProg();
+      prog.max = read.stage;
+      if (read.stage === 1) prog.pairs = read.pairs;
+      return { read, stage: read.stage, track };
+    }
+    return { read, stage: prog.max, track: null, held: true };
   }
   function renderLive() {
     const box = $('live');
@@ -619,6 +669,7 @@
     if (box.hidden) return;
     const st = cube.state;
     const scrambled = !follow || done(follow) || !settings.timed || timer.phase === 'run';
+    if (!scrambled) { resetProg(); track = null; }
     const info = liveInfo(st);
     const read = info.read;
     const stage = info.stage;
@@ -628,8 +679,9 @@
     $('liveSteps').innerHTML = C.STEPS.map((s, i) => {
       let cls = solvedNow || stage > i ? 'done' : stage === i ? 'cur' : '';
       if (!scrambled && !solvedNow) cls = '';
-      const extra = s.id === 'f2l' && stage === 1 && scrambled
-        ? ` <span class="fr-dots">${read.pairs.map((p) => `<i class="${p ? 'on' : ''}"></i>`).join('')}</span>` : '';
+      const pairs = info.held ? prog.pairs : read.pairs;
+      const extra = s.id === 'f2l' && stage === 1 && scrambled && pairs
+        ? ` <span class="fr-dots">${pairs.map((p) => `<i class="${p ? 'on' : ''}"></i>`).join('')}</span>` : '';
       const t = reached && reached[i] != null ? `<span class="fr-st">${f1(reached[i])}</span>` : '';
       return `<li class="${cls}"><span>${s.name}</span>${extra}${t}</li>`;
     }).join('');
@@ -643,6 +695,12 @@
       html = '<p class="fr-note">Cuando acabes de mezclar, aquí verás cada paso: la cruz, las parejas y el caso de la última capa con su algoritmo.</p>';
     } else if (info.track) {
       html = caseHtml(info.track);
+    } else if (info.held && stage >= 2 && prog.last) {
+      html = caseHtml(prog.last, 'Sigues con el algoritmo: a mitad se deshace un momento lo de abajo, es normal.');
+    } else if (info.held && stage === 1) {
+      const pairs = prog.pairs || [false, false, false, false];
+      html = `<p class="fr-note"><b>F2L:</b> ${pairs.filter(Boolean).length} de 4 parejas · metiendo una…</p>`
+        + '<p class="hint">Al meter una pareja se deshace un momento la cruz o otra pareja: es normal.</p>';
     } else if (stage === 0) {
       html = `<p class="fr-note"><b>${esc(read.crossName[0].toUpperCase() + read.crossName.slice(1))}:</b> ${read.cross} de 4 aristas.</p>`;
       if (liveCross) {
@@ -662,7 +720,7 @@
     }
   }
   // The case, how to hold it, its turns (done, next) and how far along.
-  function caseHtml(t) {
+  function caseHtml(t, note) {
     const r = t.rec;
     const step = C.STEPS[t.stage];
     if (!r.case) {
@@ -671,7 +729,7 @@
     const c = r.case;
     const nPre = r.pre ? 1 : 0;
     const algLen = parseAlg(c.alg).length;
-    const pos = t.pos;
+    const pos = note ? -1 : t.pos;
     const chips = t.moves.map((m, j) => {
       const part = j < nPre ? 'pre' : j >= nPre + algLen ? 'post' : '';
       const cls = `${j < pos ? 'done' : j === pos ? 'next' : ''} ${part}`.trim();
@@ -686,7 +744,7 @@
         <b class="fr-case-name">${esc(c.name)}${c.es !== c.name ? ` <span class="muted">· ${esc(c.es)}</span>` : ''}</b>
         <p class="fr-hold">${esc(top)} arriba y el <b>${esc(r.front)}</b> delante${extra ? `; ${extra}` : ''}.</p>
         <p class="fr-moves">${chips}</p>
-        <p class="hint">${pos ? `${Math.min(pos, t.moves.length)} de ${t.moves.length}` : esc(c.look)}</p>
+        <p class="hint">${note ? esc(note) : pos ? `${Math.min(pos, t.moves.length)} de ${t.moves.length}` : esc(c.look)}</p>
       </div>
     </div>`;
   }
@@ -1314,7 +1372,8 @@
       if (!cube || !cube.on) return null;
       const info = liveInfo(cube.state);
       const read = info.read;
-      const rec = info.track ? info.track.rec : null;
+      const t = info.track || (info.held && info.stage >= 2 ? prog.last : null);
+      const rec = t ? t.rec : null;
       return {
         facelets: toFacelets(cube.state),
         stage: info.stage, pairs: read.n, cross: read.cross, colour: read.colour,

@@ -23,7 +23,7 @@ npm run shots             # vuelve a hacer las capturas de docs/img
 ✓ e2e/competition-mode.js · 18 comprobaciones · 6 s
 ✓ e2e/smart-cube.js · 69 comprobaciones · 46 s
 …
-✓ Todo bien: 12 suites, 342 comprobaciones (4.6 min)
+✓ Todo bien: 12 suites, 348 comprobaciones (4.6 min)
 ```
 
 Las capturas que hacen las suites (útiles para revisar a ojo) quedan en `tests/shots/`, que no se sube al repo.
@@ -32,7 +32,7 @@ Las capturas que hacen las suites (útiles para revisar a ojo) quedan en `tests/
 
 | Suite | Qué cubre |
 |:--|:--|
-| `e2e/fridrich.js` | Fridrich reducido: cronómetro con Espacio y con el ratón, inspección, +2/DNF y borrar, el cubo (seguir el scramble, empezar al girar, parar al resolver), un solve CFOP entero con sus seis pasos y sus casos (I-Shape, Sune, Headlights, Ua), la ayuda en directo, la cruz más corta, sin crono, Casos y «Pruébalo» (los 16 casos con las dos mezclas acaban resueltos), los tres entrenadores, el overlay, el plan B sin generador y el móvil. |
+| `e2e/fridrich.js` | Fridrich reducido: cronómetro con Espacio y con el ratón, inspección, +2/DNF y borrar, el cubo (seguir el scramble, empezar al girar, parar al resolver), un solve CFOP entero con sus seis pasos y sus casos (I-Shape, Sune, Headlights, Ua), la ayuda en directo (que no vuelve atrás cuando un algoritmo o una pareja deshacen la cruz un momento, ni si haces el caso desde otro lado), la cruz más corta, sin crono, Casos y «Pruébalo» (los 16 casos con las dos mezclas acaban resueltos), los tres entrenadores, el overlay, el plan B sin generador y el móvil. |
 | `e2e/competition-mode.js` | Modo competición: pantalla completa, toda la pantalla como botón, Espacio/F/Esc, gesto de volver en Android, pantalla encendida. |
 | `e2e/history-theme-retos.js` | Historial con filtros y «Ver más», tema claro/oscuro, atajo del spoiler, quitar retos (también entre dispositivos sincronizados). |
 | `e2e/overlay-obs.js` | La app → obs-websocket (con contraseña) → overlay dentro de «OBS»: vista previa, ventana del overlay, contraseña incorrecta. |

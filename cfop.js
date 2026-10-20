@@ -103,6 +103,15 @@
     if (!allOk(g)) return { stage: 5, ...base };
     return { stage: 6, ...base };
   }
+  // Where the cube is with that colour on the bottom.
+  function readFace(st, face) {
+    const g = canon(st, face);
+    const s = { face, g, ...stageOf(g) };
+    s.step = s.stage < 6 ? STEPS[s.stage] : null;
+    s.colour = COLOR_NAME[face];
+    s.crossName = crossName(face);
+    return s;
+  }
   // The colour the solve is being done on: the one furthest on, then the preferred one (white by default).
   function readCube(st, pref) {
     const want = pref && DOWN[pref] != null ? pref : 'U';
@@ -125,15 +134,17 @@
     oll2: (h) => TOP.every((i) => ok(h, i)),
     pll1: cornersPlaced,
   };
-  // The case a last-layer step shows: which side to hold in front, the turn of the top before it (only some
-  // PLLs need one), J Perm's algorithm and the turn after it.
-  // `only`: look for that case alone (to say how to solve a case that is known).
-  function recognize(g, stage, only) {
+  // Every way to do a last-layer step with J Perm's algorithms: which side to hold in front, the turn of the
+  // top before it, the algorithm and the turn after it (PLL 2), the preferred first (no turn before). People
+  // do an algorithm from whichever side they like, so the live help follows all of them.
+  // `only`: that case alone (to say how to solve a case that is known).
+  function recognizeAll(g, stage, only) {
     const step = LL[stage - 2];
-    if (!step) return null;
-    if (step === 'pll2') {
+    if (!step) return [];
+    const out = [];
+    if (step === 'pll2' && !only) {
       const auf = AUF.find((u) => u && allOk(apply(g, u)));
-      if (auf) return { step, auf, front: colour(g, 22), view: '', pre: '', post: auf, g };
+      if (auf) return [{ step, auf, front: colour(g, 22), top: colour(g, 4), view: '', pre: '', post: auf, g }];
     }
     const cases = only ? [only] : CASES.filter((c) => c.step === step);
     for (const pre of AUF) {
@@ -144,13 +155,15 @@
           const h = apply(gp, c.alg);
           if (step === 'pll2') {
             const post = AUF.find((u) => allOk(u ? apply(h, u) : h));
-            if (post != null) return { step, case: c, view, pre, post, front: colour(gv, 22), top: colour(gv, 4), g: gp };
-          } else if (GOAL[step](h)) return { step, case: c, view, pre, post: '', front: colour(gv, 22), top: colour(gv, 4), g: gp };
+            if (post != null) out.push({ step, case: c, view, pre, post, front: colour(gv, 22), top: colour(gv, 4), g: gp });
+          } else if (GOAL[step](h)) out.push({ step, case: c, view, pre, post: '', front: colour(gv, 22), top: colour(gv, 4), g: gp });
         }
       }
     }
-    return null;
+    return out;
   }
+  // The case a last-layer step shows, and the preferred way to do it.
+  const recognize = (g, stage, only) => recognizeAll(g, stage, only)[0] || null;
   // A case as J Perm draws it (white on the bottom): undo the algorithm from solved. A PLL algorithm can end
   // with the top turned (his Z ends a U away), so its picture is the top turn and side in front that leave the
   // most pieces in place and still take the algorithm straight away, as on his page. `auf` turns the top after.
@@ -282,7 +295,7 @@
 
   window.Cfop = {
     CASES, STEPS, LL, DOWN, VIEWS, AUF, SLOTS, CROSS,
-    stageOf, readCube, recognize, caseState, bestCross, splits, canon, colour, crossName,
+    stageOf, readCube, readFace, recognize, recognizeAll, caseState, bestCross, splits, canon, colour, crossName,
     caseById: (id) => CASES.find((c) => c.id === id),
   };
 })();
