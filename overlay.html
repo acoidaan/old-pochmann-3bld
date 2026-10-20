@@ -224,6 +224,15 @@ body.no-net .net { display: none; }
 .lnote.dnf { color: #FF8A8D; }
 .stage[data-layout=derecha] .lmoves, .stage[data-layout=izquierda] .lmoves { font-size: 18px; }
 
+/* «Fridrich reducido»: the four steps instead of memo and execution, and the case being done */
+.splits.cf { gap: 22px; }
+.splits.cf span { transition: color .2s ease; }
+.splits.cf .cur { color: var(--ink); }
+.splits.cf .cur b { color: var(--exec); }
+.casename { font-family: var(--font-display); font-weight: 700; font-size: 26px; line-height: 1.15; }
+.lalg { font-family: var(--font-mono); font-size: 21px; color: var(--muted); word-spacing: .1em; }
+.lalg b { color: var(--ink); font-weight: 600; }
+
 /* Waiting hint, only until the app has sent something once */
 .wait {
   position: absolute; left: 50%; bottom: 40px; transform: translateX(-50%);
@@ -237,7 +246,7 @@ body.no-net .net { display: none; }
 <body>
 <div class="stage" id="stage" data-layout="esquinas">
   <section class="card brand" id="brand">
-    <div class="eyebrow"><i class="live" id="live"></i><span>Aprendiendo 3BLD</span></div>
+    <div class="eyebrow"><i class="live" id="live"></i><span id="brandTag">Aprendiendo 3BLD</span></div>
     <div class="brand-top">
       <div class="logo" aria-hidden="true">
         <i class="c-U"></i><i class="c-R"></i><i class="c-F"></i><i class="c-L"></i><i class="c-B"></i><i class="c-D"></i><i class="c-F"></i><i class="c-U"></i><i class="c-R"></i>
@@ -266,7 +275,8 @@ body.no-net .net { display: none; }
   <section class="card timer" id="timerCard" data-tone="idle" hidden>
     <div class="trow"><span class="pill" id="phase"></span><span class="retotag" id="retoTag"></span></div>
     <div class="time" id="time"></div>
-    <div class="splits"><span>Memo<b id="sMemo">—</b></span><span>Ejecución<b id="sExec">—</b></span></div>
+    <div class="splits" id="bldSplits"><span>Memo<b id="sMemo">—</b></span><span>Ejecución<b id="sExec">—</b></span></div>
+    <div class="splits cf" id="cfSplits" hidden><span>Cruz<b>—</b></span><span>F2L<b>—</b></span><span>OLL<b>—</b></span><span>PLL<b>—</b></span></div>
     <div class="memoline" id="memoLine" hidden></div>
     <div class="liveline" id="liveLine" hidden></div>
   </section>
@@ -303,6 +313,14 @@ body.no-net .net { display: none; }
     const m = Math.floor(cs / 6000);
     const s = Math.floor((cs % 6000) / 100);
     return `${m}:${String(s).padStart(2, '0')}.${String(cs % 100).padStart(2, '0')}`;
+  }
+  // Speedcubing times: 12.34, or 1:02.34 from a minute up.
+  function fmtC(ms) {
+    if (ms == null || !isFinite(ms) || ms < 0) return '—';
+    const cs = Math.floor(ms / 10);
+    const m = Math.floor(cs / 6000);
+    const s = Math.floor((cs % 6000) / 100);
+    return m ? `${m}:${String(s).padStart(2, '0')}.${String(cs % 100).padStart(2, '0')}` : `${s}.${String(cs % 100).padStart(2, '0')}`;
   }
   const text = (el, t) => { if (el.textContent !== t) el.textContent = t; };
   function setTime(t, dim) {
@@ -365,11 +383,19 @@ body.no-net .net { display: none; }
     const s = S;
     $('wait').hidden = !!s;
     if (!s) return;
-    text($('who'), s.name || 'Old Pochmann');
-    text($('method'), s.name ? 'Old Pochmann · letras Speffz' : 'Letras Speffz · blanco arriba, verde delante');
+    const cf = s.mode === 'cfop';
+    text($('brandTag'), cf ? 'Speedcubing · CFOP' : 'Aprendiendo 3BLD');
+    text($('who'), s.name || (cf ? 'Fridrich reducido' : 'Old Pochmann'));
+    text($('method'), cf ? 'CFOP en 2 pasos · algoritmos de J Perm' : s.name ? 'Old Pochmann · letras Speffz' : 'Letras Speffz · blanco arriba, verde delante');
+    $('bldSplits').hidden = cf;
+    $('cfSplits').hidden = !cf;
 
     // Learning progress
     const rows = [];
+    if (cf && s.learned) {
+      rows.push(['OLL que me sé', 'OLL', s.learned.oll[0], s.learned.oll[1], 'learn']);
+      rows.push(['PLL que me sé', 'PLL', s.learned.pll[0], s.learned.pll[1], '']);
+    }
     if (s.learn && s.learn.total) rows.push(['Tutorial', 'Tutorial', s.learn.done, s.learn.total, 'learn']);
     if (s.train) {
       rows.push(['Setups de aristas', 'Aristas', s.train.edge[0], s.train.edge[1], '']);
@@ -382,7 +408,9 @@ body.no-net .net { display: none; }
     const tot = $('total');
     tot.hidden = !(s.total && s.total.n);
     if (s.total && s.total.n) {
-      tot.innerHTML = `<b>${s.total.n}</b> ${s.total.n === 1 ? 'intento' : 'intentos'} · <b>${s.total.ok}</b> ${s.total.ok === 1 ? 'resuelto' : 'resueltos'} en total`;
+      tot.innerHTML = cf
+        ? `<b>${s.total.n}</b> ${s.total.n === 1 ? 'solve' : 'solves'} en total`
+        : `<b>${s.total.n}</b> ${s.total.n === 1 ? 'intento' : 'intentos'} · <b>${s.total.ok}</b> ${s.total.ok === 1 ? 'resuelto' : 'resueltos'} en total`;
     }
 
     // Scramble and its cube
@@ -432,7 +460,15 @@ body.no-net .net { display: none; }
     st.hidden = false;
     const t = s.today || { n: 0 };
     let body = '';
-    if (t.n) {
+    if (cf && t.n) {
+      body += '<div class=sgrid>'
+        + `<div class=stat><span>Solves</span><b>${t.n}</b></div>`
+        + `<div class=stat><span>Mejor</span><b>${fmtC(t.best)}</b></div>`
+        + `<div class=stat><span>ao5</span><b>${t.ao5 == null ? '—' : t.ao5 < 0 ? 'DNF' : fmtC(t.ao5)}</b></div>`
+        + `<div class=stat><span>ao12</span><b>${t.ao12 == null ? '—' : t.ao12 < 0 ? 'DNF' : fmtC(t.ao12)}</b></div>`
+        + '</div>';
+      if (s.recent && s.recent.length) body += '<div class=chips>' + s.recent.map((r) => `<span class='chip ${r.ok ? 'ok' : 'dnf'}'>${r.ok ? fmtC(r.t) : 'DNF'}</span>`).join('') + '</div>';
+    } else if (t.n) {
       body += '<div class=sgrid>'
         + `<div class=stat><span>Intentos</span><b>${t.n}</b></div>`
         + `<div class=stat><span>Resueltos</span><b>${t.ok}<small>${Math.round((100 * t.ok) / t.n)} %</small></b></div>`
@@ -443,10 +479,10 @@ body.no-net .net { display: none; }
         body += '<div class=chips>' + s.recent.map((r) => `<span class='chip ${r.ok ? 'ok' : 'dnf'}'>${r.ok ? fmt(r.t) : 'DNF'}</span>`).join('') + '</div>';
       }
     } else {
-      body += '<p class=empty>Todavía no hay intentos hoy.</p>';
+      body += `<p class=empty>Todavía no hay ${cf ? 'solves' : 'intentos'} hoy.</p>`;
     }
     if (s.record != null || (t.streak || 0) >= 2) {
-      body += '<div class=foot>' + (s.record != null ? `<span>Récord</span><b>${fmt(s.record)}</b>` : '')
+      body += '<div class=foot>' + (s.record != null ? `<span>Récord</span><b>${cf ? fmtC(s.record) : fmt(s.record)}</b>` : '')
         + ((t.streak || 0) >= 2 ? `<span class=streak>Racha de ${t.streak}</span>` : '') + '</div>';
     }
     const sb = $('statsBody');
@@ -517,8 +553,79 @@ body.no-net .net { display: none; }
     if (box.dataset.h !== html) { box.dataset.h = html; box.innerHTML = html; }
   }
 
+  // The step times of a CFOP solve: [cross, F2L, OLL, PLL]; from the steps reached so far while it runs.
+  const STEP_NAMES = { 0: 'Cruz', 1: 'F2L', 2: 'OLL 1', 3: 'OLL 2', 4: 'PLL 1', 5: 'PLL 2' };
+  function cfGroups(reached) {
+    if (!reached) return [null, null, null, null];
+    const at = (i) => (reached[i] == null ? null : reached[i]);
+    const span = (a, b) => (at(b) == null ? null : at(b) - (a < 0 ? 0 : at(a)));
+    return [span(-1, 0), span(0, 1), span(1, 3), span(3, 5)];
+  }
+  function setCfSplits(vals, cur) {
+    const spans = $('cfSplits').children;
+    vals.forEach((v, i) => {
+      const b = spans[i].lastElementChild;
+      text(b, v == null ? (i === cur ? '…' : '—') : fmtC(v));
+      spans[i].classList.toggle('cur', i === cur);
+    });
+  }
+  function setCfLive(phase) {
+    const box = $('liveLine');
+    const lv = S.smart && S.smart.live;
+    let html = '';
+    if (phase === 'run' && lv) {
+      if (lv.case) {
+        html = `<div class=mrow><span class=ml>${STEP_NAMES[lv.stage] || ''}</span><span class=casename>${esc(lv.case.name)}</span></div>`
+          + `<div class=lalg>${esc(lv.case.pre ? lv.case.pre + ' · ' : '')}<b>${esc(lv.case.alg)}</b>${lv.case.post ? ` · ${esc(lv.case.post)}` : ''}</div>`;
+      } else if (lv.stage === 1) html = `<div class=lnote>F2L · ${lv.pairs} de 4 parejas</div>`;
+      else if (lv.stage === 0) html = '<div class=lnote>Cruz</div>';
+    } else if (phase === 'idle' && S.last && S.last.cases && Date.now() - S.last.at < 30 * 60 * 1000) {
+      html = `<div class=mrow><span class=ml>Casos</span><code>${esc(S.last.cases)}</code></div>`;
+    }
+    box.hidden = !html;
+    stage.toggleAttribute('data-live', !!html);
+    if (box.dataset.h !== html) { box.dataset.h = html; box.innerHTML = html; }
+  }
+  function paintCfop() {
+    const now = Date.now();
+    const t = S.timer || { phase: 'idle' };
+    const lv = S.smart && S.smart.live;
+    if (t.phase === 'inspect') {
+      const left = 15000 - (now - t.insp0);
+      setPill('wait', 'Inspección');
+      setTime(left > 0 ? String(Math.ceil(left / 1000)) : left > -2000 ? '+2' : 'DNF');
+      setCfSplits([null, null, null, null], -1);
+      setCfLive('inspect');
+    } else if (t.phase === 'run') {
+      setPill('exec', 'Resolviendo');
+      setTime(fmtC(now - t.t0));
+      const g = cfGroups(lv && lv.steps);
+      setCfSplits(g, g.findIndex((x) => x == null));
+      setCfLive('run');
+    } else if (cancelUntil > now) {
+      setPill('idle', 'Solve cancelado');
+      setTime(fmtC(0), true);
+      setCfSplits([null, null, null, null], -1);
+      setCfLive('idle');
+    } else if (S.last && now - S.last.at < 30 * 60 * 1000) {
+      const L = S.last;
+      setPill(L.ok ? 'ok' : 'dnf', L.ok ? (L.pen === 2 ? 'Resuelto · +2' : 'Resuelto') : 'DNF');
+      setTime(L.ok ? fmtC(L.t + (L.pen === 2 ? 2000 : 0)) : 'DNF', !L.ok);
+      setCfSplits(L.sp || [null, null, null, null], -1);
+      setCfLive('idle');
+    } else {
+      setPill('idle', 'Listo');
+      setTime(fmtC(0), true);
+      setCfSplits([null, null, null, null], -1);
+      setCfLive('idle');
+    }
+    setMemo(null);
+    $('live').classList.toggle('on', DEMO || now - liveAt < 12000);
+  }
+
   function paintClock() {
     if (!S) return;
+    if (S.mode === 'cfop') { paintCfop(); return; }
     const now = Date.now();
     const t = S.timer || { phase: 'idle' };
     let memo = null;
@@ -625,8 +732,64 @@ body.no-net .net { display: none; }
   renderStatic();
   requestAnimationFrame(frame);
 
-  // Demo: example data that loops through an attempt (used by the preview).
-  if (DEMO) {
+  // Demo for «Fridrich reducido» (?modo=cfop): inspection → a solve whose steps and cases come in → result.
+  if (DEMO && q.get('modo') === 'cfop') {
+    const day = Date.now();
+    const scr = "R2 D' B2 U F2 D2 L2 U' B2 R2 F' L' D2 B' U2 R F' U' R2 B";
+    const base = {
+      v: 1, mode: 'cfop', name: 'Aco',
+      scr, moves: 20, cube: 'DDFRURFDBRBRBLLLRDUFLUFBBUFUDLDRLRBRDLBFBUUFFLFDUDLURB',
+      learned: { oll: [7, 10], pll: [4, 6] },
+      total: { n: 214, ok: 209 }, record: 21480,
+      today: { n: 14, ok: 14, best: 24310, ao5: 27920, ao12: 29440 },
+      recent: [{ ok: true, t: 31200 }, { ok: true, t: 27450 }, { ok: true, t: 24310 }, { ok: true, t: 29900 }, { ok: true, t: 26380 }, { ok: true, t: 28120 }],
+      last: { ok: true, t: 27450, pen: 0, at: day - 90000, sp: [3120, 13410, 5480, 5440], cases: 'L-Shape · Sune · Headlights · Ua', pb: false },
+      timer: { phase: 'idle' },
+      smart: { name: 'GANi3', net: null, scr: { n: 20, done: 20, half: false, undo: '', lost: false }, live: null },
+    };
+    base.smart.net = base.cube;
+    const CASES = [
+      [2, { name: 'L-Shape', alg: "f R U R' U' f'", pre: '', post: '' }],
+      [3, { name: 'Sune', alg: "R U R' U R U2 R'", pre: "U'", post: '' }],
+      [4, { name: 'Headlights', alg: "R U R' U' R' F R2 U' R' U' R U R' F'", pre: '', post: '' }],
+      [5, { name: 'PLL (Ua)', alg: "R U' R U R U R U' R' U' R2", pre: 'U2', post: "U'" }],
+    ];
+    const REACH = [2900, 15800, 18200, 21300, 24500, 27100];   // when each step ends in the demo solve
+    const at = (phase, ms) => {
+      const s = JSON.parse(JSON.stringify(base));
+      const now = Date.now();
+      s.at = now;
+      if (phase === 'inspect') s.timer = { phase, insp0: now - ms };
+      if (phase === 'run') {
+        s.timer = { phase, t0: now - ms };
+        const k = REACH.findIndex((x) => x > ms);
+        const stage = k < 0 ? 6 : k;
+        const c = CASES.find(([st]) => st === stage);
+        s.smart.live = { stage, pairs: stage === 1 ? Math.min(3, Math.floor((ms - REACH[0]) / 3200)) : 4, steps: REACH.map((x) => (x <= ms ? x : null)), case: c ? c[1] : null };
+      }
+      if (phase === 'done') { s.last = { ok: true, t: REACH[5], pen: 0, at: now, sp: [2900, 12900, 5400, 5900], cases: 'L-Shape · Sune · Headlights · Ua', pb: false }; s.today.n = 15; }
+      return s;
+    };
+    const pick = q.get('phase');
+    if (pick) receive(at(pick, Number(q.get('ms')) || 19000), true);
+    else {
+      // Inspection 3 s → the solve, sped up 3× (9 s) → the result 4 s.
+      const loop = [['inspect', 3000], ['run', 9000], ['done', 4000]];
+      let i = 0;
+      let tick = 0;
+      const show = () => {
+        clearInterval(tick);
+        const [phase, ms] = loop[i];
+        const t0 = Date.now();
+        receive(at(phase, phase === 'inspect' ? 9000 : 0), true);
+        if (phase === 'run') {
+          tick = setInterval(() => { const el = (Date.now() - t0) * 3; S = at('run', el); S.timer.t0 = Date.now() - el; renderStatic(); }, 120);
+        }
+        setTimeout(() => { i = (i + 1) % loop.length; show(); }, ms);
+      };
+      show();
+    }
+  } else if (DEMO) {
     const day = Date.now();
     const base = {
       v: 1, name: 'Aco', reto: null,

@@ -15,47 +15,8 @@
   const QUIET_MS = 3000;  // after the cube stops the clock, presses are ignored this long
   const key = (st) => st.join(',');
 
-  // ================= Cube frame =================
-  // The cube only feels its six faces turning around a fixed core: a wide turn (l, d) arrives as the opposite
-  // face turn and a slice (M) as two face turns. States are compared in that frame, with the centres home.
-  const CENTERS = [4, 13, 22, 31, 40, 49];
-  const ROTATIONS = ['', 'x', 'x2', "x'", 'z', "z'"].flatMap((a) => ['', 'y', 'y2', "y'"].map((b) => `${a} ${b}`.trim()));
-  const centred = (st) => CENTERS.every((c) => st[c] === c);
-  function norm(st) {
-    if (centred(st)) return st;
-    for (const r of ROTATIONS) {
-      const s = apply(st, r);
-      if (centred(s)) return s;
-    }
-    return st;
-  }
-  // Pieces as groups of sticker positions, and each home piece by its colours.
-  const CUBIES = [];
-  const HOME = new Map();
-  for (let p = 0; p < 54; p++) {
-    const g = PIECE_OF[p];
-    if (g.length < 2 || CUBIES.includes(g)) continue;
-    CUBIES.push(g);
-    HOME.set(g.map(faceOfSticker).sort().join(''), g);
-  }
-  // The cube sends 54 colours (URFDLB, Kociemba order, the same as ours); the app tracks sticker ids.
-  function fromFacelets(f) {
-    if (typeof f !== 'string' || f.length !== 54) return null;
-    const st = new Array(54);
-    for (const c of CENTERS) {
-      if (f[c] !== faceOfSticker(c)) return null;
-      st[c] = c;
-    }
-    const used = new Set();
-    for (const g of CUBIES) {
-      const home = HOME.get(g.map((p) => f[p]).sort().join(''));
-      if (!home || used.has(home)) return null;
-      used.add(home);
-      for (const p of g) st[p] = home.find((id) => faceOfSticker(id) === f[p]);
-    }
-    return st;
-  }
-  const toFacelets = (st) => st.map(faceOfSticker).join('');
+  // ================= Cube frame (cubemodel.js) =================
+  const { norm, fromFacelets, toFacelets, CUBIES } = window.CubeModel;
   const FACE_MOVES = ['U', 'R', 'F', 'D', 'L', 'B'].flatMap((f) => [f, `${f}2`, `${f}'`]);
   const quarters = (m) => (m.endsWith('2') ? [m[0], m[0]] : [m]);
   // Quarter face turns (one or two faces) that take a to b, as the cube would report them.

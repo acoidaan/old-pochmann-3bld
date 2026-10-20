@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script>try{var t=localStorage.getItem('op3bld:theme:v1');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
+<meta name="description" content="Fridrich reducido (CFOP en 2 pasos) con los algoritmos de J Perm: cronómetro con tiempos por fase, reconocimiento de casos con cubo inteligente, cruz óptima y entrenador.">
+<meta name="op3-build" content="__BUILD__">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Old Pochmann 3BLD">
+<meta property="og:title" content="Fridrich reducido">
+<meta property="og:description" content="CFOP en 2 pasos con los algoritmos de J Perm: tiempos por fase, casos reconocidos por el cubo inteligente y entrenador.">
+<meta property="og:url" content="https://old-pochmann-3bld.vercel.app/fridrich">
+<meta property="og:locale" content="es_ES">
+<link rel="manifest" href="fridrich.webmanifest">
+<meta name="theme-color" content="#ECEFF3" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0F1319" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Fridrich">
+<title>Fridrich reducido</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Martian+Mono:wght@400;600&family=Unbounded:wght@500;700&display=swap">
+<link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="fridrich.css">
+</head>
+<body class="fr">
+<div class="fr-app">
+  <header class="fr-head">
+    <div class="brand">
+      <h1>Fridrich reducido</h1>
+      <p>CFOP en 2 pasos · algoritmos de J Perm</p>
+    </div>
+    <a class="fr-switch" href="./">Old Pochmann 3BLD<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+  </header>
+
+  <nav class="tabs" id="tabs" aria-label="Secciones">
+    <button type="button" class="tab" data-go="crono"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13.5" r="7.5"/><path d="M12 13.5V9.5M9.5 2.5h5M12 2.5V6M18.3 6.7 19.8 5.2"/></svg><span>Cronómetro</span></button>
+    <button type="button" class="tab" data-go="casos"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2.5"/><path d="M4 9.3h16M4 14.7h16M9.3 4v16M14.7 4v16"/></svg><span>Casos</span></button>
+    <button type="button" class="tab" data-go="entrenar"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/></svg><span>Entrenar</span></button>
+    <button type="button" class="tab tab-ajustes" data-go="ajustes"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2.2"/><circle cx="9" cy="17" r="2.2"/></svg><span>Ajustes</span></button>
+  </nav>
+
+  <main>
+    <!-- ================= Cronómetro ================= -->
+    <div class="view" data-view="crono">
+      <section class="panel" aria-labelledby="hTimer">
+        <div class="panel-head">
+          <h2 id="hTimer">Cronómetro</h2>
+          <span class="hint fr-keys"><kbd>Espacio</kbd>: mantén y suelta para empezar, pulsa para parar · <kbd>Esc</kbd> cancela</span>
+        </div>
+
+        <div class="cube-bar" id="cubeBar">
+          <div class="cube-who">
+            <svg class="cube-bt" id="cubeDot" data-s="off" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7l10 10-5 5V2l5 5L7 17"/></svg>
+            <div class="cube-text">
+              <b id="cubeName">Cubo inteligente</b>
+              <span class="hint" id="cubeInfo">Conecta un GAN: sigue el scramble, empieza y para solo, saca tus tiempos por fase y te dice el caso y el algoritmo.</span>
+            </div>
+          </div>
+          <div class="cube-acts">
+            <button class="btn" type="button" id="cubeConnect">Conectar cubo</button>
+            <button class="btn" type="button" id="cubeSim" hidden>Cubo virtual</button>
+            <button class="btn" type="button" id="cubeSync" hidden title="Si el cubo está resuelto pero la app no lo ve así, púlsalo para sincronizarlos">Está resuelto</button>
+            <button class="btn" type="button" id="cubeOff" hidden>Desconectar</button>
+          </div>
+        </div>
+        <div class="result" id="cubeMsg" role="status"></div>
+
+        <div class="fr-scramble">
+          <div class="fr-scr-head">
+            <span class="field-title">Scramble <span class="muted" id="scrCount"></span></span>
+            <span class="actions">
+              <button class="btn" type="button" id="newScr">Nuevo scramble</button>
+              <button class="btn" type="button" id="crossShow" aria-expanded="false">Ver la cruz más corta</button>
+            </span>
+          </div>
+          <p class="fr-scr" id="scr" aria-live="polite"></p>
+          <p class="fr-hint" id="scrHint" hidden></p>
+          <p class="fr-cross" id="cross" hidden></p>
+        </div>
+
+        <button type="button" class="clock" id="clock" data-phase="idle">
+          <span class="clock-phase" id="clockPhase">Listo</span>
+          <span class="clock-time" id="clockTime">0.00</span>
+          <span class="clock-split" id="clockSplit">Mantén pulsado y suelta para empezar</span>
+        </button>
+
+        <section class="fr-live" id="live" aria-label="Ayuda en directo" hidden>
+          <ol class="fr-steps" id="liveSteps"></ol>
+          <div class="fr-now" id="liveNow" aria-live="polite"></div>
+        </section>
+
+        <section class="fr-splits" id="splits" aria-label="Tiempos por fase del último solve" hidden></section>
+
+        <form class="cube-sim" id="cubeSimBox" hidden>
+          <span class="field-title">Cubo virtual</span>
+          <div class="inrow">
+            <input id="cubeSimMoves" placeholder="Gíralo: R U R' U'" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Movimientos para el cubo virtual">
+            <button class="btn" type="submit">Girar</button>
+          </div>
+          <div class="actions">
+            <button class="btn" type="button" id="cubeSimScr">Mezclarlo con el scramble</button>
+            <button class="btn" type="button" id="cubeSimSolve">Resolverlo con CFOP</button>
+          </div>
+          <p class="hint">Para probar sin cubo. Se comporta como uno de verdad: los giros anchos y de capa media le llegan a la app como giros de caras.</p>
+        </form>
+
+        <div class="stats" id="stats"></div>
+        <section class="fr-phases" id="phases" aria-labelledby="hPhases" hidden>
+          <h3 id="hPhases" class="field-title">Dónde se va el tiempo <span class="muted" id="phasesN"></span></h3>
+          <div class="fr-phase-bar" id="phaseBar"></div>
+          <div class="fr-phase-legend" id="phaseLegend"></div>
+        </section>
+        <div class="history" id="history"></div>
+        <div class="actions">
+          <button class="btn" type="button" id="histMore" hidden>Ver más</button>
+        </div>
+      </section>
+    </div>
+
+    <!-- ================= Casos ================= -->
+    <div class="view" data-view="casos" hidden>
+      <section class="panel" aria-labelledby="hMethod">
+        <div class="panel-head"><h2 id="hMethod">El método, en 6 pasos</h2></div>
+        <ol class="fr-method">
+          <li><b>Cruz.</b> Las cuatro aristas blancas abajo, cada una con su centro. Planéala entera en la inspección: casi siempre sale en 8 giros o menos (en el cronómetro puedes ver la más corta).</li>
+          <li><b>F2L.</b> Las dos primeras capas, pareja a pareja: junta cada esquina blanca con su arista y mételas a la vez en su hueco. Sin algoritmos: entiende cómo se juntan y cómo entran (<i>R U R'</i>, <i>F' U' F</i>…).</li>
+          <li><b>OLL 1.</b> La cruz amarilla de arriba: 3 casos.</li>
+          <li><b>OLL 2.</b> Toda la cara amarilla: 7 casos.</li>
+          <li><b>PLL 1.</b> Las esquinas de arriba en su sitio: 2 casos.</li>
+          <li><b>PLL 2.</b> Las aristas de arriba en su sitio, y resuelto: 4 casos.</li>
+        </ol>
+        <p class="hint">Los 16 algoritmos son los de <a href="https://jperm.net/3x3/cfop" target="_blank" rel="noopener">J Perm</a>, tal cual. Se dibujan como él: amarillo arriba y visto desde arriba, con las pegatinas de los lados alrededor. Si tienes el cubo conectado, en el cronómetro te dice qué caso tienes y cómo sujetarlo.</p>
+      </section>
+      <div id="caseGroups"></div>
+    </div>
+
+    <!-- ================= Entrenar ================= -->
+    <div class="view" data-view="entrenar" hidden>
+      <section class="panel" aria-labelledby="hTrain">
+        <div class="panel-head">
+          <h2 id="hTrain">Entrenar casos</h2>
+          <div class="seg" role="group" aria-label="Cómo entrenar">
+            <button type="button" id="trModeCube" aria-pressed="true">Con el cubo</button>
+            <button type="button" id="trModeLook" aria-pressed="false">Reconocer</button>
+          </div>
+        </div>
+        <div class="fr-train" id="trBox" aria-live="polite"></div>
+        <details class="fr-pick" open>
+          <summary>Qué casos salen</summary>
+          <div class="actions" role="group" aria-label="Elegir casos">
+            <button class="btn" type="button" data-pick="all">Todos</button>
+            <button class="btn" type="button" data-pick="oll">OLL</button>
+            <button class="btn" type="button" data-pick="pll">PLL</button>
+            <button class="btn" type="button" data-pick="learning">Los que estoy aprendiendo</button>
+          </div>
+          <div class="fr-pick-cases" id="trPick"></div>
+        </details>
+      </section>
+    </div>
+
+    <!-- ================= Ajustes ================= -->
+    <div class="view" data-view="ajustes" hidden>
+      <section class="panel" aria-labelledby="hSettings">
+        <div class="panel-head"><h2 id="hSettings">Ajustes</h2></div>
+        <div class="fr-settings">
+          <label class="check"><input type="checkbox" id="setInspect"> Inspección de 15 s (como en la WCA: +2 si pasas de 15, DNF si pasas de 17)</label>
+          <label class="check"><input type="checkbox" id="setHelp"> Con el cubo, decirme el caso y el algoritmo también mientras corre el crono</label>
+          <label class="check"><input type="checkbox" id="setSound"> Sonido al resolver y al acabar un caso</label>
+          <div class="field">
+            <label for="setCross">Color de la cruz</label>
+            <select id="setCross" class="text-input">
+              <option value="U">Blanco (abajo)</option>
+              <option value="D">Amarillo</option>
+              <option value="F">Verde</option>
+              <option value="B">Azul</option>
+              <option value="R">Rojo</option>
+              <option value="L">Naranja</option>
+            </select>
+            <span class="hint">Para la cruz más corta y para empezar a contar. Al resolver, la app detecta sola el color que estás usando.</span>
+          </div>
+          <div class="field">
+            <span class="field-title">Tema</span>
+            <div class="seg small" role="group" aria-label="Tema">
+              <button type="button" data-theme-set="auto" aria-pressed="true">Automático</button>
+              <button type="button" data-theme-set="light" aria-pressed="false">Claro</button>
+              <button type="button" data-theme-set="dark" aria-pressed="false">Oscuro</button>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section class="panel" aria-labelledby="hStream">
+        <div class="panel-head"><h2 id="hStream">Overlay para OBS</h2></div>
+        <div class="stream" id="streamBox"></div>
+      </section>
+      <section class="panel" aria-labelledby="hData">
+        <div class="panel-head"><h2 id="hData">Tus datos</h2></div>
+        <p>Todo se guarda solo en este navegador: tus tiempos, los casos que estás aprendiendo y lo que has entrenado.</p>
+        <div class="actions">
+          <button class="btn" type="button" id="exportData">Descargar copia</button>
+          <button class="btn" type="button" id="clearTimes">Borrar tiempos</button>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<div class="sheet" id="macSheet" hidden role="dialog" aria-modal="true" aria-labelledby="macTitle">
+  <form class="sheet-card" id="macForm">
+    <div class="panel-head"><h2 id="macTitle">Falta la dirección del cubo</h2></div>
+    <p class="mac-p">Para descifrar los giros, la app necesita la dirección MAC de tu cubo y el navegador no me la ha dado. Solo se pide una vez.</p>
+    <ol class="mac-steps">
+      <li id="macAuto"><b>Automática:</b> activa esta opción, reinicia el navegador y vuelve a conectar.
+        <span class="mac-url"><code id="macFlag">chrome://flags/#enable-experimental-web-platform-features</code><button class="btn" type="button" data-copy="macFlag">Copiar</button></span></li>
+      <li><b>A mano:</b> <span id="macHow">abre esta página, pulsa «Start scan», busca tu cubo (empieza por GAN) y copia su dirección.</span>
+        <span class="mac-url"><code id="macScan">chrome://bluetooth-internals/#devices</code><button class="btn" type="button" data-copy="macScan">Copiar</button></span></li>
+    </ol>
+    <div class="field">
+      <label for="macInput">Dirección MAC</label>
+      <input id="macInput" placeholder="AB:12:CD:34:EF:56" autocomplete="off" autocapitalize="characters" spellcheck="false">
+    </div>
+    <p class="hint bad" id="macErr" aria-live="polite"></p>
+    <div class="actions">
+      <button class="btn primary" type="submit">Conectar</button>
+      <button class="btn" type="button" id="macCancel">Cancelar</button>
+    </div>
+  </form>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script src="cubemodel.js"></script>
+<script src="cfop.js"></script>
+<script src="smartcube.js"></script>
+<script src="fridrich.js"></script>
+<script src="stream.js"></script>
+</body>
+</html>

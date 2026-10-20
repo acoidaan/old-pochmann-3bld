@@ -11,7 +11,7 @@ cd tests
 npm install
 npx playwright install chromium   # solo la primera vez
 
-npm test                  # las 11 suites (unas 275 comprobaciones, ~4 min)
+npm test                  # las 12 suites (unas 335 comprobaciones, ~5 min)
 npm test -- smart-cube    # solo las que tienen «smart-cube» en el nombre
 npm run audit             # accesibilidad y maquetación
 npm run shots             # vuelve a hacer las capturas de docs/img
@@ -23,7 +23,7 @@ npm run shots             # vuelve a hacer las capturas de docs/img
 ✓ e2e/competition-mode.js · 18 comprobaciones · 6 s
 ✓ e2e/smart-cube.js · 69 comprobaciones · 46 s
 …
-✓ Todo bien: 11 suites, 276 comprobaciones (4.2 min)
+✓ Todo bien: 12 suites, 335 comprobaciones (4.6 min)
 ```
 
 Las capturas que hacen las suites (útiles para revisar a ojo) quedan en `tests/shots/`, que no se sube al repo.
@@ -32,6 +32,7 @@ Las capturas que hacen las suites (útiles para revisar a ojo) quedan en `tests/
 
 | Suite | Qué cubre |
 |:--|:--|
+| `e2e/fridrich.js` | Fridrich reducido: cronómetro con Espacio y con el ratón, inspección, +2/DNF y borrar, el cubo (seguir el scramble, empezar al girar, parar al resolver), un solve CFOP entero con sus seis pasos y sus casos (I-Shape, Sune, Headlights, Ua), la ayuda en directo, la cruz más corta, sin crono, Casos, los dos entrenadores, el overlay, el plan B sin generador y el móvil. |
 | `e2e/competition-mode.js` | Modo competición: pantalla completa, toda la pantalla como botón, Espacio/F/Esc, gesto de volver en Android, pantalla encendida. |
 | `e2e/history-theme-retos.js` | Historial con filtros y «Ver más», tema claro/oscuro, atajo del spoiler, quitar retos (también entre dispositivos sincronizados). |
 | `e2e/overlay-obs.js` | La app → obs-websocket (con contraseña) → overlay dentro de «OBS»: vista previa, ventana del overlay, contraseña incorrecta. |
@@ -46,6 +47,7 @@ Las capturas que hacen las suites (útiles para revisar a ojo) quedan en `tests/
 | `a11y/views.js` | axe-core y desbordamiento horizontal en todas las vistas, móvil y escritorio, claro y oscuro. |
 | `a11y/smart-cube.js` | Lo mismo con el cubo conectado: seguimiento, informe de DNF y diálogo de la MAC. |
 | `a11y/trainer-guide.js` | Lo mismo en Entrenar con el cubo, en Practicar siguiendo el cubo y en la ejecución guiada. |
+| `a11y/fridrich.js` | Lo mismo en todas las vistas de Fridrich, con el cubo en la última capa y los dos entrenadores. |
 
 ## Cómo están hechas
 

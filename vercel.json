@@ -9,6 +9,10 @@
     {
       "source": "/r/:id",
       "destination": "/api/r?id=:id"
+    },
+    {
+      "source": "/fridrich",
+      "destination": "/fridrich.html"
     }
   ],
   "headers": [

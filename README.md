@@ -4,6 +4,8 @@ Aprende a resolver el cubo de Rubik **con los ojos cerrados** (3BLD) con el mét
 
 **[old-pochmann-3bld.vercel.app](https://old-pochmann-3bld.vercel.app)** · [probarla con un cubo virtual](https://old-pochmann-3bld.vercel.app/?cubo=virtual#crono)
 
+Y para speedcubing, en el mismo sitio: **[Fridrich reducido](https://old-pochmann-3bld.vercel.app/fridrich)**, CFOP en 2 pasos con los algoritmos de J Perm, tiempos por fase y los casos reconocidos por el cubo inteligente ([más abajo](#fridrich-reducido)).
+
 ![Practicar: el scramble, el memo letra a letra y el cubo con el objetivo marcado](docs/img/practicar.png)
 
 <table>
@@ -22,6 +24,7 @@ Aprende a resolver el cubo de Rubik **con los ojos cerrados** (3BLD) con el mét
 - [Qué hace](#qué-hace)
 - [Cubo inteligente](#cubo-inteligente)
 - [Overlay para directos](#overlay-para-directos)
+- [Fridrich reducido](#fridrich-reducido)
 - [El método](#el-método)
 - [Atajos de teclado](#atajos-de-teclado)
 - [Arquitectura](#arquitectura)
@@ -111,6 +114,53 @@ Si hay varias pestañas de la app abiertas, el overlay sigue a la última que ha
 | `net=0` · `prog=0` · `memo=0` | | Sin dibujo del cubo, sin progreso, sin memo |
 | `bg=chroma` | | Fondo verde para clave de color |
 | `demo=1` | `phase=memo`, `exec`, `done`, `pb` | Datos de ejemplo, para colocarlo en la escena |
+| `demo=1&modo=cfop` | `phase=inspect`, `run`, `done` | Los datos de ejemplo de Fridrich |
+
+La misma URL sirve para las dos páginas: el overlay dibuja lo que mande la que estés usando (en Fridrich, los tiempos de cruz, F2L, OLL y PLL y el caso que estás haciendo).
+
+## Fridrich reducido
+
+En [`/fridrich`](https://old-pochmann-3bld.vercel.app/fridrich), una segunda página para hacer mejores tiempos con CFOP en 2 pasos: cruz, F2L intuitivo, OLL en dos pasos (3 + 7 casos) y PLL en dos pasos (2 + 4). Se instala aparte como app («Fridrich») y también funciona sin conexión.
+
+![Fridrich reducido: un solve con el cubo en la última capa, el caso Sune con su algoritmo y los tiempos por fase](docs/img/fridrich.png)
+
+| Sección | Para qué |
+|:--|:--|
+| **Cronómetro** | Mantén `Espacio` (o el reloj) y suelta para empezar, como en un stackmat, con inspección WCA opcional (+2 y DNF). La **cruz más corta** del scramble (búsqueda completa, unos 6 giros de media). Historial con +2/DNF, ao5, ao12 y ao100. |
+| **Con el cubo** | Sigue el scramble y empieza con tu primer giro (girar el cubo entero no cuenta); para solo al resolverlo. Saca los **tiempos de cada paso** (cruz, F2L, OLL 1, OLL 2, PLL 1, PLL 2) con sus giros, TPS, el caso que te salió y cuánto tardaste en **reconocerlo** y en **hacerlo**, y te dice en qué paso se te va el tiempo de media. En directo, te dice el caso y el algoritmo, qué cara poner delante y si hay que girar arriba antes o después, y marca por dónde vas. «Practicar sin crono» hace lo mismo sin cronometrar. |
+| **Casos** | Los 16 casos dibujados como en J Perm, con su algoritmo, cómo reconocerlos y si los estás aprendiendo o te los sabes. |
+| **Entrenar** | **Con el cubo:** te dice cómo dejar tu cubo en un caso (desde como esté, con un scramble que no lo delata), lo resuelves y mide reconocer + hacer. **Reconocer:** te enseña un caso desde cualquier lado y dices cuál es (teclas `1`–`7`). Salen más los que menos has hecho y los más lentos. |
+| **Overlay** | El mismo de OBS: cuando usas esta página, enseña el cronómetro con cruz, F2L, OLL y PLL, el caso que estás haciendo con su algoritmo, tus medias de hoy y cuántos algoritmos te sabes. |
+
+### Los algoritmos
+
+Los de [J Perm](https://jperm.net/3x3/cfop) ([2-look OLL](https://jperm.net/algs/2lookoll), [2-look PLL](https://jperm.net/algs/2lookpll)), tal cual, con amarillo arriba:
+
+| Paso | Caso | Algoritmo |
+|:--|:--|:--|
+| OLL 1 | Dot Shape | `F R U R' U' F' f R U R' U' f'` |
+| | I-Shape | `F R U R' U' F'` |
+| | L-Shape | `f R U R' U' f'` |
+| OLL 2 | Antisune | `R U2 R' U' R U' R'` |
+| | H | `R U R' U R U' R' U R U2 R'` |
+| | L | `F R' F' r U R U' r'` |
+| | Pi | `R U2 R2 U' R2 U' R2 U2 R` |
+| | Sune | `R U R' U R U2 R'` |
+| | T | `r U R' U' r' F R F'` |
+| | U | `R2 D R' U2 R D' R' U2 R'` |
+| PLL 1 | Diagonal | `F R U' R' U' R U R' F' R U R' U' R' F R F'` |
+| | Headlights | `R U R' U' R' F R2 U' R' U' R U R' F'` |
+| PLL 2 | H | `M2 U M2 U2 M2 U M2` |
+| | Ua | `R U' R U R U R U' R' U' R2` |
+| | Ub | `R2 U R U R' U' R' U' R' U R'` |
+| | Z | `M' U M2 U M2 U M' U2 M2` |
+
+### Cómo reconoce los casos
+
+- **En qué paso estás.** Para cada color posible abajo, la app gira el cubo para ponerlo ahí y comprueba, en orden, la cruz, las cuatro parejas (esquina + arista de cada hueco), las aristas de arriba orientadas, toda la cara de arriba, las esquinas de arriba en su sitio (salvo un giro de U) y el cubo entero. Se queda con el color más avanzado; si empatan, con el de tus ajustes (blanco).
+- **Qué caso es.** Prueba los 4 lados que puedes poner delante, los 4 giros de U de antes y los algoritmos del paso, y se queda con el que lo deja hecho, prefiriendo no girar U antes. En PLL 2 busca también el giro de U del final. Así la indicación es exacta: «amarillo arriba y el rojo delante; antes U'».
+- **Los tiempos de cada paso.** Con los estados del cubo tras cada giro, cada paso acaba la primera vez que se cumple con los anteriores. Como un paso solo cuenta si los anteriores siguen hechos, que un *R U R'* deshaga la cruz un momento no confunde nada. Reconocer es el tiempo hasta el primer giro del paso.
+- **La cruz más corta.** Búsqueda en anchura sobre las cuatro aristas de la cruz (190 080 posiciones, se calcula una vez en unos 50 ms); la solución baja por las distancias.
 
 ## El método
 
@@ -179,6 +229,9 @@ Cada letra se resuelve como **setup → algoritmo → deshacer el setup**. Cualq
 | | `F` | Modo competición |
 | Entrenar | `Intro` · `?` | Comprobar · spoiler del cubo |
 | Aprender | `←` `→` | Lección anterior o siguiente |
+| Fridrich · Cronómetro | `Espacio` | Mantén y suelta para empezar (o la inspección); pulsa para parar |
+| | `Esc` | Cancelar |
+| Fridrich · Entrenar | `1`–`7` · `Intro` | Responder en «Reconocer» · siguiente |
 
 ## Arquitectura
 
@@ -187,19 +240,27 @@ JavaScript, HTML y CSS sin frameworks ni empaquetador: lo que hay en el repo es 
 ```mermaid
 flowchart LR
   subgraph nav["Navegador"]
-    core["core.js<br/>modelo del cubo · Practicar<br/>Cronómetro · Entrenar"]
+    model["cubemodel.js<br/>modelo del cubo · scrambles"]
+    core["core.js<br/>Practicar · Cronómetro<br/>Entrenar"]
     learn["learn.js<br/>Aprender"]
     social["social.js<br/>Retos · sincronización"]
     stream["stream.js<br/>overlay"]
     cube["cube.js<br/>cubo inteligente"]
     sw["sw.js<br/>sin conexión"]
+    fr["fridrich.js + cfop.js<br/>Fridrich reducido"]
+    sc["smartcube.js<br/>cubo inteligente"]
   end
   gan[("Cubo GAN")]
   ov["overlay.html"]
   obs["OBS"]
   api["api/*<br/>Vercel Functions"]
   blob[("Vercel Blob")]
+  model --> core
+  model --> fr
   cube -- "Web Bluetooth" --> gan
+  sc -- "Web Bluetooth" --> gan
+  fr --> sc
+  fr -- "eventos fr:*" --> stream
   core -- "eventos op3:*" --> cube
   core -- "eventos op3:*" --> stream
   core -- "eventos op3:*" --> social
@@ -210,13 +271,17 @@ flowchart LR
 
 | Archivo | Qué hace |
 |:--|:--|
-| `index.html` | La app: todas las vistas, marcadas con `data-view`, y los diálogos. |
-| `app.css` | Todos los estilos, con colores como variables para el tema claro y el oscuro. |
-| `core.js` | El modelo del cubo (permutación de 54 pegatinas con giros de cara, anchos, de capa y rotaciones), el método, Practicar, la ejecución guiada, el generador de scrambles (Web Worker con cubejs), el Cronómetro, el modo competición y Entrenar. Expone `window.OP3`. |
+| `index.html` | La app de 3BLD: todas las vistas, marcadas con `data-view`, y los diálogos. |
+| `app.css` | Los estilos, con colores como variables para el tema claro y el oscuro (también los usa Fridrich). |
+| `cubemodel.js` | El modelo del cubo, compartido por las dos páginas: permutación de 54 pegatinas con giros de cara, anchos, de capa y rotaciones, el marco del cubo inteligente (centros fijos) y el generador de scrambles de estado aleatorio (Web Worker con cubejs). Expone `window.CubeModel`. |
+| `core.js` | El método, Practicar, la ejecución guiada, el Cronómetro, el modo competición y Entrenar. Expone `window.OP3`. |
 | `learn.js` | Las 9 lecciones interactivas de Aprender. |
 | `social.js` | Retos, compartir como imagen y la sincronización entre dispositivos. |
 | `stream.js` | El overlay: genera el estado y lo manda por obs-websocket y BroadcastChannel. |
-| `cube.js` | El cubo inteligente: conexión, cubo virtual, seguimiento, análisis de DNF, Entrenar y guía con el cubo. |
+| `cube.js` | El cubo inteligente en la página de 3BLD: conexión, cubo virtual, seguimiento, análisis de DNF, Entrenar y guía con el cubo. |
+| `fridrich.html` · `fridrich.css` · `fridrich.js` | La página de Fridrich reducido (`/fridrich`): cronómetro, ayuda en directo, tiempos por fase, Casos, Entrenar y ajustes. |
+| `cfop.js` | El método CFOP sin pantalla: los 16 algoritmos de J Perm, en qué paso está un cubo, qué caso es, la cruz más corta y los tiempos de un solve. Expone `window.Cfop`. |
+| `smartcube.js` | El cubo inteligente para Fridrich: conexión GAN, la MAC, el cubo virtual y el sonido. Expone `window.SmartCube`. |
 | `overlay.html` | El overlay para OBS, una página independiente. |
 | `sw.js` | El service worker: guarda la app para usarla sin conexión. |
 | `build.js` | Genera `public/`: copia los archivos con un hash en la URL, dibuja los iconos PNG y anota el número de versión. |
@@ -238,6 +303,8 @@ flowchart LR
 | `op3:train` · `op3:guide` | Nueva letra en Entrenar · se abre o cambia la ejecución guiada. |
 | `op3:cube` | El cubo inteligente se ha movido o cambia de estado (para el overlay). |
 
+En Fridrich, `fridrich.js` publica `window.Fridrich` y avisa con `fr:timer` (fases `idle`, `inspect`, `run`, `done`), `fr:result`, `fr:scramble` y `fr:cube`; `stream.js` manda lo de la página que estés usando.
+
 ### Datos en el navegador
 
 Todo se guarda en `localStorage`, en tu dispositivo:
@@ -252,11 +319,14 @@ Todo se guarda en `localStorage`, en tu dispositivo:
 | `op3bld:name:v1` · `op3bld:theme:v1` · `op3bld:view:v1` | Tu nombre · tema · última vista |
 | `op3bld:sync:v1` | Código de sincronización |
 | `op3bld:stream:v1` · `op3bld:overlay:last` | Ajustes del overlay · último estado recibido por el overlay |
-| `op3bld:cube-mac:v1` · `op3bld:cube-fx:v1` · `op3bld:train-cube:v1` | MAC de cada cubo · sonido y vibración · responder escribiendo o con el cubo |
+| `op3bld:cube-mac:v1` · `op3bld:cube-fx:v1` · `op3bld:train-cube:v1` | MAC de cada cubo (la usan las dos páginas) · sonido y vibración · responder escribiendo o con el cubo |
+| `cfop:times:v1` | Fridrich: solves (los últimos 2000) con penalización, scramble y, con el cubo, cada paso `[tiempo, giros, reconocer, caso, salto]` |
+| `cfop:learn:v1` · `cfop:train:v1` · `cfop:pick:v1` | Fridrich: casos que aprendes o te sabes · lo entrenado por caso · los casos elegidos |
+| `cfop:settings:v1` · `cfop:scramble:v1` · `cfop:view:v1` | Fridrich: inspección, ayuda, sonido, color de la cruz… · scramble actual · última vista |
 
 ### Sin conexión y versiones
 
-`build.js` añade a cada archivo un hash de su contenido (`core.js?v=1a2b3c4d5e`) y calcula un número de versión del conjunto, que escribe en `index.html` y en el nombre de la caché del service worker (`op3bld-<versión>`). El service worker guarda la app al instalarse y la sirve aunque no haya red; la página principal la pide a la red primero y usa la caché como plan B. Cuando se despliega una versión nueva, el service worker nuevo borra la caché vieja, la página ve que la suya ya no existe y ofrece recargar, nunca durante un intento.
+`build.js` añade a cada archivo un hash de su contenido (`core.js?v=1a2b3c4d5e`) y calcula un número de versión del conjunto, que escribe en las dos páginas y en el nombre de la caché del service worker (`op3bld-<versión>`). El service worker guarda las dos páginas al instalarse y las sirve aunque no haya red; cada página la pide a la red primero y usa la caché como plan B. `vercel.json` sirve `/fridrich` desde `fridrich.html`. Cuando se despliega una versión nueva, el service worker nuevo borra la caché vieja, la página ve que la suya ya no existe y ofrece recargar, nunca durante un intento.
 
 ## API
 
@@ -290,14 +360,14 @@ Hace falta Node 18 o superior. No hay que instalar nada para la app en sí.
 node build.js                    # genera public/
 cd tests && npm install
 node server.js                   # sirve public/ con una API falsa en http://localhost:8793
-npm test                         # todas las pruebas (unas 275 comprobaciones)
+npm test                         # todas las pruebas (unas 335 comprobaciones)
 ```
 
 `tests/server.js` imita la API, así que retos y sincronización funcionan en local sin Vercel ni Blob. Con `vercel dev` se prueba la API de verdad.
 
-**Despliegue.** Cada push a `main` se despliega solo en Vercel: instala `package.json` (`@vercel/blob`, `@vercel/og`, `cubejs`), ejecuta `node build.js` y publica `public/` y `api/`. Hace falta un almacén de Vercel Blob conectado al proyecto (variable `BLOB_READ_WRITE_TOKEN`); sin él, la app funciona igual pero sin retos ni sincronización. `vercel.json` sirve `cubejs` desde jsDelivr en el mismo dominio (para el generador sin conexión), traduce `/r/:id` a `/api/r` y fija las cabeceras de caché de `sw.js` y `vendor/`.
+**Despliegue.** Cada push a `main` se despliega solo en Vercel: instala `package.json` (`@vercel/blob`, `@vercel/og`, `cubejs`), ejecuta `node build.js` y publica `public/` y `api/`. Hace falta un almacén de Vercel Blob conectado al proyecto (variable `BLOB_READ_WRITE_TOKEN`); sin él, la app funciona igual pero sin retos ni sincronización. `vercel.json` sirve `cubejs` desde jsDelivr en el mismo dominio (para el generador sin conexión), traduce `/r/:id` a `/api/r`, sirve `/fridrich` desde `fridrich.html` y fija las cabeceras de caché de `sw.js` y `vendor/`.
 
-**Pruebas.** Once suites en Chromium con Playwright (unas 275 comprobaciones) y tres auditorías con axe-core; ver [tests/README.md](tests/README.md).
+**Pruebas.** Doce suites en Chromium con Playwright (unas 335 comprobaciones) y cuatro auditorías con axe-core; ver [tests/README.md](tests/README.md).
 
 ## Créditos y licencias
 

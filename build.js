@@ -17,7 +17,7 @@ for (const f of fs.readdirSync(path.join(__dirname, 'vendor')).filter((x) => !x.
 }
 
 // Static files get a content hash in their URL, so browsers and the service worker never keep stale copies.
-const ASSETS = ['app.css', 'core.js', 'learn.js', 'social.js', 'stream.js', 'cube.js'];
+const ASSETS = ['app.css', 'cubemodel.js', 'core.js', 'learn.js', 'social.js', 'stream.js', 'cube.js', 'fridrich.css', 'cfop.js', 'smartcube.js', 'fridrich.js'];
 const versions = {};
 const all = crypto.createHash('sha1');
 for (const f of ASSETS) {
@@ -26,14 +26,21 @@ for (const f of ASSETS) {
   all.update(data);
   fs.writeFileSync(path.join(out, f), data);
 }
-let html = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
-for (const f of ASSETS) {
-  html = html.replace(new RegExp(`(href|src)=(["']?)${f.replace('.', '\\.')}\\2`, 'g'), `$1=$2${f}?v=${versions[f]}$2`);
+// The two pages: the 3BLD app and «Fridrich reducido» (/fridrich).
+const PAGES = ['index.html', 'fridrich.html'];
+const pages = {};
+for (const page of PAGES) {
+  let html = fs.readFileSync(path.join(__dirname, page), 'utf8');
+  for (const f of ASSETS) {
+    html = html.replace(new RegExp(`(href|src)=(["']?)${f.replace('.', '\\.')}\\2`, 'g'), `$1=$2${f}?v=${versions[f]}$2`);
+  }
+  pages[page] = html;
+  all.update(html);
 }
-all.update(html);
 const build = all.digest('hex').slice(0, 10);
-// The page knows its build, so it can tell when a newer one has replaced it.
-fs.writeFileSync(path.join(out, 'index.html'), html.replace('__BUILD__', build));
+// Each page knows its build, so it can tell when a newer one has replaced it.
+for (const page of PAGES) fs.writeFileSync(path.join(out, page), pages[page].replace('__BUILD__', build));
+fs.copyFileSync(path.join(__dirname, 'fridrich.webmanifest'), path.join(out, 'fridrich.webmanifest'));
 const sw = fs.readFileSync(path.join(__dirname, 'sw.js'), 'utf8')
   .replace('__BUILD__', build)
   .replace('__ASSETS__', ASSETS.map((f) => `'${f}?v=${versions[f]}'`).join(', '));

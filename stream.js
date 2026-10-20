@@ -1,12 +1,15 @@
-// Stream overlay: sends the app's live state to overlay.html.
-// Two routes: OBS (obs-websocket → obs-browser "emit_event" → browser source)
-// and this browser (BroadcastChannel: the preview here, or an overlay window).
+// Stream overlay: sends the app's live state to overlay.html, from either page (the 3BLD app or
+// «Fridrich reducido»; the overlay draws whichever sends). Two routes: OBS (obs-websocket → obs-browser
+// "emit_event" → browser source) and this browser (BroadcastChannel: the preview here, or an overlay window).
 (() => {
   'use strict';
   const OP = window.OP3;
+  const FR = window.Fridrich;
+  const M = window.CubeModel;
   const $ = (id) => document.getElementById(id);
   const box = $('streamBox');
-  if (!OP || !box) return;
+  if ((!OP && !FR) || !M || !box) return;
+  const APP = OP || FR;
 
   const CFG_KEY = 'op3bld:stream:v1';
   const DEFAULTS = { layout: 'esquinas', net: true, prog: true, memo: true, big: false, demo: false, obs: false, port: 4455, pass: '' };
@@ -32,18 +35,22 @@
   // ================= State snapshot =================
   const total = (t) => t.memo + t.exec;
   let cubeCache = { scr: null, cube: null, moves: 0 };
+  // The overlay draws the net face by face in U L F R B D order.
+  const netOf = (st) => {
+    let out = '';
+    for (const f of ['U', 'L', 'F', 'R', 'B', 'D']) {
+      const base = 9 * M.FACE_ORDER.indexOf(f);
+      for (let i = 0; i < 9; i++) out += M.faceOfSticker(st[base + i]);
+    }
+    return out;
+  };
   function cubeFor(scr) {
     if (cubeCache.scr === scr) return cubeCache;
     let cube = null;
     let moves = 0;
     try {
-      moves = OP.parseAlg(scr).length;
-      const st = OP.apply(OP.solved(), scr);
-      cube = '';
-      for (const f of ['U', 'L', 'F', 'R', 'B', 'D']) {
-        const base = 9 * OP.FACE_ORDER.indexOf(f);
-        for (let i = 0; i < 9; i++) cube += OP.faceOfSticker(st[base + i]);
-      }
+      moves = M.parseAlg(scr).length;
+      cube = netOf(M.apply(M.solved(), scr));
     } catch (e) { cube = null; moves = 0; }
     cubeCache = { scr, cube, moves };
     return cubeCache;
@@ -73,7 +80,75 @@
     memoCache = { key, val };
     return val;
   }
+  // «Fridrich reducido»: times with penalties, the splits per step and the case being done.
+  function snapshotCfop() {
+    const val = (r) => (r.pen === 'dnf' ? Infinity : r.t + (r.pen === 2 ? 2000 : 0));
+    const times = FR.times();
+    const timer = FR.timerState();
+    const scr = timer.phase !== 'idle' && timer.scramble ? timer.scramble : FR.scramble();
+    const c = cubeFor(scr);
+    const dayStart = new Date();
+    dayStart.setHours(0, 0, 0, 0);
+    const today = times.filter((t) => t.at >= dayStart.getTime());
+    const okToday = today.filter((t) => t.pen !== 'dnf');
+    const okAll = times.filter((t) => t.pen !== 'dnf');
+    const groups = (sp) => (sp ? [[0], [1], [2, 3], [4, 5]].map((idx) => (idx.every((i) => sp.s[i]) ? idx.reduce((a, i) => a + sp.s[i][0], 0) : null)) : null);
+    const caseNames = (sp) => (sp ? [2, 3, 4, 5].map((i) => {
+      const x = sp.s[i];
+      if (!x) return null;
+      if (x[4]) return 'salto';
+      const k = x[3] && window.Cfop && window.Cfop.caseById(x[3]);
+      return k ? k.name : null;
+    }).filter(Boolean).join(' · ') : '');
+    const last = times.length ? times[times.length - 1] : null;
+    let lastOut = null;
+    if (last) {
+      const before = times.slice(0, -1).filter((t) => t.pen !== 'dnf');
+      const prevBest = before.length ? Math.min(...before.map(val)) : null;
+      lastOut = {
+        ok: last.pen !== 'dnf', t: last.t, pen: last.pen || 0, at: last.at,
+        first: last.pen !== 'dnf' && !before.length,
+        pb: last.pen !== 'dnf' && prevBest != null && val(last) < prevBest,
+        sp: groups(last.sp), cases: caseNames(last.sp),
+      };
+    }
+    const learned = (prefix) => {
+      let n = 0;
+      let all = 0;
+      const learn = readJson('cfop:learn:v1', {});
+      (window.Cfop ? window.Cfop.CASES : []).forEach((k) => { if (k.step.startsWith(prefix)) { all++; if (learn[k.id] === 'known') n++; } });
+      return [n, all];
+    };
+    let smart = null;
+    const cube = FR.cube();
+    if (cube && cube.on) {
+      const live = FR.live();
+      smart = {
+        name: cube.name,
+        net: netOf(cube.state),
+        scr: live && live.scr ? { n: live.scr.n, done: live.scr.pos, half: live.scr.half, undo: live.scr.undo, lost: live.scr.lost } : null,
+        live: live ? { stage: live.stage, pairs: live.pairs, steps: live.splits, case: live.case } : null,
+      };
+    }
+    const fin = (x) => (x === Infinity ? -1 : x);
+    return {
+      v: 1, mode: 'cfop', at: Date.now(), src: SRC, act,
+      name: String(readJson('op3bld:name:v1', '') || '').slice(0, 24),
+      scr, moves: c.moves, cube: c.cube, timer, last: lastOut, smart,
+      today: {
+        n: today.length, ok: okToday.length,
+        best: okToday.length ? Math.min(...okToday.map(val)) : null,
+        ao5: today.length >= 5 ? fin(FR.avgOf(today, 5)) : null,
+        ao12: today.length >= 12 ? fin(FR.avgOf(today, 12)) : null,
+      },
+      record: okAll.length ? Math.min(...okAll.map(val)) : null,
+      total: { n: times.length, ok: okAll.length },
+      recent: today.slice(-6).map((t) => ({ ok: t.pen !== 'dnf', t: val(t) })),
+      learned: { oll: learned('oll'), pll: learned('pll') },
+    };
+  }
   function snapshot() {
+    if (!OP) return snapshotCfop();
     const times = OP.data.times();
     const timer = OP.timerState();
     const scr = timer.phase !== 'idle' && timer.scramble ? timer.scramble : OP.scramble();
@@ -155,11 +230,13 @@
   // Smart cube turns come many per second: send at most every 150 ms, and always the last one.
   let cubeT = 0;
   let cubeAt = 0;
-  document.addEventListener('op3:cube', () => {
+  ['fr:timer'].forEach((ev) => document.addEventListener(ev, (e) => { touch(); push(e.detail && e.detail.cancelled ? { cancelled: true } : null); }));
+  ['fr:result', 'fr:scramble'].forEach((ev) => document.addEventListener(ev, soon));
+  ['op3:cube', 'fr:cube'].forEach((ev) => document.addEventListener(ev, () => {
     const wait = 150 - (Date.now() - cubeAt);
     if (wait <= 0) { cubeAt = Date.now(); push(); return; }
     if (!cubeT) cubeT = setTimeout(() => { cubeT = 0; cubeAt = Date.now(); push(); }, wait);
-  });
+  }));
   // Name fields (Retos / Ajustes) save on change; the overlay shows that name.
   document.addEventListener('change', (e) => { if (e.target && e.target.matches && e.target.matches('[data-name-input]')) soon(); });
 
@@ -264,6 +341,7 @@
     if (!cfg.prog) q.set('prog', '0');
     if (!cfg.memo) q.set('memo', '0');
     if (cfg.big && (cfg.layout === 'esquinas' || cfg.layout === 'crono')) q.set('size', 'grande');
+    if (extra && extra.demo && !OP) q.set('modo', 'cfop');
     Object.entries(extra || {}).forEach(([k, v]) => q.set(k, v));
     const qs = q.toString();
     return new URL(`overlay.html${qs ? '?' + qs : ''}`, location.href).href;
@@ -272,7 +350,9 @@
   let available = null;
   function build() {
     built = true;
-    box.innerHTML = '<p>Muestra en tu directo el cronómetro, el scramble con el dibujo del cubo, tus números de hoy y lo que llevas aprendido. Se actualiza solo mientras usas la app. El nombre que aparece es el de «Tu nombre en los retos», más abajo.</p>'
+    box.innerHTML = (OP
+      ? '<p>Muestra en tu directo el cronómetro, el scramble con el dibujo del cubo, tus números de hoy y lo que llevas aprendido. Se actualiza solo mientras usas la app. El nombre que aparece es el de «Tu nombre en los retos», más abajo.</p>'
+      : '<p>El mismo overlay que en la página de 3BLD: si ya lo tienes en OBS, no hay que tocar nada. Muestra el cronómetro con los tiempos de cruz, F2L, OLL y PLL, el caso que estás haciendo, el scramble con el cubo y tus medias de hoy. Sigue a la página que estés usando.</p>')
       + '<div class=ov-preview><iframe id=ovFrame title="Vista previa del overlay" tabindex=-1></iframe><span class=ov-cam>Tu cámara</span></div>'
       + '<div class=ov-opts>'
       + '<div class=field><label for=ovLayout>Disposición</label><select id=ovLayout class=text-input>'
@@ -281,7 +361,7 @@
       + '<div class=ov-checks>'
       + '<label class=check><input type=checkbox id=ovNet> Dibujo del cubo</label>'
       + '<label class=check><input type=checkbox id=ovProg> Progreso de aprendizaje</label>'
-      + '<label class=check title="Solo si el memo de «Practicar» resuelve el scramble"><input type=checkbox id=ovMemo> Mi memo al ejecutar</label>'
+      + `<label class=check title="Solo si el memo de «Practicar» resuelve el scramble"${OP ? '' : ' hidden'}><input type=checkbox id=ovMemo> Mi memo al ejecutar</label>`
       + '<label class=check><input type=checkbox id=ovBig> Tarjetas grandes (Discord)</label>'
       + '<label class=check><input type=checkbox id=ovDemo> Ver con datos de ejemplo</label>'
       + '</div></div>'
@@ -385,8 +465,8 @@
     }
     build();
   }
-  OP.onView('ajustes', open);
-  if (OP.currentView() === 'ajustes') open();
+  APP.onView('ajustes', open);
+  if (APP.currentView() === 'ajustes') open();
 
   // A small "on air" mark next to the timer while OBS is connected.
   const head = document.querySelector('[data-view=crono] .panel-head');

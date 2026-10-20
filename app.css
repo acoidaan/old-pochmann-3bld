@@ -597,6 +597,9 @@ body.focus:not([data-timer="idle"]) .focus-bottom { visibility: hidden; }
   .big { width: 68px; height: 68px; font-size: 44px; }
 }
 .mobile-brand { display: none; }
+.to-fr { justify-self: start; display: inline-flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 700; color: var(--accent); text-decoration: none; }
+.to-fr:hover { text-decoration: underline; }
+.mobile-brand .to-fr { margin-top: 4px; }
 .mobile-brand h1 { font-family: var(--font-display); font-weight: 700; font-size: 20px; margin: 10px 0 0; }
 @media (max-width: 520px) {
   .fields { grid-template-columns: minmax(0, 1fr); }

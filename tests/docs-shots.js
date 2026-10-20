@@ -118,6 +118,44 @@ const save = (p, name, opts) => p.screenshot({ path: path.join(OUT, name), ...op
     await ctx.close();
   }
 
+  // «Fridrich reducido»: a solve with the cube, at the last layer (the case and its algorithm), and the
+  // splits of a finished one.
+  {
+    const SOLVE = ["D R' F2 L", "U R U' R'", "U' F' U F", "L' U' L", "U B U' B'", "F R U R' U' F'", "R U R' U R U2 R'", "R U R' U' R' F R2 U' R' U' R U R' F'", "R U' R U R U R U' R' U' R2"];
+    const PACE = [2600, 3100, 2900, 3300, 3000, 1900, 2100, 3400, 2500];
+    const { ctx, p } = await open(browser, { viewport: { width: 1280, height: 1000 }, colorScheme: 'light' }, '/fridrich?cubo=virtual#crono');
+    await connect(p);
+    const ft = (a) => p.evaluate((x) => window.Fridrich.cube().link.turn(x), a);
+    const play = async (alg, ms) => {
+      const moves = alg.split(' ');
+      for (const m of moves) { await ft(m); await p.clock.runFor(Math.round(ms / moves.length)); }
+    };
+    // An earlier solve, so the splits and the averages have something to show.
+    for (let k = 0; k < 2; k++) {
+      const scr = await p.evaluate((sol) => {
+        const M = window.CubeModel;
+        const link = window.Fridrich.cube().virtualLink();
+        const out = [];
+        link.events$.subscribe((e) => { if (e.type === 'MOVE') out.push(e.move); });
+        link.turn(`z2 ${M.invertAlg(sol.join(' '))} z2`);
+        const x = M.simplifyAlg(out.join(' '));
+        window.Fridrich._.setScramble(x);
+        return x;
+      }, SOLVE);
+      await ft(scr);
+      await p.clock.runFor(1500);
+      await ft('z2');
+      const upTo = k === 0 ? SOLVE.length : 6;
+      for (let i = 0; i < upTo; i++) await play(SOLVE[i], PACE[i] * (k === 0 ? 1.15 : 1));
+      if (k === 0) { await p.clock.runFor(1500); await ft('z2'); }
+    }
+    await ft("R U R'");
+    await p.clock.runFor(400);
+    await save(p, 'fridrich.png');
+    done.push('fridrich.png');
+    await ctx.close();
+  }
+
   // The stream overlay over a scene, executing with the cube.
   {
     const ctx = await browser.newContext({ viewport: { width: 1600, height: 900 }, deviceScaleFactor: 1 });

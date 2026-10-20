@@ -72,6 +72,7 @@ function start({ root, port, cubejs = true }) {
       return file(FONT_DIRS.map((d) => path.join(d, name)).find((f) => fs.existsSync(f)));
     }
     if (u.pathname === '/wrap.html') return file(path.join(FIXTURES, 'wrap.html'));
+    if (u.pathname === '/fridrich') return file(path.join(root, 'fridrich.html'));   // like the rewrite in vercel.json
     return file(path.join(root, u.pathname === '/' ? 'index.html' : decodeURIComponent(u.pathname)));
   });
   return new Promise((resolve, reject) => {
