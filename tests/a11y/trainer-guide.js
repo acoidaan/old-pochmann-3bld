@@ -18,6 +18,16 @@ let problems = 0;
     const run = async (label) => { await p.evaluate(axeSrc); const v = await p.evaluate(async () => (await window.axe.run(document, { resultTypes: ['violations'] })).violations.map((x) => `${x.id}: ${x.nodes.slice(0, 3).map((n) => n.target.join(' ')).join(', ')}`)); console.log(`${w}${scheme} ${label}: ${v.length ? v.join(' | ') : 'clean'}`); problems += v.length ? 1 : 0; };
     await run('trainer');
     await p.evaluate(() => window.OP3.showView('practicar'));
+    // «Practicar» following the cube, with the memo of the scramble written in.
+    await p.evaluate(() => {
+      const O = window.OP3;
+      const toks = O.cube.simMemo(O.guideApi.start());
+      O.loadPractice(O.scramble(), toks.filter((t) => t.kind === 'edge').map((t) => t.L).join(''), toks.filter((t) => t.kind === 'corner').map((t) => t.L).join(''));
+    });
+    await p.waitForTimeout(50);
+    const ov = await p.evaluate(() => (document.getElementById('practiceCube').hidden ? 'hidden' : '') + (document.documentElement.scrollWidth > window.innerWidth ? ' overflow' : ''));
+    if (ov) { console.log(`${w}${scheme} practice: ${ov}`); problems++; }
+    await run('practice');
     await p.click('#guideOpen');
     await run('guide');
     await ctx.close();

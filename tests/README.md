@@ -11,7 +11,7 @@ cd tests
 npm install
 npx playwright install chromium   # solo la primera vez
 
-npm test                  # las 10 suites (unas 250 comprobaciones, ~4 min)
+npm test                  # las 11 suites (unas 275 comprobaciones, ~4 min)
 npm test -- smart-cube    # solo las que tienen «smart-cube» en el nombre
 npm run audit             # accesibilidad y maquetación
 npm run shots             # vuelve a hacer las capturas de docs/img
@@ -21,9 +21,9 @@ npm run shots             # vuelve a hacer las capturas de docs/img
 
 ```
 ✓ e2e/competition-mode.js · 18 comprobaciones · 6 s
-✓ e2e/smart-cube.js · 68 comprobaciones · 45 s
+✓ e2e/smart-cube.js · 69 comprobaciones · 46 s
 …
-✓ Todo bien: 10 suites, 248 comprobaciones (3.9 min)
+✓ Todo bien: 11 suites, 276 comprobaciones (4.2 min)
 ```
 
 Las capturas que hacen las suites (útiles para revisar a ojo) quedan en `tests/shots/`, que no se sube al repo.
@@ -40,11 +40,12 @@ Las capturas que hacen las suites (útiles para revisar a ojo) quedan en `tests/
 | `e2e/previews-spoiler-updates.js` | Etiquetas de vista previa (Discord…), enlaces cortos `/r/<id>`, spoiler de Entrenar, pantalla encendida, aviso de versión nueva. |
 | `e2e/smart-cube.js` | Cubo inteligente: seguimiento del scramble, el primer giro termina el memo, parada al resolver, análisis de DNF (sin memo, con memo, letra equivocada, memo mal), carreras al parar, resincronización, MAC, navegadores sin Bluetooth, sonido y vibración. |
 | `e2e/smart-cube-overlay.js` | El cubo en el overlay: progreso del scramble, cubo en directo, giros y letras, «lo ha comprobado el cubo», motivo del DNF, y los datos de ejemplo. |
+| `e2e/smart-cube-practice.js` | Practicar siguiendo el cubo: primero el scramble, cada giro del setup un paso, la cuenta dentro del algoritmo, giros equivocados, volver de otras letras o vistas, la guía por encima, memo resuelto o con error. |
 | `e2e/smart-cube-trainer-guide.js` | Entrenar respondiendo con el cubo y la ejecución guiada que avanza sola con el cubo. |
 | `e2e/smart-cube-dnf-read.js` | Las letras falladas en un DNF pasan a Entrenar; «Leer el cubo» y «Usar mi cubo como scramble». |
 | `a11y/views.js` | axe-core y desbordamiento horizontal en todas las vistas, móvil y escritorio, claro y oscuro. |
 | `a11y/smart-cube.js` | Lo mismo con el cubo conectado: seguimiento, informe de DNF y diálogo de la MAC. |
-| `a11y/trainer-guide.js` | Lo mismo en Entrenar con el cubo y en la ejecución guiada. |
+| `a11y/trainer-guide.js` | Lo mismo en Entrenar con el cubo, en Practicar siguiendo el cubo y en la ejecución guiada. |
 
 ## Cómo están hechas
 

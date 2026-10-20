@@ -398,6 +398,9 @@ body.focus:not([data-timer="idle"]) .focus-bottom { visibility: hidden; }
 .guide-cube.bad { color: var(--accent); font-size: clamp(18px, 4vw, 24px); }
 .guide-cube b { font-family: var(--font-mono); }
 .guide-seq .sm.done { opacity: .35; }
+.practice-cube { text-align: left; font-size: 14px; margin-top: 12px; }
+.practice-cube.bad { font-size: 15px; }
+.practice-cube:not(.bad):not(.ok)::before { content: ''; display: inline-block; width: 8px; height: 8px; margin-right: 8px; border-radius: 50%; background: var(--ok); vertical-align: 1px; }
 
 /* Smart cube */
 .cube-bar {

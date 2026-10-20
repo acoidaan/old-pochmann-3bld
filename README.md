@@ -58,6 +58,7 @@ Con un cubo GAN conectado por Bluetooth, la app sabe en todo momento cómo está
 - **Cronometra solo.** El primer giro termina el memo y empieza la ejecución; cuando el cubo queda resuelto, el crono se para, lo guarda como resuelto, suena y (en el móvil) vibra. Si lo paras tú sin resolver, el cubo lo comprueba y te propone DNF.
 - **Explica los DNF.** Reconstruye las letras que hiciste a partir de los estados por los que pasó el cubo y dice en qué letra falló y en qué parte: el setup, el algoritmo o al deshacer el setup. Si escribes tu memo en Practicar, distingue además si hiciste otra letra o si el memo ya estaba mal. Esa letra pasa a salir más en Entrenar.
 - **Entrena en el cubo.** En Entrenar haces cada letra en el cubo, desde como esté; la app marca setup, algoritmo y deshacer, avisa del primer giro equivocado y mide cuánto tardas en pensar y en ejecutar.
+- **Practica a tu ritmo.** En Practicar, con tu memo escrito, la letra y el paso que ves avanzan solos según giras: sin reloj, mirando el memo y el dibujo, con aviso del giro equivocado y de qué deshacer.
 - **Guía la resolución.** Con la ejecución guiada abierta, los pasos avanzan solos según giras y se colocan donde esté tu cubo.
 - **Lee el cubo.** Mezcla a mano como quieras y «Leer el cubo» saca el scramble (tus propios giros, si la app los vio; si no, uno calculado) para hacer el memo y comprobarlo.
 - **En directo.** El modo competición muestra abajo los giros y cada letra en cuanto la completas, y el overlay enseña el cubo real moviéndose.
@@ -86,7 +87,7 @@ Para probar todo esto sin cubo, abre la app con [`?cubo=virtual`](https://old-po
 ### Cómo funciona por dentro
 
 - **El marco del núcleo.** Un cubo inteligente solo siente sus seis caras girando alrededor de un núcleo fijo: para él, un `l` es un `R` con el cubo rotado, y un `M` son dos giros de cara. `cube.js` compara siempre los estados en ese marco, con los centros en su sitio (`norm()` busca la rotación de las 24 que los devuelve a casa), así que da igual cómo sujetes el cubo o qué giros anchos uses.
-- **Estados, no movimientos.** El modelo del cubo es una permutación de 54 pegatinas (`core.js`). Para seguir una secuencia (el scramble, una letra en Entrenar, la ejecución guiada) se precalculan los estados tras cada giro, y los intermedios de los medios giros en los dos sentidos; tu cubo está en el paso cuyo estado coincide. Si no coincide con ninguno, lo que tienes que deshacer se nombra como tienes el cubo en la mano en ese momento.
+- **Estados, no movimientos.** El modelo del cubo es una permutación de 54 pegatinas (`core.js`). Para seguir una secuencia (el scramble, una letra en Entrenar, el memo en Practicar, la ejecución guiada) se precalculan los estados tras cada giro, y los intermedios de los medios giros en los dos sentidos; tu cubo está en el paso cuyo estado coincide. Si no coincide con ninguno, lo que tienes que deshacer se nombra como tienes el cubo en la mano en ese momento.
 - **Reconstruir un intento.** Tras cada letra bien hecha (setup + algoritmo + deshacer), el cubo debe estar exactamente donde lo deja esa letra. El análisis busca, entre las 44 letras posibles, la primera cuyo estado aparece en el recorrido del cubo, y repite desde ahí. Donde ya no encuentra ninguna está el fallo; dentro de esa letra mira si se llegó al estado tras el setup y tras el algoritmo.
 - **El cubo manda.** Al empezar cada memo y al parar, la app le pide al cubo su estado completo, por si se perdió algún giro por el camino.
 
@@ -226,13 +227,13 @@ flowchart LR
 
 ### Módulos y eventos
 
-`core.js` carga primero y publica `window.OP3`: el modelo del cubo (`apply`, `parseAlg`, `solved`, `isSolved`…), el método (`MODES`, `ALGS`, `tokenAlg`…), el control del reloj (`OP3.clock`), el del entrenador (`OP3.trainer`) y el de la guía (`OP3.guideApi`). Los demás módulos se enganchan a él y se avisan con eventos del documento:
+`core.js` carga primero y publica `window.OP3`: el modelo del cubo (`apply`, `parseAlg`, `solved`, `isSolved`…), el método (`MODES`, `ALGS`, `tokenAlg`…), el control del reloj (`OP3.clock`), el del entrenador (`OP3.trainer`), el del visor de Practicar (`OP3.practice`) y el de la guía (`OP3.guideApi`). Los demás módulos se enganchan a él y se avisan con eventos del documento:
 
 | Evento | Cuándo |
 |:--|:--|
 | `op3:timer` | Cambia la fase del reloj: `idle`, `memo`, `exec` o `done` (con los tiempos en milisegundos desde 1970, para que otra ventana pueda seguir contando). |
 | `op3:result` | Se guarda un intento. |
-| `op3:scramble` | Cambia el scramble. |
+| `op3:scramble` · `op3:memo` | Cambia el scramble · cambia el memo de Practicar. |
 | `op3:changed` | Cambian datos que se sincronizan (intentos, entrenamiento…). |
 | `op3:train` · `op3:guide` | Nueva letra en Entrenar · se abre o cambia la ejecución guiada. |
 | `op3:cube` | El cubo inteligente se ha movido o cambia de estado (para el overlay). |
@@ -289,14 +290,14 @@ Hace falta Node 18 o superior. No hay que instalar nada para la app en sí.
 node build.js                    # genera public/
 cd tests && npm install
 node server.js                   # sirve public/ con una API falsa en http://localhost:8793
-npm test                         # todas las pruebas (unas 250 comprobaciones)
+npm test                         # todas las pruebas (unas 275 comprobaciones)
 ```
 
 `tests/server.js` imita la API, así que retos y sincronización funcionan en local sin Vercel ni Blob. Con `vercel dev` se prueba la API de verdad.
 
 **Despliegue.** Cada push a `main` se despliega solo en Vercel: instala `package.json` (`@vercel/blob`, `@vercel/og`, `cubejs`), ejecuta `node build.js` y publica `public/` y `api/`. Hace falta un almacén de Vercel Blob conectado al proyecto (variable `BLOB_READ_WRITE_TOKEN`); sin él, la app funciona igual pero sin retos ni sincronización. `vercel.json` sirve `cubejs` desde jsDelivr en el mismo dominio (para el generador sin conexión), traduce `/r/:id` a `/api/r` y fija las cabeceras de caché de `sw.js` y `vendor/`.
 
-**Pruebas.** Diez suites en Chromium con Playwright (unas 250 comprobaciones) y tres auditorías con axe-core; ver [tests/README.md](tests/README.md).
+**Pruebas.** Once suites en Chromium con Playwright (unas 275 comprobaciones) y tres auditorías con axe-core; ver [tests/README.md](tests/README.md).
 
 ## Créditos y licencias
 

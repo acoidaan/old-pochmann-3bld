@@ -417,6 +417,7 @@
     // (a timed solve following the guide, for instance).
     if (trActive()) trMove(m.text);
     if (guideActive()) guideMove(m.text);
+    if (practiceActive()) practiceMove(m.text);
     render();
   }
   function record(mv) {
@@ -799,12 +800,13 @@
   }
   // Where the cube is on the path. A path can pass the same state twice (a turn and its inverse back to
   // back, like the end of one letter and the start of the next): take the furthest of the spots near
-  // where it was, as both mean the same cube.
+  // where it was, as both mean the same cube. A path with «near» set keeps to the closest spot instead
+  // (ties still go forward), so the screen doesn't run ahead into the next letter mid-undo.
   function pathLocate(P, st) {
     const k = key(st);
     const pick = (list) => {
       const d = Math.min(...list.map((x) => Math.abs(x - P.pos)));
-      return Math.max(...list.filter((x) => Math.abs(x - P.pos) <= d + 2));
+      return Math.max(...list.filter((x) => Math.abs(x - P.pos) <= d + (P.near ? 0 : 2)));
     };
     if (P.at.has(k)) { P.pos = pick(P.at.get(k)); P.halfway = false; }
     else if (P.half.has(k)) { P.pos = pick(P.half.get(k)); P.halfway = true; }
@@ -1017,6 +1019,108 @@
   }
   document.addEventListener('op3:guide', (ev) => { if (ev.detail && ev.detail.open) guideStart(); else { gd.path = null; renderGuideCube(); } });
 
+  // ================= «Practicar» following the cube =================
+  // With the memo written in «Practicar», the letter and the step on screen follow the real cube: turn it
+  // and the memo strip, the step chips and the drawing go along, with no clock involved.
+  const pr = { path: null, segs: [], key: '', cheered: false };
+  const practiceActive = () => cube.status === 'on' && !!cube.state && O.currentView() === 'practicar' && !O.guideApi.open();
+  function practiceStart() {
+    pr.path = null;
+    pr.segs = [];
+    pr.cheered = false;
+    const toks = O.practice.tokens();
+    const start = O.guideApi.start();
+    if (!start || !toks.some((t) => !t.bad)) return;
+    const algs = [];
+    toks.forEach((t, i) => {
+      if (t.bad) return;
+      if (t.kind === 'parity') { algs.push(ALGS.P.moves); pr.segs.push({ i, step: 1, alg: ALGS.P }); return; }
+      const mode = MODES[t.kind];
+      const setup = parseAlg(mode.table[t.L] || '').map((m) => m.text);
+      setup.forEach((m, k) => { algs.push(m); pr.segs.push({ i, step: k + 1 }); });
+      algs.push(ALGS[mode.alg].moves);
+      pr.segs.push({ i, step: setup.length + 1, alg: ALGS[mode.alg] });
+      const undo = setup.length ? parseAlg(invertAlg(setup.join(' '))).map((m) => m.text) : [];
+      undo.forEach((m, k) => { algs.push(m); pr.segs.push({ i, step: setup.length + 2 + k }); });
+    });
+    pr.path = makePath(start, algs);
+    pr.path.near = true;
+    // Like the guide: a solved cube means «not scrambled yet», not «already finished».
+    const fresh = isSolved(cube.state) && !isSolved(norm(start));
+    if (fresh || !pathLocate(pr.path, cube.state)) pr.path.lost = true;
+    practiceShow();
+  }
+  // Where the strip and the steps should be for the spot the cube is at.
+  function practiceSpot() {
+    const P = pr.path;
+    const s = segOf(P, P.pos);
+    if (s >= pr.segs.length) { const last = pr.segs[pr.segs.length - 1]; return { i: last.i, step: last.step }; }
+    const seg = pr.segs[s];
+    const from = s ? P.segEnd[s - 1] : 0;
+    return { i: seg.i, step: seg.step - 1, seg, done: P.pos - from, of: P.segEnd[s] - from };
+  }
+  function practiceMove(mv) {
+    const P = pr.path;
+    if (!P) return;
+    // Solved and scrambling again: that's a new go, not a wrong turn.
+    const wasDone = !P.lost && !P.off.length && P.pos >= P.total && isSolved(norm(P.spat[P.total]));
+    pathMove(P, mv, cube.state);
+    if (wasDone && P.off.length) { P.off = []; P.lost = true; pr.cheered = false; }
+    practiceShow();
+  }
+  function practiceShow() {
+    const P = pr.path;
+    if (P && !P.lost && !P.off.length) {
+      const spot = practiceSpot();
+      const now = O.practice.at();
+      if (now.i !== spot.i || now.step !== spot.step) O.practice.show(spot.i, spot.step);
+      if (P.pos >= P.total && isSolved(cube.state) && !pr.cheered) { pr.cheered = true; celebrate(); }
+    }
+    renderPracticeCube();
+  }
+  function renderPracticeCube() {
+    const el = $('practiceCube');
+    const P = pr.path;
+    el.hidden = !practiceActive() || !P;
+    if (el.hidden) return;
+    let html;
+    let tone = '';
+    if (P.lost) {
+      if (!follow.lost && follow.prog < follow.moves.length) {
+        html = follow.off.length
+          ? `Primero mezcla el cubo. Ese giro no toca, deshaz: <b>${undoText()}</b>`
+          : `Primero mezcla el cubo con el scramble: giro ${follow.prog + 1} de ${follow.moves.length}, <b>${follow.moves[follow.prog].text}</b>`;
+        tone = follow.off.length ? 'bad' : '';
+      } else {
+        html = 'Tu cubo no está en ningún punto de esta resolución: resuélvelo y mézclalo con el scramble de arriba.';
+        tone = 'bad';
+      }
+    } else if (P.off.length) {
+      html = `Ese giro no toca. Deshaz: <b>${undoFor(P)}</b>`;
+      tone = 'bad';
+    } else if (P.pos >= P.total) {
+      html = isSolved(cube.state) ? '✓ Resuelto, y lo ha comprobado el cubo' : 'Has hecho todo el memo, pero el cubo no queda resuelto: el memo tiene algún error.';
+      tone = isSolved(cube.state) ? 'ok' : 'bad';
+    } else {
+      const spot = practiceSpot();
+      html = spot.seg && spot.seg.alg && spot.done
+        ? `Siguiendo tu cubo · ${spot.seg.alg.name}: ${spot.done} de ${spot.of}`
+        : 'Siguiendo tu cubo: haz el giro y pasa solo al siguiente';
+    }
+    el.className = `guide-cube practice-cube ${tone}`;
+    if (el.dataset.h !== html) { el.dataset.h = html; el.innerHTML = html; }
+  }
+  // Rebuilt when the scramble or the memo change, or on coming back to «Practicar».
+  function practiceSync() {
+    if (!practiceActive()) { pr.path = null; renderPracticeCube(); return; }
+    const k = `${O.scramble()}|${O.practice.tokens().map((t) => t.L || 'P').join('')}`;
+    if (!pr.path || pr.key !== k) { pr.key = k; practiceStart(); } else renderPracticeCube();
+  }
+  O.onView('practicar', () => { pr.key = ''; practiceSync(); });
+  document.addEventListener('op3:memo', () => setTimeout(practiceSync, 0));
+  // Closing the guide puts the strip back on its token: find the cube's spot again once it has.
+  document.addEventListener('op3:guide', () => setTimeout(() => { pr.key = ''; practiceSync(); }, 0));
+
   // ================= For the stream overlay =================
   // The live cube, how far the scramble is, and the turns and letters of the attempt (or the last one).
   function overlayState() {
@@ -1089,6 +1193,7 @@
     $('readCube').hidden = !on;
     $('cubeUseState').hidden = !(on && ph === 'idle' && follow.lost && !isSolved(cube.state));
     trSync();
+    practiceSync();
     if (O.guideApi.open()) { if (on && !gd.path) guideStart(); else renderGuideCube(); }
     // Competition mode: the turns and letters at the bottom, kept after the attempt until the next one.
     $('focusMoves').innerHTML = liveHtml(attempt || last);

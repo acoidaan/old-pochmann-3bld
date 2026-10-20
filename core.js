@@ -289,7 +289,8 @@
     ui.states = computeStates(ui.steps, base);
     ui.track = { bufId: base[mode.posOf[mode.read]], tgtId: base[mode.posOf[letter]] };
     if (stepOpt === 'last') ui.step = ui.steps.length - 1;
-    else if (stepOpt === 0 || ui.base === 'scramble') ui.step = 0;
+    else if (typeof stepOpt === 'number') ui.step = Math.max(0, Math.min(stepOpt, ui.steps.length - 1));
+    else if (ui.base === 'scramble') ui.step = 0;
     else ui.step = defaultStep(ui.steps);
     renderAll();
     save();
@@ -299,7 +300,7 @@
     ui.view = 'parity';
     ui.steps = buildParitySteps();
     ui.states = computeStates(ui.steps, baseState());
-    ui.step = stepOpt === 'last' ? ui.steps.length - 1 : 0;
+    ui.step = stepOpt === 'last' ? ui.steps.length - 1 : typeof stepOpt === 'number' ? Math.max(0, Math.min(stepOpt, ui.steps.length - 1)) : 0;
     renderAll();
   }
   function refreshViewer() {
@@ -565,6 +566,7 @@
     c.forEach((L) => toks.push({ kind: 'corner', L }));
     ui.tokens = toks;
     ui.errToken = -1;
+    emit('memo', toks.length);
   }
   function tokenBad(t) {
     if (t.kind === 'parity') return false;
@@ -1965,6 +1967,18 @@
     trainer: { state: () => ({ kind: trainer.kind, letter: trainer.letter, phase: trainer.phase, t0: trainer.t0 }), next: (keep) => nextCard(false, keep), cubeAnswer, flag: flagLetter,
       hint: (text) => { if (trainer.hint !== text) { trainer.hint = text; renderTrainStats(); } } },
     solveState, simplifyAlg,
+    // For the smart cube in «Practicar»: the memo's letters, and showing one of them at a given step.
+    practice: {
+      tokens: () => ui.tokens.map((t) => ({ ...t, bad: tokenBad(t) })),
+      at: () => ({ i: ui.memoIdx, step: ui.step }),
+      show: (i, step) => {
+        if (ui.base !== 'scramble') setBase('scramble');
+        if (ui.memoIdx === i && ui.steps.length && ui.states.length) {
+          ui.step = Math.max(0, Math.min(step, ui.steps.length - 1));
+          renderAll();
+        } else goToken(i, step);
+      },
+    },
     guideApi: {
       open: () => !$('guide').hidden, steps: () => guide.steps, index: () => guide.i,
       go: (i) => { guide.i = Math.min(guide.steps.length - 1, Math.max(0, i)); renderGuide(); },
