@@ -148,6 +148,7 @@
       total: { n: times.length, ok: okAll.length },
       recent: today.slice(-6).map((t) => ({ ok: t.pen !== 'dnf', t: val(t) })),
       learned: { oll: learned('oll'), pll: learned('pll') },
+      learn: FR.learnState ? FR.learnState() : null,
     };
   }
   function snapshot() {
@@ -234,7 +235,7 @@
   let cubeT = 0;
   let cubeAt = 0;
   ['fr:timer'].forEach((ev) => document.addEventListener(ev, (e) => { touch(); push(e.detail && e.detail.cancelled ? { cancelled: true } : null); }));
-  ['fr:result', 'fr:scramble', 'fr:record'].forEach((ev) => document.addEventListener(ev, soon));
+  ['fr:result', 'fr:scramble', 'fr:record', 'fr:train', 'fr:view'].forEach((ev) => document.addEventListener(ev, soon));
   ['op3:cube', 'fr:cube'].forEach((ev) => document.addEventListener(ev, () => {
     const wait = 150 - (Date.now() - cubeAt);
     if (wait <= 0) { cubeAt = Date.now(); push(); return; }

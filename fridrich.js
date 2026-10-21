@@ -20,7 +20,7 @@
     view: 'cfop:view:v1', scr: 'cfop:scramble:v1', pick: 'cfop:pick:v1', theme: 'op3bld:theme:v1',
     crossTr: 'cfop:crosstr:v1', deleted: 'cfop:deleted:v1', learnAt: 'cfop:learn-at:v1', sync: 'op3bld:sync:v1', synced: 'cfop:synced:v1',
     trlog: 'cfop:trlog:v1', player: 'cfop:player:v1', ligas: 'cfop:ligas:v1', ligaPub: 'cfop:liga-pub:v1', ligaSeen: 'cfop:liga-seen:v1',
-    name: 'op3bld:name:v1',
+    name: 'op3bld:name:v1', session: 'cfop:session:v1', sessions: 'cfop:sessions:v1',
   };
   const load = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; } catch (e) { return d; } };
   const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* this visit only */ } };
@@ -47,6 +47,8 @@
     else { sess.n++; if (e.ok) sess.ok++; }
     if (e.t != null && e.ok) { sess.sum += e.t; sess.timed++; }
     changed();
+    sessionAttempt(entry);
+    emit('train', null);
     clearTimeout(logTr.h);
     logTr.h = setTimeout(() => { if (view === 'entrenar') renderTrStats(); }, 600);
   }
@@ -91,6 +93,10 @@
       if (b.dataset.go === name) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
     });
     save(K.view, name);
+    // Learning (Casos, Entrenar) looks different from the timer; a training session takes over Entrenar.
+    document.body.dataset.mode = name === 'entrenar' || name === 'casos' ? 'learn' : 'time';
+    if (typeof renderMode2 === 'function') renderMode2();
+    emit('view', name);
     try { history.replaceState(null, '', `${location.pathname}${location.search}#${name}`); } catch (e) { /* sandboxed */ }
     if (changed) { try { window.scrollTo(0, 0); } catch (e) { /* no layout */ } }
     (viewHooks[name] || []).forEach((fn) => fn());
@@ -1446,6 +1452,7 @@
     settings.trMode = m;
     saveSettings();
     renderTrMode();
+    if (session) { session.mode = m; saveSession(); renderSession(); }
     trNext();
   }
   if (!['cube', 'hand', 'look'].includes(settings.trMode)) settings.trMode = 'cube';
@@ -1467,11 +1474,13 @@
     return norm(apply(apply(solved(), C.DOWN[face]), seq));
   }
   async function trNext() {
+    tr.seq = (tr.seq || 0) + 1;
     tr.result = null;
     tr.err = '';
     tr.answered = false;
     if (!pick.length) return;
     tr.c = nextCase(tr.c && tr.c.id);
+    markCurrent();
     if (settings.trMode === 'look') {
       tr.qAuf = rnd(C.AUF);
       tr.qView = rnd(C.VIEWS);
@@ -1532,8 +1541,10 @@
   // After a case: another one, prepared from wherever the cube is.
   function trAdvance() {
     if (!tr.result) return;
+    tr.seq = (tr.seq || 0) + 1;
     tr.result = null;
     tr.c = nextCase(tr.c && tr.c.id);
+    markCurrent();
     trPrepare();
   }
   // «Me he perdido»: this case counts as failed (if it was already showing) and another one comes, prepared
@@ -1551,6 +1562,7 @@
     }
     tr.result = null;
     tr.c = nextCase(c.id);
+    markCurrent();
     if (settings.trMode === 'cube' && cube && cube.on) trPrepare(); else trNext();
   }
   function trMove(mv, st, t) {
@@ -1584,23 +1596,31 @@
       if (settings.sound) window.SmartCube.chime(true);
       buzz([60]);
       renderTrain();
-      setTimeout(() => { if (trActive()) trAdvance(); }, 1400);
+      const seq = tr.seq;
+      setTimeout(() => { if (tr.seq === seq && trActive()) trAdvance(); }, 1400);
       return;
     }
     renderTrain();
   }
   function trSync() { if (trActive() && !tr.follow && !tr.busy) trPrepare(); else if (trActive() && tr.follow && !tr.ready) { locate(tr.follow, cube.state); renderTrain(); } }
+  // The case on screen in «Reconocer», from the side and top turn it is shown with.
+  function quizPicture() {
+    const c = tr.c;
+    const g = C.caseState(c, tr.qAuf);
+    const shown = tr.qView ? apply(g, tr.qView) : g;
+    return topView(shown, { mode: modeOf(c.step), arrows: false, label: `Un caso de ${STEP_NAME[c.step]}: ¿cuál es?` });
+  }
+  let lastAns = null;   // the last answer, for the overlay
   function renderTrain() {
+    emit('train', null);
     const box = $('trBox');
     const c = tr.c;
     if (!c) { box.innerHTML = '<p class="empty-note">Elige qué casos quieres entrenar.</p>'; return; }
     const step = C.STEPS.find((s) => s.id === c.step);
     if (settings.trMode === 'look') {
-      const g = C.caseState(c, tr.qAuf);
-      const shown = tr.qView ? apply(g, tr.qView) : g;
       const options = C.CASES.filter((x) => x.step === c.step);
       box.innerHTML = `<div class="fr-quiz">
-        <div class="fr-quiz-pic">${topView(shown, { mode: modeOf(c.step), arrows: false, label: `Un caso de ${step.name}: ¿cuál es?` })}</div>
+        <div class="fr-quiz-pic">${quizPicture()}</div>
         <div class="fr-quiz-body">
           <span class="field-title">${step.name} · ¿qué caso es?</span>
           <div class="fr-options">${options.map((x, i) => `<button class="btn" type="button" data-answer="${x.id}"><kbd>${i + 1}</kbd> ${esc(x.name)}</button>`).join('')}</div>
@@ -1671,7 +1691,7 @@
   });
   // This session: since the page was opened.
   function sessHtml() {
-    if (!sess.n && !sess.lost) return '';
+    if (session || (!sess.n && !sess.lost)) return '';
     const bits = [`${sess.n} ${sess.n === 1 ? 'caso' : 'casos'}`];
     if (sess.n) bits.push(`${Math.round((sess.ok / sess.n) * 100)} % bien`);
     if (sess.lost) bits.push(`${sess.lost} ${sess.lost === 1 ? 'vez' : 'veces'} perdido`);
@@ -1685,6 +1705,7 @@
     const ms = now() - tr.qStart;
     const c = tr.c;
     const ok = id === c.id;
+    lastAns = { ok: ok ? 1 : 0, t: Math.round(ms), name: c.name, guess: (C.caseById(id) || {}).name || '' };
     const rec = train[c.id] || {};
     rec.qn = (rec.qn || 0) + 1;
     rec.qok = (rec.qok || 0) + (ok ? 1 : 0);
@@ -1701,7 +1722,9 @@
     fb.className = `fr-feedback ${ok ? 'ok' : 'ko'}`;
     fb.innerHTML = `${ok ? '✓' : '✗ Era'} <b>${esc(c.name)}</b> · ${f1(ms)} s<br>${algHtml(c.alg)}<br><span class="hint">${esc(c.look)}</span>`
       + (ok ? '' : ' <button class="btn" type="button" id="trNextQ">Siguiente</button>');
-    if (ok) setTimeout(() => { if (tr.answered && settings.trMode === 'look' && view === 'entrenar') trNext(); }, 1100);
+    // On to the next one by itself (unless you went on already: a later answer must not be cut short).
+    const seq = tr.seq;
+    if (ok) setTimeout(() => { if (tr.seq === seq && tr.answered && settings.trMode === 'look' && view === 'entrenar') trNext(); }, 1100);
     else $('trNextQ').addEventListener('click', () => trNext());
   }
   // «Cubo normal»: after guessing, what it was and how to solve it (the cube ends solved for the next one).
@@ -1711,6 +1734,7 @@
     tr.answered = true;
     const c = t.c;
     const ok = id === c.id;
+    lastAns = { ok: ok ? 1 : 0, t: null, name: c.name, guess: (C.caseById(id) || {}).name || '' };
     const rec = train[c.id] || {};
     rec.mn = (rec.mn || 0) + 1;
     rec.mok = (rec.mok || 0) + (ok ? 1 : 0);
@@ -1748,7 +1772,7 @@
       if (b) { ev.preventDefault(); answer(b.dataset.answer); }
     } else if ((ev.key === 'Enter' || ev.key === ' ') && tr.answered && !ev.repeat) { ev.preventDefault(); trNext(); }
   });
-  onView('entrenar', () => { renderPlan(); renderTrStats(); renderSetNote(); if (!tr.c || (settings.trMode === 'cube' && cube && cube.on && !tr.follow && !tr.busy)) trNext(); else renderTrain(); });
+  onView('entrenar', () => { renderPlan(); renderTrStats(); renderSetNote(); applySession(); if (!tr.c || (settings.trMode === 'cube' && cube && cube.on && !tr.follow && !tr.busy)) trNext(); else renderTrain(); });
 
   // ================= How it is going: a chart =================
   // Every solve (dots, DNFs left out), with the ao5 and the ao12 at each one. One axis, thin lines, the last
@@ -1910,15 +1934,18 @@
           <ul class="fr-why">${x.why.map((w) => `<li>${esc(w)}</li>`).join('')}</ul>
         </div></article>`).join('')}</div>
       <div class="actions fr-set-go">
-        <button class="btn primary" type="button" data-set-go="${rec}">Entrenar este set · ${MODE_NAME[rec]}</button>
+        <button class="btn primary" type="button" data-set-go="${rec}">Empezar sesión · ${MODE_NAME[rec]}</button>
         ${['cube', 'hand', 'look'].filter((m) => m !== rec).map((m) => `<button class="btn" type="button" data-set-go="${m}">${MODE_NAME[m]}</button>`).join('')}
       </div>
-      <p class="hint">${setWhy(plan.setMode)}</p></div>`;
+      <p class="hint">${setWhy(plan.setMode)} En la sesión llevo la cuenta de cada caso y, cuando dominas uno, entra el siguiente que más te cuesta.</p></div>`;
     box.innerHTML = html;
     const g = $('gainBox');
     if (g) g.addEventListener('toggle', () => { settings.gainOpen = g.open; saveSettings(); });
   }
   function startSet(mode) {
+    startSession(mode);
+  }
+  function startSetOnly(mode) {
     if (!plan) plan = recommendation();
     settings.trSet = plan.set.map((x) => x.id);
     pick = [...settings.trSet];
@@ -1933,7 +1960,7 @@
     const el = $('trSetNote');
     if (!el) return;
     const set = Array.isArray(settings.trSet) ? settings.trSet : null;
-    const on = !!(set && set.length === pick.length && set.every((id) => pick.includes(id)));
+    const on = !session && !!(set && set.length === pick.length && set.every((id) => pick.includes(id)));
     el.hidden = !on;
     if (!on) { if (set) { settings.trSet = null; saveSettings(); } return; }
     el.innerHTML = `<span><b>Set recomendado:</b> ${set.map((id) => esc(shortName(C.caseById(id)))).join(' · ')}</span><button class="btn" type="button" id="setLeave">Dejar el set</button>`;
@@ -1965,6 +1992,289 @@
     }
   });
 
+  // ================= Training sessions =================
+  // «Empezar sesión»: the recommended set, tracked case by case. A case is mastered after a few right in a row
+  // (with the smart cube, each under its target: your own good level for it; recognising, right and quick);
+  // then it leaves the set and the next case that costs you most comes in. Every dozen attempts the set is
+  // weighed again, in case another case now costs clearly more. Ends with a summary, kept in «Tus sesiones».
+  const NEED = { cube: 3, hand: 3, look: 4 };
+  const MODE_SHORT = { cube: 'con el cubo inteligente', hand: 'con tu cubo', look: 'reconociendo' };
+  let session = load(K.session, null);
+  let planEvery = 0;
+  const saveSession = () => save(K.session, session);
+  function lookTarget() {
+    const qs = trlog.filter((e) => e.m === 'q' && e.ok && e.t).map((e) => e.t).slice(-60);
+    const med = qs.length >= 5 ? S.quantile(qs, 0.5) : 1500;
+    return Math.round(Math.min(2500, Math.max(1000, med)) / 100) * 100;
+  }
+  function targetFor(id) {
+    const c = C.caseById(id);
+    const t = (session.refRec + (C.algHtm(c.alg) * 1000) / session.refTps) * 1.15;
+    return Math.max(1500, Math.round(t / 100) * 100);
+  }
+  function initPer(id, stats) {
+    const st = stats[id] || {};
+    session.per[id] = {
+      n: 0, ok: 0, lost: 0, sum: 0, timed: 0, qn: 0, qsum: 0, best: null, last: [], mastered: null,
+      before: { cube: st.cubeAvg != null ? st.cubeAvg : null, qacc: st.quizAcc != null ? st.quizAcc : null, qtime: st.quizTime != null ? st.quizTime : null },
+      target: targetFor(id),
+    };
+  }
+  const caseNow = () => S.caseStats(times, train, trlog, learn);
+  function startSession(mode) {
+    if (!plan) plan = recommendation();
+    if (session) { setTrMode(mode); return; }
+    const ids = plan.set.map((x) => x.id);
+    const now2 = Date.now();
+    session = {
+      at: now2, mode, set: ids, done: [], swaps: [], per: {}, n: 0, ok: 0, lost: 0, active: 0, lastAt: now2, since: 0,
+      prevPick: pick.slice(), refRec: plan.refRec, refTps: plan.refTps, look: lookTarget(),
+    };
+    const stats = caseNow();
+    ids.forEach((id) => initPer(id, stats));
+    settings.trSet = null;
+    pick = ids.slice();
+    save(K.pick, pick);
+    renderPick();
+    tr.c = null;
+    saveSession();
+    applySession();
+    setTrMode(mode);
+    try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) { /* no layout */ }
+  }
+  // Each attempt (from the training log).
+  const qualifies = (x, p) => !x.x && !!x.ok && (x.m === 'c' ? x.t != null && x.t <= p.target : x.m === 'q' ? x.t != null && x.t <= session.look : true);
+  function streakOf(p) {
+    let k = 0;
+    for (let i = p.last.length - 1; i >= 0 && qualifies(p.last[i], p); i--) k++;
+    return k;
+  }
+  function sessionAttempt(e) {
+    if (!session) {
+      // Outside a session, the suggestion above the trainer keeps up by itself.
+      planEvery++;
+      if (planEvery % 10 === 0 && view === 'entrenar') renderPlan();
+      return;
+    }
+    const now2 = Date.now();
+    session.active += Math.min(now2 - session.lastAt, 120000);
+    session.lastAt = now2;
+    if (!session.per[e.id]) initPer(e.id, caseNow());
+    const p = session.per[e.id];
+    if (e.x) { p.lost++; session.lost++; } else { p.n++; session.n++; if (e.ok) { p.ok++; session.ok++; } }
+    if (e.m === 'c' && e.ok && e.t != null) { p.sum += e.t; p.timed++; p.best = p.best == null ? e.t : Math.min(p.best, e.t); }
+    if (e.m === 'q') { p.qn++; if (e.t != null) p.qsum += e.t; }
+    p.last.push({ m: e.m, ok: e.ok ? 1 : 0, t: e.t != null ? e.t : null, x: e.x ? 1 : 0 });
+    if (p.last.length > 8) p.last = p.last.slice(-8);
+    let won = null;
+    if (!p.mastered && session.set.includes(e.id) && streakOf(p) >= NEED[{ c: 'cube', h: 'hand', q: 'look' }[e.m]]) won = e.id;
+    session.since++;
+    saveSession();
+    if (won) masterCase(won);
+    else if (session.since >= 12) reweigh();
+    renderSession();
+  }
+  // The next case that costs you most, of the ones not in the set nor mastered today.
+  function candidate() {
+    const out = recommendation().scored.filter((x) => !session.set.includes(x.id) && !session.done.includes(x.id));
+    return out.find((x) => x.ms >= 15) || out[0] || null;
+  }
+  function swapIn(outId, inId, why) {
+    const i = session.set.indexOf(outId);
+    if (inId) {
+      session.set.splice(i, 1, inId);
+      if (!session.per[inId]) initPer(inId, caseNow());
+    } else if (session.set.length > 1) session.set.splice(i, 1);
+    session.swaps.push({ out: outId, in: inId, why, at: Date.now() });
+    pick = session.set.slice();
+    save(K.pick, pick);
+    renderPick();
+  }
+  function masterCase(id) {
+    const p = session.per[id];
+    p.mastered = Date.now();
+    session.done.push(id);
+    const next = candidate();
+    if (next || session.set.length > 1) swapIn(id, next && next.id, 'dominado');
+    session.since = 0;
+    saveSession();
+    const c = C.caseById(id);
+    toast(next ? `✓ ${c.name}, dominado · entra ${next.c.name}` : `✓ ${c.name}, dominado`);
+    if (settings.sound) window.SmartCube.chime(true);
+    buzz([40, 40, 120]);
+    lastWon = id;
+  }
+  let lastWon = null;
+  function reweigh() {
+    session.since = 0;
+    const rc = recommendation();
+    const cost = (id) => (rc.scored.find((x) => x.id === id) || { ms: 0 }).ms;
+    const out = rc.scored.find((x) => !session.set.includes(x.id) && !session.done.includes(x.id));
+    const ins = session.set.filter((id) => (!tr.c || id !== tr.c.id) && session.per[id] && session.per[id].n >= 3).sort((a, b) => cost(a) - cost(b));
+    if (out && ins.length && out.ms > Math.max(30, 1.5 * cost(ins[0]))) {
+      swapIn(ins[0], out.id, 'cuesta menos que otro');
+      toast(`Cambio en el set: entra ${out.c.name}, que ahora te cuesta más que ${C.caseById(ins[0]).name}`);
+    }
+    saveSession();
+  }
+  function markCurrent() {
+    if (!session) return;
+    document.querySelectorAll('#sessSet .fr-sc').forEach((el) => {
+      const cur = !!(tr.c && el.dataset.sc === tr.c.id);
+      el.classList.toggle('cur', cur);
+      const tag = el.querySelector('.fr-sc-now');
+      if (tag) tag.hidden = !cur;
+    });
+    renderSession();
+  }
+  const pct = (a, b) => (b ? Math.round((a / b) * 100) : 0);
+  function clockText() {
+    if (!session) return '0:00';
+    const ms = session.active + Math.min(Date.now() - session.lastAt, 120000);
+    const m = Math.floor(ms / 60000);
+    return `${m}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, '0')}`;
+  }
+  function caseCard(id) {
+    const c = C.caseById(id);
+    const p = session.per[id];
+    const need = NEED[session.mode];
+    const k = Math.min(need, streakOf(p));
+    const pips = Array.from({ length: need }, (_, i) => `<i class="${i < k ? 'on' : ''}"></i>`).join('');
+    let line;
+    if (session.mode === 'look') {
+      const acc = p.qn ? pct(p.last.filter((x) => x.m === 'q' && x.ok).length, p.last.filter((x) => x.m === 'q').length) : null;
+      line = p.qn ? `<b>${acc} %</b> bien · <b>${secs(p.qsum / p.qn, 2)}</b> de media` : 'aún sin hacer';
+      if (p.before.qtime != null) line += ` <span>(antes ${Math.round((p.before.qacc || 0) * 100)} % · ${secs(p.before.qtime, 2)})</span>`;
+    } else if (session.mode === 'cube') {
+      line = p.timed ? `media <b>${secs(p.sum / p.timed, 2)}</b>${p.before.cube != null ? ` ${deltaHtml(p.sum / p.timed, p.before.cube)}` : ''} · mejor ${secs(p.best, 2)}` : 'aún sin hacer';
+      line += ` · objetivo <b>${secs(p.target)}</b>`;
+    } else {
+      line = p.n || p.lost ? `<b>${p.ok}</b> de ${p.n} bien${p.lost ? ` · perdido ${p.lost}` : ''}` : 'aún sin hacer';
+    }
+    const last = p.last.map((x) => (x.x ? '<span class="ko">perdido</span>' : x.ok ? `<span class="ok">✓${x.t != null && x.m !== 'h' ? ` ${f1(x.t)}` : ''}</span>` : '<span class="ko">✗</span>')).join('');
+    const cur = !!(tr.c && tr.c.id === id);
+    return `<article class="fr-sc${cur ? ' cur' : ''}${lastWon === id ? ' won' : ''}" data-sc="${id}">
+      <div class="fr-sc-pic">${casePicture(c)}</div>
+      <div class="fr-sc-body">
+        <div class="fr-sc-top"><b>${esc(c.name)}</b><span class="muted">${STEP_NAME[c.step]}</span><span class="fr-pips" role="img" aria-label="${k} de ${need} seguidos para dominarlo">${pips}</span><span class="fr-sc-now"${cur ? '' : ' hidden'}>Ahora</span></div>
+        <p class="fr-sc-line">${line}</p>
+        ${last ? `<p class="fr-sc-last" aria-label="Últimos intentos">${last}</p>` : ''}
+      </div>
+    </article>`;
+  }
+  function renderSession() {
+    if (!session) return;
+    const need = NEED[session.mode];
+    $('sessClock').textContent = clockText();
+    $('sessNums').innerHTML = `<b>${session.n}</b> ${session.n === 1 ? 'caso' : 'casos'} · <b>${pct(session.ok, session.n)} %</b> bien${session.lost ? ` · ${session.lost} perdido${session.lost === 1 ? '' : 's'}` : ''} · <b>${session.done.length}</b> ${session.done.length === 1 ? 'dominado' : 'dominados'}`;
+    $('sessRule').textContent = session.mode === 'cube' ? `Dominas un caso con ${need} seguidos por debajo de su objetivo (tu buen nivel para ese caso).`
+      : session.mode === 'look' ? `Dominas un caso con ${need} seguidos bien y en menos de ${secs(session.look)}.`
+        : `Dominas un caso con ${need} seguidos bien, sin perderte.`;
+    // On a phone the set is below the trainer: a line with each case and its progress, in the bar.
+    $('sessMini').innerHTML = session.set.map((id) => {
+      const k = Math.min(need, streakOf(session.per[id]));
+      return `<span class="${tr.c && tr.c.id === id ? 'cur' : ''}">${esc(shortName(C.caseById(id)))} ${'●'.repeat(k)}${'○'.repeat(need - k)}</span>`;
+    }).join('');
+    const done = session.done.map((id) => C.caseById(id));
+    const swaps = session.swaps.filter((x) => x.why !== 'dominado');
+    $('sessSet').innerHTML = session.set.map(caseCard).join('')
+      + (done.length ? `<div class="fr-sc-done"><span class="field-title">Dominados en esta sesión</span><ul>${done.map((c) => `<li>✓ <b>${esc(c.name)}</b> <span class="muted">${STEP_NAME[c.step]}</span></li>`).join('')}</ul></div>` : '')
+      + (swaps.length ? `<p class="fr-sc-swaps">${swaps.map((x) => `Entró ${esc(C.caseById(x.in).name)} por ${esc(C.caseById(x.out).name)}: te costaba más.`).join(' ')}</p>` : '');
+    lastWon = null;
+  }
+  let sessTick = 0;
+  function applySession() {
+    const on = !!session;
+    document.body.classList.toggle('training', on && view === 'entrenar');
+    $('sessBar').hidden = !on;
+    $('sessPanel').hidden = !on;
+    clearInterval(sessTick);
+    if (on) {
+      renderSession();
+      sessTick = setInterval(() => { if (session && document.visibilityState === 'visible') { $('sessClock').textContent = clockText(); renderMode2(); } }, 1000);
+    }
+    renderMode2();
+    renderSetNote();
+  }
+  // The tag in the header: which mode you are in, or a session waiting for you.
+  function renderMode2() {
+    const el = $('modePill');
+    if (!el) return;
+    const away = session && view !== 'entrenar';
+    el.classList.toggle('live', !!away);
+    el.textContent = away ? `Sesión en curso · ${clockText()}` : document.body.dataset.mode === 'learn' ? 'Modo aprendizaje' : 'Modo cronómetro';
+    el.setAttribute('role', away ? 'button' : 'status');
+    el.tabIndex = away ? 0 : -1;
+    document.body.classList.toggle('training', !!session && view === 'entrenar');
+  }
+  $('modePill').addEventListener('click', () => { if (session && view !== 'entrenar') showView('entrenar'); });
+  $('modePill').addEventListener('keydown', (ev) => { if ((ev.key === 'Enter' || ev.key === ' ') && session && view !== 'entrenar') { ev.preventDefault(); showView('entrenar'); } });
+  function endSession() {
+    if (!session) return;
+    const s2 = session;
+    session = null;
+    save(K.session, null);
+    const stats = caseNow();
+    const rows = Object.entries(s2.per).filter(([, p]) => p.n || p.lost).map(([id, p]) => {
+      const c = C.caseById(id);
+      const nowCube = p.timed ? p.sum / p.timed : null;
+      const nowQ = p.qn ? p.qsum / p.qn : null;
+      return { id, name: c.name, n: p.n, ok: p.ok, lost: p.lost, mastered: !!p.mastered, cube: nowCube, cubeBefore: p.before.cube, q: nowQ, qBefore: p.before.qtime };
+    });
+    const summary = {
+      at: s2.at, end: Date.now(), active: s2.active, mode: s2.mode, n: s2.n, ok: s2.ok, lost: s2.lost,
+      done: s2.done, cases: rows.map((r) => [r.id, r.n, r.ok, r.lost, r.cube != null ? Math.round(r.cube) : null, r.q != null ? Math.round(r.q) : null]),
+    };
+    if (s2.n || s2.lost) {
+      const list = load(K.sessions, []);
+      list.push(summary);
+      save(K.sessions, list.slice(-200));
+      changed();
+    }
+    pick = Array.isArray(s2.prevPick) && s2.prevPick.length ? s2.prevPick : C.CASES.map((c) => c.id);
+    save(K.pick, pick);
+    renderPick();
+    applySession();
+    void stats;
+    if (!s2.n && !s2.lost) { toast('Sesión cerrada sin casos'); if (view === 'entrenar') { renderPlan(); trNext(); } return; }
+    const mins = Math.max(1, Math.round(s2.active / 60000));
+    $('sessSum').innerHTML = `<div class="stats">
+        <div class="stat"><span>Tiempo</span><b>${mins} min</b><small>entrenando</small></div>
+        <div class="stat"><span>Casos</span><b>${s2.n}</b><small>${pct(s2.ok, s2.n)} % bien</small></div>
+        <div class="stat"><span>Dominados</span><b>${s2.done.length}</b><small>${s2.lost ? `${s2.lost} veces perdido` : 'sin perderte'}</small></div>
+      </div>
+      ${s2.done.length ? `<p class="fr-note">Has dominado <b>${s2.done.map((id) => esc(C.caseById(id).name)).join(', ')}</b>.</p>` : '<p class="fr-note">Hoy no has dominado ninguno, pero cada intento cuenta para el siguiente set.</p>'}
+      <table><thead><tr><th scope="col">Caso</th><th scope="col">Hechos</th><th scope="col">Hoy</th><th scope="col">Antes</th></tr></thead><tbody>
+      ${rows.map((r) => {
+        const today = r.cube != null ? `${secs(r.cube, 2)} ${deltaHtml(r.cube, r.cubeBefore)}` : r.q != null ? `${secs(r.q, 2)} reconociendo ${deltaHtml(r.q, r.qBefore)}` : `${r.ok}/${r.n} bien`;
+        const before = r.cube != null ? secs(r.cubeBefore, 2) : r.q != null ? secs(r.qBefore, 2) : '—';
+        return `<tr><th scope="row">${r.mastered ? '✓ ' : ''}${esc(r.name)}</th><td>${r.n}${r.lost ? ` <span class="muted">· ${r.lost} perdido</span>` : ''}</td><td>${today}</td><td class="muted">${before}</td></tr>`;
+      }).join('')}</tbody></table>
+      <p class="hint">Guardada en «Tus casos, en números». El set recomendado ya cuenta con lo de hoy.</p>`;
+    $('sessSheet').hidden = false;
+    $('sessClose').focus();
+    if (view === 'entrenar') { renderPlan(); renderTrStats(); trNext(); }
+  }
+  $('sessEnd').addEventListener('click', endSession);
+  $('sessClose').addEventListener('click', () => { $('sessSheet').hidden = true; });
+  $('sessSheet').addEventListener('click', (ev) => { if (ev.target.id === 'sessSheet') $('sessSheet').hidden = true; });
+  document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape' && !$('sessSheet').hidden) $('sessSheet').hidden = true; });
+  // Past sessions, under «Tus casos, en números».
+  function sessionsHtml() {
+    const list = load(K.sessions, []).slice(-8).reverse();
+    if (!list.length) return '';
+    return `<div class="fr-sess-list"><h3 class="field-title">Tus sesiones</h3><div class="rk-table"><table><thead><tr><th scope="col">Cuándo</th><th scope="col">Tiempo</th><th scope="col">Casos</th><th scope="col">Bien</th><th scope="col">Dominados</th></tr></thead><tbody>${
+      list.map((x) => `<tr><td>${ago(x.end || x.at)}</td><td>${Math.max(1, Math.round((x.active || 0) / 60000))} min</td><td>${x.n}</td><td>${pct(x.ok, x.n)} %</td><td>${(x.done || []).map((id) => esc(shortName(C.caseById(id)))).join(', ') || '—'}</td></tr>`).join('')
+    }</tbody></table></div></div>`;
+  }
+  // A session left open: it goes on after a reload; one from hours ago is closed and kept.
+  if (session && (!session.per || !Array.isArray(session.set) || Date.now() - (session.lastAt || 0) > 6 * 3600000)) {
+    const old = session;
+    session = null;
+    save(K.session, null);
+    if (old && old.n) { const list = load(K.sessions, []); list.push({ at: old.at, end: old.lastAt, active: old.active, mode: old.mode, n: old.n, ok: old.ok, lost: old.lost, done: old.done || [], cases: [] }); save(K.sessions, list.slice(-200)); }
+  }
+
   // ================= Your cases, in numbers =================
   let caseSort = 'cost';
   function renderTrStats() {
@@ -1995,7 +2305,7 @@
     }).join('');
     box.innerHTML = `<div class="stats fr-tr-tiles">${tiles.join('')}</div>
       <table class="fr-an-table fr-case-table"><thead><tr><th scope="col">Caso</th><th scope="col">En tus solves <span class="muted">veces · reconocer + hacer</span></th><th scope="col">Entrenando</th><th scope="col">Te cuesta <span class="muted">por solve</span></th></tr></thead><tbody>${rows}</tbody></table>
-      <p class="hint">«Te cuesta»: lo que pierdes de media en cada solve por ese caso, contando lo que tardas en reconocerlo y hacerlo (comparado con tus casos más rápidos), lo que fallas y te pierdes, y lo a menudo que sale.</p>`;
+      <p class="hint">«Te cuesta»: lo que pierdes de media en cada solve por ese caso, contando lo que tardas en reconocerlo y hacerlo (comparado con tus casos más rápidos), lo que fallas y te pierdes, y lo a menudo que sale.</p>${sessionsHtml()}`;
   }
   document.querySelectorAll('[data-case-sort]').forEach((b) => b.addEventListener('click', () => {
     caseSort = b.dataset.caseSort;
@@ -2773,7 +3083,7 @@
       v: 1,
       times: times.map((r, i) => (i < keep && (r.rc || r.an) ? (({ rc, an, ...x }) => x)(r) : r)),
       deleted: load(K.deleted, []), learn, learnAt, train, crossTr: load(K.crossTr, []).slice(-300), trlog: trlog.slice(-3000),
-      player: load(K.player, null), ligas: ligas(),
+      player: load(K.player, null), ligas: ligas(), sessions: load(K.sessions, []).slice(-100),
     };
   }
   function mergeIn(remote) {
@@ -2822,6 +3132,12 @@
     trlog.sort((a, b) => a.at - b.at);
     if (trlog.length > 5000) trlog = trlog.slice(-5000);
     save(K.trlog, trlog);
+    if (Array.isArray(remote.sessions)) {
+      const mineS = load(K.sessions, []);
+      const seenS = new Set(mineS.map((x) => x.at));
+      remote.sessions.forEach((x) => { if (x && typeof x.at === 'number' && Number.isFinite(x.n) && !seenS.has(x.at)) { mineS.push(x); seenS.add(x.at); changedHere = true; } });
+      save(K.sessions, mineS.sort((a, b) => a.at - b.at).slice(-200));
+    }
     // The ranking: the same player on every device (the oldest one wins), and every league.
     const rp = remote.player;
     if (rp && /^[a-z0-9]{12,32}$/.test(rp.id || '') && /^[a-f0-9]{32,64}$/.test(rp.token || '')) {
@@ -3128,7 +3444,49 @@
   onView('ajustes', renderSettings);
 
   // ================= For the stream overlay =================
+  // What you are learning right now, so the overlay switches by itself to a learning layout: the case (only
+  // once it is no longer a guess), how it went, and the session with each case of the set.
+  function learnState() {
+    if (view !== 'entrenar' && view !== 'casos') return null;
+    const off = Date.now() - now();
+    const tot = S.training(train, trlog);
+    const out = {
+      view, tmode: settings.trMode, step: null, phase: 'idle', setup: null, t0: 0, res: null, pic: null, cname: null, session: null,
+      week: { reps: tot.week, days: tot.days, quiz: tot.quiz ? Math.round((tot.quizOk / tot.quiz) * 100) : null, cube: tot.cube ? Math.round(tot.cubeMs / tot.cube) : null },
+    };
+    if (view === 'entrenar' && !ctActive()) {
+      const m = settings.trMode;
+      const c = m === 'hand' ? tr.hand && tr.hand.c : tr.c;
+      if (c) {
+        out.step = STEP_NAME[c.step];
+        if (m === 'look') {
+          out.pic = quizPicture();
+          if (tr.answered && lastAns) { out.phase = 'answered'; out.res = lastAns; out.cname = c.name; } else { out.phase = 'question'; out.t0 = Math.round(tr.qStart + off); }
+        } else if (m === 'hand') {
+          if (tr.answered && lastAns) { out.phase = 'answered'; out.res = lastAns; out.cname = c.name; out.pic = topView(tr.hand.g, { mode: modeOf(c.step), arrows: c.step.startsWith('pll'), label: c.name }); } else out.phase = 'question';
+        } else if (cube && cube.on) {
+          if (tr.result) { out.phase = 'result'; out.cname = c.name; out.res = { ok: 1, t: Math.round(tr.result.total), r: Math.round(tr.result.recog), name: c.name }; out.pic = casePicture(c); }
+          else if (tr.ready) { out.phase = 'solving'; out.t0 = Math.round(tr.ready + off); }
+          else if (tr.follow) {
+            const F = tr.follow;
+            out.phase = 'setup';
+            out.setup = { moves: parseAlg(tr.setup).map((x) => inHand(x.text, tr.map)), pos: F.pos, half: F.halfway, lost: F.lost };
+          }
+        }
+      }
+    }
+    if (session) {
+      const need = NEED[session.mode];
+      out.session = {
+        active: session.active, lastAt: session.lastAt, n: session.n, ok: session.ok, lost: session.lost, mode: session.mode, need,
+        done: session.done.map((id) => C.caseById(id).name),
+        set: session.set.map((id) => ({ name: shortName(C.caseById(id)), k: Math.min(need, streakOf(session.per[id])), cur: !!(tr.c && tr.c.id === id) })),
+      };
+    }
+    return out;
+  }
   window.Fridrich = {
+    learnState,
     timerState,
     times: () => times,
     avgOf,
@@ -3158,7 +3516,7 @@
     paceFor: (r) => { const pf = settings.pace !== 'off' ? paceFor(r) : null; return pf ? { d: pf.rows.map((x) => Math.round(x.d)), gold: pf.rows.map((x) => x.gold), total: Math.round(pf.total), label: pf.label } : null; },
     recordsOf,
     // For tests.
-    _: { simSolution, caseTarget, tr, settings, celebrate, paceRef, bestsOf, paceTick, myBests, ligaPublish, player, loadLeague, lg, follow: () => follow, makeFollow, partialKeys, setScramble, makeTry, ct, vibes, syncNow, mergeIn, offerUpdate, focus: () => focus.on },
+    _: { simSolution, caseTarget, tr, settings, celebrate, paceRef, bestsOf, paceTick, myBests, ligaPublish, player, loadLeague, lg, session: () => session, endSession, startSession, follow: () => follow, makeFollow, partialKeys, setScramble, makeTry, ct, vibes, syncNow, mergeIn, offerUpdate, focus: () => focus.on },
   };
 
   // ================= Start =================

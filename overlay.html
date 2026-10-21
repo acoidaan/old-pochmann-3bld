@@ -23,6 +23,8 @@
   --dnf: #E5484D;
   --plastic: #05070A;
   --st-U: #ECEEE8; --st-R: #D7263D; --st-F: #1E9E4B; --st-D: #F0CF0C; --st-L: #EE7A1A; --st-B: #2563D6;
+  --learn: #4FD1C5;
+  --fr-blank: #3A414E;
   --font-display: "Unbounded", "Arial Black", system-ui, sans-serif;
   --font-body: "Atkinson Hyperlegible", system-ui, "Segoe UI", sans-serif;
   --font-mono: "Martian Mono", ui-monospace, Consolas, monospace;
@@ -248,6 +250,35 @@ body.no-net .net { display: none; }
 .lalg { font-family: var(--font-mono); font-size: 21px; color: var(--muted); word-spacing: .1em; }
 .lalg b { color: var(--ink); font-weight: 600; }
 
+/* Learning (Casos, Entrenar in the app): its own colour, the case instead of the scramble, the session. */
+.stage[data-learn] .card { border-color: rgba(79, 209, 197, .38); }
+.stage[data-learn] .live.on { background: var(--learn); animation: none; }
+.timer[data-tone=learn] { border-color: rgba(79, 209, 197, .8); }
+.timer[data-tone=learn] .pill { background: var(--learn); color: #062320; }
+.timer[data-tone=learnok] { border-color: rgba(76, 199, 116, .8); }
+.timer[data-tone=learnok] .pill { background: var(--ok); color: #03140A; }
+.timer[data-tone=learnko] { border-color: rgba(229, 72, 77, .7); }
+.timer[data-tone=learnko] .pill { background: var(--dnf); color: #fff; }
+.learnpic { display: flex; align-items: center; gap: 22px; margin-top: 14px; }
+.learnpic svg { width: 230px; height: auto; flex: none; }
+.learnpic .fr-arrow path { stroke: var(--plastic); stroke-width: 2.4; fill: none; stroke-linecap: round; }
+.learnpic .lp-name { font-family: var(--font-display); font-weight: 700; font-size: 30px; line-height: 1.15; }
+.learnpic .lp-sub { font-size: 18px; color: var(--muted); margin-top: 6px; }
+.learnline { font-size: 22px; color: var(--muted); }
+.learnline b { color: var(--ink); }
+.learnline .ok { color: var(--ok); }
+.learnline .ko { color: var(--dnf); }
+.setrows { display: grid; gap: 8px; margin-top: 14px; }
+.setrow { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 20px; color: var(--muted); }
+.setrow b { color: var(--ink); font-weight: 700; }
+.setrow.cur b { color: var(--learn); }
+.setrow .pips { letter-spacing: .18em; color: var(--learn); font-size: 18px; }
+.donechips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.donechips span { font-size: 16px; font-weight: 700; padding: 4px 12px; border-radius: 999px; background: rgba(79, 209, 197, .16); color: var(--learn); }
+.banner.won { background: var(--learn); color: #062320; }
+.stage[data-learn] .scr-text .mv.next { color: #062320; background: var(--learn); }
+.stage[data-learn] .scr-text .mv.half { color: var(--learn); background: transparent; box-shadow: inset 0 0 0 2px var(--learn); }
+
 /* Waiting hint, only until the app has sent something once */
 .wait {
   position: absolute; left: 50%; bottom: 40px; transform: translateX(-50%);
@@ -276,14 +307,15 @@ body.no-net .net { display: none; }
   </section>
 
   <section class="card scr" id="scrCard" hidden>
-    <div class="eyebrow">Scramble <span class="soft" id="moves"></span><span class="cubetag" id="cubeTag" hidden><i></i>Cubo en directo</span></div>
+    <div class="eyebrow"><span id="scrLabel">Scramble</span> <span class="soft" id="moves"></span><span class="cubetag" id="cubeTag" hidden><i></i>Cubo en directo</span></div>
     <p class="scr-text" id="scrText"></p>
     <p class="scrhint" id="scrHint" hidden></p>
+    <div class="learnpic" id="learnPic" hidden></div>
     <div class="net" id="net" aria-hidden="true"></div>
   </section>
 
   <section class="card stats" id="statsCard" hidden>
-    <div class="eyebrow">Hoy</div>
+    <div class="eyebrow" id="statsLabel">Hoy</div>
     <div id="statsBody"></div>
   </section>
 
@@ -344,10 +376,10 @@ body.no-net .net { display: none; }
     if (el.dataset.t === t) return;
     el.dataset.t = t;
     el.textContent = '';
-    el.style.setProperty('--ems', [...t].reduce((a, ch) => a + (/\d/.test(ch) ? 0.86 : ch === '—' ? 1.2 : 0.36), 0).toFixed(2));
+    el.style.setProperty('--ems', [...t].reduce((a, ch) => a + (/[\d?✓✗]/.test(ch) ? 0.86 : ch === '—' ? 1.2 : 0.36), 0).toFixed(2));
     for (const ch of t) {
       const s = document.createElement('span');
-      s.className = /\d/.test(ch) ? 'd' : 'p';
+      s.className = /[\d?✓✗]/.test(ch) ? 'd' : 'p';
       s.textContent = ch;
       el.appendChild(s);
     }
@@ -428,6 +460,15 @@ body.no-net .net { display: none; }
         : `<b>${s.total.n}</b> ${s.total.n === 1 ? 'intento' : 'intentos'} · <b>${s.total.ok}</b> ${s.total.ok === 1 ? 'resuelto' : 'resueltos'} en total`;
     }
 
+    const L = cf && s.learn ? s.learn : null;
+    stage.toggleAttribute('data-learn', !!L);
+    if (L) { renderLearn(s, L); return; }
+    text($('scrLabel'), 'Scramble');
+    text($('statsLabel'), 'Hoy');
+    $('learnPic').hidden = true;
+    $('scrText').hidden = false;
+    $('net').hidden = false;
+
     // Scramble and its cube
     const card = $('scrCard');
     card.hidden = !s.scr;
@@ -506,6 +547,136 @@ body.no-net .net { display: none; }
     // Timer card (the clock itself is painted every frame)
     $('timerCard').hidden = false;
     text($('retoTag'), s.reto ? `Reto de ${s.reto}` : '');
+  }
+
+  // ---- Learning: the case, how it went, the session
+  const LEARN_MODE = { cube: 'con el cubo inteligente', hand: 'con su cubo', look: 'reconociendo' };
+  function renderLearn(s, L) {
+    text($('brandTag'), 'Aprendiendo · CFOP');
+    text($('method'), L.view === 'casos' ? 'Repasando los casos · algoritmos de J Perm' : `Entrenando OLL y PLL ${LEARN_MODE[L.tmode] || ''}`);
+    // The case card: the setup moves on the live cube, or the case itself once it is not a guess.
+    const card = $('scrCard');
+    const sm = s.smart && s.smart.net ? s.smart : null;
+    const pic = $('learnPic');
+    const sc = $('scrText');
+    let label = '';
+    let showPic = false;
+    let showNet = false;
+    let showText = false;
+    let hint = '';
+    let tone = '';
+    if (L.phase === 'setup' && L.setup) {
+      label = 'Preparando el caso';
+      showText = true;
+      showNet = !!sm;
+      const key = L.setup.moves.join(' ');
+      if (sc.dataset.s !== key) {
+        sc.dataset.s = key;
+        sc.innerHTML = L.setup.moves.map((m) => `<span class=mv>${esc(m)}</span>`).join(' ');
+      }
+      [...sc.children].forEach((el, k) => {
+        el.classList.toggle('done', !L.setup.lost && k < L.setup.pos);
+        el.classList.toggle('next', !L.setup.lost && k === L.setup.pos);
+        el.classList.toggle('half', !L.setup.lost && k === L.setup.pos && L.setup.half);
+      });
+      if (L.setup.lost) { hint = 'Se ha perdido: empezando desde como está'; tone = 'bad'; }
+    } else if (L.phase === 'solving') {
+      label = `${L.step || 'Caso'} · resolviendo`;
+      showNet = !!sm;
+    } else if (L.pic && (L.phase === 'question' || L.phase === 'answered' || L.phase === 'result')) {
+      label = L.phase === 'question' ? `${L.step || 'Caso'} · ¿qué caso es?` : 'El caso';
+      showPic = true;
+      const name = L.phase === 'question' ? '' : `<div><div class=lp-name>${esc(L.cname || '')}</div><div class=lp-sub>${esc(L.step || '')}</div></div>`;
+      const html = L.pic + name;
+      if (pic.dataset.h !== html) { pic.dataset.h = html; pic.innerHTML = html; }
+    } else if (L.phase === 'question') {
+      label = `${L.step || 'Caso'} · mezclando su cubo`;
+    }
+    card.hidden = !label;
+    text($('scrLabel'), label);
+    text($('moves'), '');
+    $('cubeTag').hidden = !showNet;
+    sc.hidden = !showText;
+    pic.hidden = !showPic;
+    $('net').hidden = !showNet;
+    if (showNet) paintNet(sm.net);
+    const sh = $('scrHint');
+    sh.hidden = !hint;
+    sh.className = `scrhint ${tone}`;
+    if (sh.dataset.h !== hint) { sh.dataset.h = hint; sh.innerHTML = hint; }
+
+    // The session (or this week's training)
+    const st = $('statsCard');
+    st.hidden = false;
+    const S2 = L.session;
+    let body = '';
+    if (S2) {
+      text($('statsLabel'), 'Sesión de entrenamiento');
+      body += '<div class=sgrid>'
+        + `<div class=stat><span>Tiempo</span><b id=lsClock>—</b></div>`
+        + `<div class=stat><span>Casos</span><b>${S2.n}</b></div>`
+        + `<div class=stat><span>Bien</span><b>${S2.n ? Math.round((100 * S2.ok) / S2.n) : 0}<small>%</small></b></div>`
+        + `<div class=stat><span>Dominados</span><b>${S2.done.length}</b></div>`
+        + '</div>';
+      body += '<div class=setrows>' + S2.set.map((x) => `<div class='setrow${x.cur ? ' cur' : ''}'><b>${esc(x.name)}</b><span class=pips>${'●'.repeat(x.k)}${'○'.repeat(S2.need - x.k)}</span></div>`).join('') + '</div>';
+      if (S2.done.length) body += '<div class=donechips>' + S2.done.map((n) => `<span>✓ ${esc(n)}</span>`).join('') + '</div>';
+    } else {
+      text($('statsLabel'), 'Entrenando · esta semana');
+      const w = L.week || {};
+      body += '<div class=sgrid>'
+        + `<div class=stat><span>Casos</span><b>${w.reps || 0}</b></div>`
+        + `<div class=stat><span>Días</span><b>${w.days || 0}</b></div>`
+        + `<div class=stat><span>Reconocer</span><b>${w.quiz == null ? '—' : `${w.quiz}<small>%</small>`}</b></div>`
+        + `<div class=stat><span>Con el cubo</span><b>${w.cube == null ? '—' : fmtC(w.cube)}</b></div>`
+        + '</div>';
+    }
+    const sb = $('statsBody');
+    if (sb.dataset.h !== body) { sb.dataset.h = body; sb.innerHTML = body; }
+    $('timerCard').hidden = false;
+    text($('retoTag'), '');
+  }
+  // Every frame: the pill, the clock and the line under it.
+  function paintLearn() {
+    const L = S.learn;
+    const now = Date.now();
+    $('bldSplits').hidden = true;
+    $('cfSplits').hidden = true;
+    setMemo(null);
+    let line = '';
+    if (L.phase === 'setup') {
+      setPill('learn', 'Preparando el caso');
+      setTime('—', true);
+      line = `<b>${esc(L.step || '')}</b> · dejándolo en el caso`;
+    } else if (L.phase === 'solving') {
+      setPill('learn', '¡Ya! Resolviendo');
+      setTime(fmtC(now - L.t0));
+      line = `<b>${esc(L.step || '')}</b> · ¿qué caso es?`;
+    } else if (L.phase === 'question') {
+      setPill('learn', '¿Qué caso es?');
+      if (L.t0) setTime(fmtC(now - L.t0)); else setTime('?', true);
+      line = `<b>${esc(L.step || '')}</b>${L.tmode === 'hand' ? ' · con su cubo' : ''}`;
+    } else if ((L.phase === 'answered' || L.phase === 'result') && L.res) {
+      const ok = !!L.res.ok;
+      setPill(ok ? 'learnok' : 'learnko', ok ? (L.phase === 'result' ? 'Resuelto' : 'Acertado') : 'Fallado');
+      setTime(L.res.t != null ? fmtC(L.res.t) : ok ? '✓' : '✗', L.res.t == null);
+      line = ok
+        ? `<span class=ok>✓</span> <b>${esc(L.res.name)}</b>${L.res.r != null ? ` · reconocer ${fmtC(L.res.r)} + hacer ${fmtC(L.res.t - L.res.r)}` : ''}`
+        : `<span class=ko>✗</span> Era <b>${esc(L.res.name)}</b>${L.res.guess ? ` (dijo ${esc(L.res.guess)})` : ''}`;
+    } else {
+      setPill('learn', L.view === 'casos' ? 'Repasando casos' : 'Entrenando');
+      setTime('—', true);
+    }
+    const box = $('liveLine');
+    const html = line ? `<div class=learnline>${line}</div>` : '';
+    box.hidden = !html;
+    if (box.dataset.h !== html) { box.dataset.h = html; box.innerHTML = html; }
+    const S2 = L.session;
+    const clk = document.getElementById('lsClock');
+    if (S2 && clk) {
+      const ms = S2.active + Math.min(Math.max(0, now - S2.lastAt), 120000);
+      text(clk, `${Math.floor(ms / 60000)}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, '0')}`);
+    }
+    $('live').classList.toggle('on', DEMO || now - liveAt < 12000);
   }
 
   // memo: { e: 'OK TX HF', c: 'MV WF' } or null
@@ -623,6 +794,7 @@ body.no-net .net { display: none; }
     if (box.dataset.h !== html) { box.dataset.h = html; box.innerHTML = html; }
   }
   function paintCfop() {
+    if (S.learn) { paintLearn(); return; }
     const now = Date.now();
     const t = S.timer || { phase: 'idle' };
     const lv = S.smart && S.smart.live;
@@ -702,6 +874,17 @@ body.no-net .net { display: none; }
   }
   function frame() { paintClock(); requestAnimationFrame(frame); }
 
+  let lastDone = null;
+  function wonBanner(name) {
+    const card = $('timerCard');
+    const old = card.querySelector('.banner');
+    if (old) old.remove();
+    const b = document.createElement('div');
+    b.className = 'banner won';
+    b.textContent = `✓ ${name}, dominado`;
+    card.appendChild(b);
+    setTimeout(() => b.remove(), 9500);
+  }
   function celebrate(L) {
     const card = $('timerCard');
     card.classList.remove('flash-ok', 'flash-dnf');
@@ -760,6 +943,9 @@ body.no-net .net { display: none; }
         if (Date.now() - L.at < 12000) celebrate(L);
         lastSeen = L.at;
       }
+      const won = s.learn && s.learn.session ? s.learn.session.done : null;
+      if (won && lastDone && won.length > lastDone.length) wonBanner(won[won.length - 1]);
+      lastDone = won;
       if (s.timer && s.timer.cancelled && Date.now() - s.at < 5000) cancelUntil = Date.now() + 4000;
       if (s.timer && s.timer.phase !== 'idle') cancelUntil = 0;
     }
@@ -820,6 +1006,21 @@ body.no-net .net { display: none; }
       if (phase === 'done' || phase === 'pb') {
         s.last = { ok: true, t: REACH[5], pen: 0, at: now, sp: [2900, 12900, 5400, 5900], cases: 'L-Shape · Sune · Headlights · Ua', pb: false, records: [], pace: { d: [-400, -400, -700, -800], gold: [false, false, false, false], total: -800, label: 'tu media de 12' } };
         s.today.n = 15;
+      }
+      // Learning (?learn=setup|solving|question|answered|result): a session in «Reconocer» or with the cube.
+      const lp = q.get('learn');
+      if (lp) {
+        const PIC = '<svg class="fr-top" viewBox="0 0 120 120"><rect x="12" y="12" width="96" height="96" rx="5" fill="var(--plastic)"/>' + [0, 1, 2].map((r) => [0, 1, 2].map((c) => `<rect x="${16 + c * 30}" y="${16 + r * 30}" width="26" height="26" rx="3.5" fill="${(r + c) % 2 ? 'var(--st-D)' : 'var(--fr-blank)'}"/>`).join('')).join('') + '</svg>';
+        s.learn = {
+          view: 'entrenar', tmode: lp === 'setup' || lp === 'solving' || lp === 'result' ? 'cube' : 'look', step: 'OLL 2', phase: lp, t0: now - 1840,
+          setup: lp === 'setup' ? { moves: "R U2 R' U' R U' R' y U2".split(' '), pos: 3, half: false, lost: false } : null,
+          res: lp === 'answered' ? { ok: 1, t: 920, name: 'Sune', guess: 'Sune' } : lp === 'result' ? { ok: 1, t: 3120, r: 840, name: 'Sune' } : null,
+          pic: lp === 'question' || lp === 'answered' || lp === 'result' ? PIC : null, cname: lp === 'question' ? null : 'Sune',
+          week: { reps: 98, days: 6, quiz: 93, cube: 4840 },
+          session: { active: 734000, lastAt: now, n: 41, ok: 37, lost: 1, mode: 'look', need: 4, done: ['PLL (Ub)', 'Pi'], set: [{ name: 'Z', k: 2, cur: false }, { name: 'Sune', k: 3, cur: true }, { name: 'Diagonal', k: 0, cur: false }, { name: 'Ua', k: 1, cur: false }, { name: 'T', k: 0, cur: false }] },
+        };
+        s.timer = { phase: 'idle' };
+        s.last = null;
       }
       if (phase === 'pb') { s.last.t = 21300; s.last.pb = true; s.last.records = [{ k: 'single', v: 21300 }]; s.last.pace = { d: [-1300, -2600, -3600, -6600], gold: [false, true, false, true], total: -6600, label: 'tu media de 12' }; s.record = 21300; }
       return s;

@@ -34,6 +34,7 @@
       <h1>Fridrich reducido</h1>
       <p>CFOP en 2 pasos · algoritmos de J Perm</p>
     </div>
+    <span class="fr-modepill" id="modePill" aria-live="polite"></span>
     <button class="btn install" type="button" hidden>Instalar app</button>
     <a class="fr-switch" href="./">Old Pochmann 3BLD<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
   </header>
@@ -175,6 +176,12 @@
 
     <!-- ================= Entrenar ================= -->
     <div class="view" data-view="entrenar" hidden>
+      <div class="fr-sess-bar" id="sessBar" hidden>
+        <div class="fr-sess-who"><span class="fr-sess-dot" aria-hidden="true"></span><b>Sesión de entrenamiento</b><span class="fr-sess-clock" id="sessClock" aria-label="Tiempo entrenando">0:00</span></div>
+        <div class="fr-sess-nums" id="sessNums"></div>
+        <button class="btn" type="button" id="sessEnd">Terminar sesión</button>
+        <div class="fr-sess-mini" id="sessMini" aria-hidden="true"></div>
+      </div>
       <section class="panel fr-plan" aria-labelledby="hPlan">
         <div class="panel-head"><h2 id="hPlan">Qué entrenar hoy</h2></div>
         <div id="planBox"></div>
@@ -201,12 +208,17 @@
           <div class="fr-pick-cases" id="trPick"></div>
         </details>
       </section>
+      <section class="panel fr-sess-panel" aria-labelledby="hSessSet" id="sessPanel" hidden>
+        <div class="panel-head"><h2 id="hSessSet">Tu set</h2></div>
+        <p class="hint fr-sess-rule" id="sessRule"></p>
+        <div id="sessSet" aria-live="polite"></div>
+      </section>
       <section class="panel" aria-labelledby="hCrossTr" id="ctPanel">
         <div class="panel-head"><h2 id="hCrossTr">Entrenar la cruz</h2></div>
         <p class="hint">Mezcla, planea la cruz entera en la inspección y hazla de una vez, sin parar. Después te enseño la más corta para que compares. Con el cubo inteligente, además, cuento tus giros y tu tiempo.</p>
         <div class="fr-crosstr" id="crossTr" aria-live="polite"></div>
       </section>
-      <section class="panel" aria-labelledby="hTrStats">
+      <section class="panel" aria-labelledby="hTrStats" id="trStatsPanel">
         <div class="panel-head">
           <h2 id="hTrStats">Tus casos, en números</h2>
           <div class="seg small" role="group" aria-label="Orden de los casos">
@@ -348,6 +360,13 @@
       <button class="btn" type="button" id="macCancel">Cancelar</button>
     </div>
   </form>
+</div>
+<div class="sheet" id="sessSheet" hidden role="dialog" aria-modal="true" aria-labelledby="sessTitle">
+  <div class="sheet-card fr-sess-sum">
+    <div class="panel-head"><h2 id="sessTitle">Sesión terminada</h2></div>
+    <div id="sessSum"></div>
+    <div class="actions"><button class="btn primary" type="button" id="sessClose">Cerrar</button></div>
+  </div>
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 <div class="update-bar" id="updateBar" role="status" hidden>

@@ -1,0 +1,181 @@
+// «Fridrich reducido», learning against the timer: the two modes (their look switches by itself), a training
+// session (each case tracked, mastered after a few right in a row, the next case that costs most coming in),
+// the OBS overlay switching to a learning layout by itself, leaving and coming back, a reload in the middle,
+// the summary and the past sessions, the suggestion that keeps up by itself outside a session, sync and the
+// phone.
+const { chromium, devices } = require('playwright');
+const { SITE, SHOTS } = require('../env');
+const { seed } = require('../fixtures/cfop-seed');
+const results = [];
+const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}${extra ? ' — ' + String(extra).replace(/\s+/g, ' ') : ''}`);
+const keys = (d) => ({ 'cfop:times:v1': d.times, 'cfop:trlog:v1': d.trlog, 'cfop:train:v1': d.train, 'cfop:crosstr:v1': d.crossTr, 'cfop:learn:v1': d.learn });
+
+(async () => {
+  const browser = await chromium.launch();
+  const errs = [];
+  const open = async (opts, data, hash) => {
+    const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, ...opts });
+    await ctx.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
+    if (data) {
+      await ctx.addInitScript((x) => {
+        if (sessionStorage.getItem('seeded')) return;
+        sessionStorage.setItem('seeded', '1');
+        Object.entries(x).forEach(([k, v]) => localStorage.setItem(k, JSON.stringify(v)));
+      }, data);
+    }
+    const p = await ctx.newPage();
+    p.on('pageerror', (e) => errs.push(e.message));
+    await p.goto(`${SITE}/fridrich#${hash}`);
+    await p.waitForFunction(() => window.Fridrich && window.Fridrich.scramble(), null, { timeout: 30000 });
+    return { ctx, p };
+  };
+  // Answer the case on screen in «Reconocer» (right or wrong) and go to the next one.
+  const answer = async (p, right) => {
+    const id = await p.evaluate(() => window.Fridrich._.tr.c.id);
+    const pickId = right ? id : await p.evaluate((x) => [...document.querySelectorAll('[data-answer]')].map((b) => b.dataset.answer).find((y) => y !== x), id);
+    await p.click(`[data-answer="${pickId}"]`);
+    await p.keyboard.press('Enter');
+    await p.waitForFunction(() => !window.Fridrich._.tr.answered, null, { timeout: 3000 }).catch(() => {});
+    return id;
+  };
+
+  const { ctx, p } = await open({}, keys(seed(Date.now())), 'crono');
+
+  // ================= Two looks =================
+  const look = (v) => p.evaluate(async (x) => {
+    window.Fridrich.showView(x);
+    await new Promise((r) => setTimeout(r, 500));   // the colour fades in
+    const tab = document.querySelector(`[data-go="${x}"]`);
+    return { mode: document.body.dataset.mode, pill: document.getElementById('modePill').innerText, bg: getComputedStyle(document.body).backgroundColor, tab: getComputedStyle(tab).backgroundColor };
+  }, v);
+  const lc = await look('crono');
+  const le = await look('entrenar');
+  const lk = await look('casos');
+  const lp = await look('progreso');
+  check('modes: the timer (and Progreso) in «Modo cronómetro»', lc.mode === 'time' && lp.mode === 'time' && /Modo cronómetro/.test(lc.pill), JSON.stringify([lc, lp]));
+  check('modes: Entrenar and Casos in «Modo aprendizaje», with their own colour (page and menu), by themselves', le.mode === 'learn' && lk.mode === 'learn' && /Modo aprendizaje/.test(le.pill) && le.bg !== lc.bg && le.tab !== lc.tab && le.tab === 'rgb(11, 122, 114)', JSON.stringify([lc, le]));
+
+  // ================= The suggestion keeps up by itself =================
+  await p.evaluate(() => window.Fridrich.showView('entrenar'));
+  await p.click('#trModeLook');
+  const mark = await p.evaluate(() => { const n = document.getElementById('planBox').firstElementChild; n.dataset.old = '1'; return !!n; });
+  for (let i = 0; i < 10; i++) await answer(p, true);
+  check('outside a session, the recommended set is worked out again every 10 cases', mark && await p.evaluate(() => !document.querySelector('#planBox [data-old]')));
+
+  // ================= A session =================
+  await p.click('[data-set-go="look"]');
+  await p.waitForFunction(() => window.Fridrich._.session(), null, { timeout: 5000 });
+  const s0 = await p.evaluate(() => ({
+    set: window.Fridrich._.session().set, pick: JSON.parse(localStorage.getItem('cfop:pick:v1')),
+    bar: document.getElementById('sessBar').innerText, rule: document.getElementById('sessRule').innerText,
+    hidden: ['planBox', 'ctPanel', 'trStatsPanel'].map((id) => getComputedStyle(document.getElementById(id).closest('section') || document.getElementById(id)).display),
+    cards: document.querySelectorAll('#sessSet .fr-sc').length, cur: document.querySelectorAll('#sessSet .fr-sc.cur').length,
+  }));
+  check('session: its own screen (the bar, the trainer and your set; the rest hidden)', /Sesión de entrenamiento/.test(s0.bar) && /0 casos/.test(s0.bar) && s0.hidden.every((x) => x === 'none') && s0.cards === 5 && s0.cur === 1, JSON.stringify(s0));
+  check('session: only the set comes up, and what mastering a case takes', JSON.stringify(s0.set.slice().sort()) === JSON.stringify(s0.pick.slice().sort()) && /Dominas un caso con 4 seguidos bien y en menos de \d\.\d s/.test(s0.rule), JSON.stringify(s0));
+  await p.waitForTimeout(1200);
+  check('session: a clock of the time training', /0:0[1-9]/.test(await p.evaluate(() => document.getElementById('sessClock').innerText)));
+  // A wrong answer: its progress back to zero.
+  const wrongId = await answer(p, false);
+  const wrong = await p.evaluate((id) => ({ pips: document.querySelector(`#sessSet [data-sc="${id}"] .fr-pips`).getAttribute('aria-label'), last: document.querySelector(`#sessSet [data-sc="${id}"] .fr-sc-last`).innerText }), wrongId);
+  check('session: a mistake shows in that case and its streak starts again', /^0 de 4/.test(wrong.pips) && /✗/.test(wrong.last), JSON.stringify(wrong));
+  // Right answers until one is mastered.
+  let won = null;
+  for (let i = 0; i < 40 && !won; i++) {
+    await answer(p, true);
+    won = await p.evaluate(() => window.Fridrich._.session().done[0] || null);
+  }
+  const s1 = await p.evaluate(() => ({ s: window.Fridrich._.session(), toast: document.getElementById('toast').innerText, done: (document.querySelector('.fr-sc-done') || {}).innerText || '', pick: JSON.parse(localStorage.getItem('cfop:pick:v1')) }));
+  const inCase = s1.s.swaps[0] && s1.s.swaps[0].in;
+  check('session: 4 right in a row → mastered, it leaves the set and the next one that costs most comes in', !!won && !s1.s.set.includes(won) && !!inCase && s1.s.set.includes(inCase) && s1.pick.includes(inCase) && !s1.pick.includes(won), JSON.stringify({ won, set: s1.s.set, swaps: s1.s.swaps }));
+  check('session: it tells you, and lists what you mastered', /dominado · entra/.test(s1.toast) && /Dominados en esta sesión/i.test(s1.done), `${s1.toast} | ${s1.done}`);
+  await p.screenshot({ path: `${SHOTS}/fridrich-session-1280.png`, fullPage: true });
+
+  // ================= The OBS overlay switches to learning by itself =================
+  const ov = await ctx.newPage();
+  ov.on('pageerror', (e) => errs.push(`overlay: ${e.message}`));
+  await ov.goto(`${SITE}/overlay.html`);
+  await p.bringToFront();   // (a tab in the background runs its timers late)
+  await p.waitForTimeout(300);
+  await p.evaluate(() => document.dispatchEvent(new CustomEvent('fr:train')));
+  await ov.waitForFunction(() => document.getElementById('statsLabel').textContent === 'Sesión de entrenamiento', null, { timeout: 5000 }).catch(() => {});
+  const o1 = await ov.evaluate(() => ({
+    learn: document.getElementById('stage').hasAttribute('data-learn'), tag: document.getElementById('brandTag').textContent, method: document.getElementById('method').textContent,
+    stats: document.getElementById('statsLabel').textContent, rows: [...document.querySelectorAll('.setrow')].map((r) => r.innerText.replace(/\s+/g, ' ')),
+    done: document.querySelectorAll('.donechips span').length, pill: document.getElementById('phase').textContent, label: document.getElementById('scrLabel').textContent,
+    pic: !!document.querySelector('#learnPic svg'), name: !!document.querySelector('#learnPic .lp-name'),
+  }));
+  check('overlay: learning by itself (its colour, «Aprendiendo», the session with each case and its progress, what you mastered)', o1.learn && o1.tag === 'Aprendiendo · CFOP' && /reconociendo/.test(o1.method) && o1.stats === 'Sesión de entrenamiento' && o1.rows.length === 5 && o1.rows.every((r) => /[●○]{4}/.test(r)) && o1.done >= 1, JSON.stringify(o1));
+  check('overlay: the case being asked, without giving its name away', o1.pill === '¿Qué caso es?' && /¿qué caso es\?/i.test(o1.label) && o1.pic && !o1.name, JSON.stringify(o1));
+  const asked = await p.evaluate(() => window.Fridrich._.tr.c);
+  await p.click(`[data-answer="${asked.id}"]`);
+  await ov.waitForFunction(() => document.getElementById('phase').textContent === 'Acertado', null, { timeout: 3000 }).catch(() => {});
+  const o2 = await ov.evaluate(() => ({ pill: document.getElementById('phase').textContent, name: (document.querySelector('#learnPic .lp-name') || {}).textContent, line: document.getElementById('liveLine').innerText, time: document.getElementById('time').textContent }));
+  check('overlay: once answered, the case, right or wrong, and how long it took', o2.pill === 'Acertado' && o2.name === asked.name && new RegExp(`✓\\s*${asked.name.replace(/[()]/g, '\\$&')}`).test(o2.line) && /^\d+\.\d\d$/.test(o2.time), JSON.stringify(o2));
+  await p.evaluate(() => window.Fridrich.showView('crono'));
+  await ov.waitForFunction(() => !document.getElementById('stage').hasAttribute('data-learn'), null, { timeout: 3000 }).catch(() => {});
+  check('overlay: back to the timer layout with the timer', await ov.evaluate(() => !document.getElementById('stage').hasAttribute('data-learn') && document.getElementById('brandTag').textContent === 'Speedcubing · CFOP' && document.getElementById('statsLabel').textContent === 'Hoy'));
+  await ov.close();
+  await p.evaluate(() => window.Fridrich.showView('entrenar'));
+
+  // ================= Away and back, and a reload =================
+  await p.evaluate(() => window.Fridrich.showView('crono'));
+  const away = await p.evaluate(() => ({ pill: document.getElementById('modePill').innerText, role: document.getElementById('modePill').getAttribute('role'), training: document.body.classList.contains('training') }));
+  check('away: the header says a session is on, and takes you back', /Sesión en curso · \d+:\d\d/.test(away.pill) && away.role === 'button' && !away.training, JSON.stringify(away));
+  await p.click('#modePill');
+  check('away: back in the session', await p.evaluate(() => window.Fridrich.currentView() === 'entrenar' && document.body.classList.contains('training')));
+  const n1 = await p.evaluate(() => window.Fridrich._.session().n);
+  await p.reload();
+  await p.waitForFunction(() => window.Fridrich && window.Fridrich.scramble(), null, { timeout: 30000 });
+  await p.evaluate(() => window.Fridrich.showView('entrenar'));
+  const back = await p.evaluate(() => ({ n: window.Fridrich._.session() && window.Fridrich._.session().n, bar: !document.getElementById('sessBar').hidden, cards: document.querySelectorAll('#sessSet .fr-sc').length }));
+  check('reload: the session goes on where it was', back.n === n1 && back.bar && back.cards === 5, JSON.stringify(back));
+
+  // ================= The end =================
+  await p.click('#sessEnd');
+  const sum = await p.evaluate(() => ({ open: !document.getElementById('sessSheet').hidden, text: document.getElementById('sessSum').innerText, rows: document.querySelectorAll('#sessSum tbody tr').length, focus: document.activeElement && document.activeElement.id }));
+  check('end: a summary (time, cases, how many right, what you mastered, each case today against before)', sum.open && /TIEMPO/i.test(sum.text) && new RegExp(`CASOS\\s*${n1}`, 'i').test(sum.text) && /DOMINADOS\s*[1-9]/i.test(sum.text) && /Has dominado/.test(sum.text) && sum.rows >= 3 && /reconociendo/.test(sum.text) && sum.focus === 'sessClose', `${n1} ${sum.rows} ${sum.focus} ${JSON.stringify(sum.text).slice(0, 120)}`);
+  await p.screenshot({ path: `${SHOTS}/fridrich-session-summary-1280.png` });
+  await p.keyboard.press('Escape');
+  const after = await p.evaluate(() => ({ sheet: document.getElementById('sessSheet').hidden, training: document.body.classList.contains('training'), pick: JSON.parse(localStorage.getItem('cfop:pick:v1')).length, list: (document.querySelector('.fr-sess-list') || {}).innerText || '', stored: JSON.parse(localStorage.getItem('cfop:sessions:v1')).length, live: localStorage.getItem('cfop:session:v1') }));
+  check('end: back to Entrenar as before (every case), the session kept in «Tus sesiones»', after.sheet && !after.training && after.pick === 16 && /Tus sesiones/i.test(after.list) && after.stored === 1 && after.live === 'null', JSON.stringify(after));
+
+  // ================= Sync =================
+  const synced = await p.evaluate(() => {
+    window.Fridrich._.mergeIn({ sessions: [{ at: 1700000000000, end: 1700000600000, active: 540000, mode: 'cube', n: 30, ok: 27, lost: 1, done: ['ua'], cases: [] }] });
+    window.Fridrich._.mergeIn({ sessions: [{ at: 1700000000000, end: 1700000600000, active: 540000, mode: 'cube', n: 30, ok: 27, lost: 1, done: ['ua'], cases: [] }] });
+    return JSON.parse(localStorage.getItem('cfop:sessions:v1')).filter((x) => x.at === 1700000000000).length;
+  });
+  check('sync: sessions from your other devices come in once', synced === 1, String(synced));
+  await ctx.close();
+
+  // ================= The overlay's demo: with the smart cube =================
+  const od = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+  const dp = await od.newPage();
+  dp.on('pageerror', (e) => errs.push(`overlay: ${e.message}`));
+  await dp.goto(`${SITE}/overlay.html?demo=1&modo=cfop&phase=done&learn=setup`);
+  await dp.waitForTimeout(300);
+  const ds = await dp.evaluate(() => ({ label: document.getElementById('scrLabel').textContent, moves: [...document.querySelectorAll('#scrText .mv')].map((x) => x.className.replace('mv', '').trim() || '-').join(','), net: !document.getElementById('net').hidden, pill: document.getElementById('phase').textContent }));
+  check('overlay (smart cube): while leaving the cube in the case, the turns done and the next one, on the live cube', ds.label === 'Preparando el caso' && ds.moves === 'done,done,done,next,-,-,-,-,-' && ds.net && ds.pill === 'Preparando el caso', JSON.stringify(ds));
+  await dp.goto(`${SITE}/overlay.html?demo=1&modo=cfop&phase=done&learn=result`);
+  await dp.waitForTimeout(300);
+  const dr = await dp.evaluate(() => ({ pill: document.getElementById('phase').textContent, line: document.getElementById('liveLine').innerText, time: document.getElementById('time').textContent }));
+  check('overlay (smart cube): solved → the time, recognising + doing', dr.pill === 'Resuelto' && dr.time === '3.12' && /Sune · reconocer 0\.84 \+ hacer 2\.28/.test(dr.line), JSON.stringify(dr));
+  await dp.screenshot({ path: `${SHOTS}/overlay-learn.png` });
+  await od.close();
+
+  // ================= Phone =================
+  const ph = await open({ ...devices['Pixel 7'], colorScheme: 'dark' }, keys(seed(Date.now())), 'entrenar');
+  await ph.p.click('[data-set-go="look"]');
+  await ph.p.waitForFunction(() => window.Fridrich._.session(), null, { timeout: 5000 });
+  for (let i = 0; i < 3; i++) await answer(ph.p, true);
+  const pm = await ph.p.evaluate(() => ({ over: document.documentElement.scrollWidth - window.innerWidth, mini: getComputedStyle(document.getElementById('sessMini')).display, n: document.querySelectorAll('#sessMini span').length, text: document.getElementById('sessMini').innerText }));
+  check('phone: the session fits, and the bar shows each case of the set with its progress', pm.over <= 0 && pm.mini === 'flex' && pm.n === 5 && /[●○]/.test(pm.text), JSON.stringify(pm));
+  await ph.p.screenshot({ path: `${SHOTS}/fridrich-session-pixel7.png` });
+  await ph.ctx.close();
+
+  results.forEach((r) => console.log(r));
+  console.log(`page errors: ${errs.length ? JSON.stringify(errs) : 'none'}`);
+  console.log(`${results.filter((r) => r.startsWith('FAIL')).length} failed of ${results.length}`);
+  await browser.close();
+})().catch((e) => { console.error(e); process.exit(1); });

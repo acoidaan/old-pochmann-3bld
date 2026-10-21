@@ -92,6 +92,19 @@ const SOLVE = ["D R' F2 L", "U R U' R'", "U' F' U F", "L' U' L", "U B U' B'", "F
     await p.evaluate(() => window.Fridrich.showView('entrenar'));
     await p.waitForTimeout(200);
     await run('entrenar · qué entrenar hoy');
+    // A training session, and its summary.
+    await p.click('[data-set-go="look"]');
+    await p.waitForFunction(() => window.Fridrich._.session(), null, { timeout: 5000 });
+    for (let i = 0; i < 3; i++) {
+      const id = await p.evaluate(() => window.Fridrich._.tr.c.id);
+      await p.click(`[data-answer="${id}"]`);
+      await p.keyboard.press('Enter');
+      await p.waitForTimeout(60);
+    }
+    await run('entrenar · sesión');
+    await p.click('#sessEnd');
+    await run('entrenar · resumen de la sesión');
+    await p.click('#sessClose');
     // The ranking: the start, a league, a record's detail.
     await p.evaluate(() => { localStorage.setItem('op3bld:name:v1', JSON.stringify('Aco')); window.Fridrich.showView('ranking'); });
     await p.waitForFunction(() => document.getElementById('rkCreate'), null, { timeout: 10000 });

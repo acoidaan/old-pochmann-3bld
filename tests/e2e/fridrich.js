@@ -349,7 +349,7 @@ const SOLVE = ["D R' F2 L", "U R U' R'", "U' F' U F", "L' U' L", "U B U' B'", "F
   await p.evaluate(() => window.Fridrich.showView('crono'));
   await p.evaluate(() => document.dispatchEvent(new CustomEvent('fr:result')));
   await p.keyboard.press('Shift');
-  await ov.waitForFunction(() => /CFOP/.test(document.getElementById('brandTag').textContent), null, { timeout: 5000 }).catch(() => {});
+  await ov.waitForFunction(() => /Speedcubing · CFOP/.test(document.getElementById('brandTag').textContent), null, { timeout: 5000 }).catch(() => {});
   const o = await ov.evaluate(() => ({
     tag: document.getElementById('brandTag').textContent,
     splits: document.getElementById('cfSplits').hidden ? null : document.getElementById('cfSplits').innerText.replace(/\s+/g, ' '),

@@ -109,11 +109,11 @@ const keys = (d) => ({ 'cfop:times:v1': d.times, 'cfop:trlog:v1': d.trlog, 'cfop
   check('plan: where you can win time, biggest first', planT.parts[0] === 'Pararte en el F2L' && planT.parts.includes('Cruz más larga de la cuenta'), JSON.stringify(planT.parts));
   check('plan: «Practicar sin crono» once, not on every F2L line', planT.buttons === 1, String(planT.buttons));
   check('plan: the recommended set, with pictures, algorithms and why', planT.set.join() === 'ub,z,diag,pi,ua' && await p.evaluate(() => [...document.querySelectorAll('.fr-set-card')].every((c) => c.querySelector('svg') && c.querySelector('.fr-alg') && c.querySelectorAll('.fr-why li').length >= 1)), JSON.stringify(planT));
-  check('plan: without the smart cube, train it with a normal cube', /Entrenar este set · Cubo normal/.test(planT.go), planT.go);
+  check('plan: without the smart cube, a session with a normal cube', /Empezar sesión · Cubo normal/.test(planT.go), planT.go);
   await p.click('[data-set-go].primary');
   await p.waitForFunction(() => window.Fridrich._.tr.hand, null, { timeout: 30000 });
-  const inSet = await p.evaluate(() => ({ pick: JSON.parse(localStorage.getItem('cfop:pick:v1')).sort().join(), c: window.Fridrich._.tr.hand.c.id, note: document.getElementById('trSetNote').hidden ? '' : document.getElementById('trSetNote').innerText, mode: window.Fridrich._.settings.trMode }));
-  check('plan: «Entrenar este set» → only those cases, in that mode, and it says so', inSet.pick === 'diag,pi,ua,ub,z' && ['ub', 'z', 'diag', 'pi', 'ua'].includes(inSet.c) && /Set recomendado: Ub · Z · Diagonal · Pi · Ua/.test(inSet.note) && inSet.mode === 'hand', JSON.stringify(inSet));
+  const inSet = await p.evaluate(() => ({ pick: JSON.parse(localStorage.getItem('cfop:pick:v1')).sort().join(), c: window.Fridrich._.tr.hand.c.id, bar: !document.getElementById('sessBar').hidden, training: document.body.classList.contains('training'), cards: [...document.querySelectorAll('#sessSet .fr-sc')].map((x) => x.dataset.sc).join(), mode: window.Fridrich._.settings.trMode }));
+  check('plan: «Empezar sesión» → only those cases, in that mode, each one tracked', inSet.pick === 'diag,pi,ua,ub,z' && ['ub', 'z', 'diag', 'pi', 'ua'].includes(inSet.c) && inSet.bar && inSet.training && inSet.cards === 'ub,z,diag,pi,ua' && inSet.mode === 'hand', JSON.stringify(inSet));
 
   // ================= «Me he perdido» with a normal cube =================
   const hc = inSet.c;
@@ -121,16 +121,23 @@ const keys = (d) => ({ 'cfop:times:v1': d.times, 'cfop:trlog:v1': d.trlog, 'cfop
   await p.click(`[data-answer="${hc}"]`);
   await p.click('#trHandLost');
   await p.waitForFunction(() => window.Fridrich._.tr.hand && !window.Fridrich._.tr.answered, null, { timeout: 30000 });
-  const hl = await p.evaluate((id) => ({ t: JSON.parse(localStorage.getItem('cfop:train:v1'))[id], log: JSON.parse(localStorage.getItem('cfop:trlog:v1')).slice(-2), toast: document.getElementById('toast').innerText, sess: (document.querySelector('.fr-sess') || {}).innerText || '' }), hc);
+  const hl = await p.evaluate((id) => ({ t: JSON.parse(localStorage.getItem('cfop:train:v1'))[id], log: JSON.parse(localStorage.getItem('cfop:trlog:v1')).slice(-2), toast: document.getElementById('toast').innerText, sess: document.getElementById('sessNums').innerText, card: document.querySelector(`#sessSet [data-sc="${id}"] .fr-sc-line`).innerText }), hc);
   check('lost (normal cube): the answer, then «Me he perdido» counted as a fail', hl.t.mfail === 1 && hl.log[0].m === 'h' && hl.log[0].ok === 1 && hl.log[1].m === 'h' && hl.log[1].x === 1 && /apuntado como fallo/.test(hl.toast), JSON.stringify(hl));
-  check('lost (normal cube): a new case of the set comes, and this session counts it', /Esta sesión 1 caso · 100 % bien · 1 vez perdido/.test(hl.sess) && await p.evaluate((n) => JSON.parse(localStorage.getItem('cfop:trlog:v1')).length === n + 2, before), hl.sess);
+  check('lost (normal cube): a new case of the set comes, and the session counts it (bar and that case)', /1 caso · 100 % bien · 1 perdido · 0 dominados/.test(hl.sess) && /1 de 1 bien · perdido 1/.test(hl.card) && await p.evaluate((n) => JSON.parse(localStorage.getItem('cfop:trlog:v1')).length === n + 2, before), JSON.stringify(hl));
+  await p.click('#sessEnd');
+  await p.click('#sessClose');
 
   // ================= The cases in numbers =================
   await p.waitForFunction(() => /TE PERDISTE\s*5/i.test(document.getElementById('trStats').innerText), null, { timeout: 3000 }).catch(() => {});
-  const table = async () => p.evaluate(() => [...document.querySelectorAll('#trStats tbody tr')].map((x) => x.querySelector('.fr-case-n').innerText));
+  const table = async () => p.evaluate(() => [...document.querySelectorAll('#trStats .fr-case-table tbody tr')].map((x) => x.querySelector('.fr-case-n').innerText));
   const rows = await table();
-  check('numbers: the 16 cases, the costliest first', rows.length === 16 && rows[0] === 'PLL (Ub)', JSON.stringify(rows.slice(0, 4)));
-  const ubRow = await p.evaluate(() => document.querySelector('#trStats tbody tr').innerText.replace(/\s+/g, ' '));
+  const costliest = await p.evaluate(() => {
+    const L = (k, d) => JSON.parse(localStorage.getItem(k)) || d;
+    const rc = window.CfopStats.recommend({ times: L('cfop:times:v1', []), train: L('cfop:train:v1', {}), trlog: L('cfop:trlog:v1', []), learn: L('cfop:learn:v1', {}), crossTr: L('cfop:crosstr:v1', []) });
+    return rc.scored.slice(0, 3).map((x) => x.c.name);
+  });
+  check('numbers: the 16 cases, the costliest first', rows.length === 16 && JSON.stringify(rows.slice(0, 3)) === JSON.stringify(costliest), `${JSON.stringify(rows.slice(0, 4))} ${JSON.stringify(costliest)}`);
+  const ubRow = await p.evaluate(() => [...document.querySelectorAll('#trStats .fr-case-table tbody tr')].find((r) => r.querySelector('.fr-case-n').innerText === 'PLL (Ub)').innerText.replace(/\s+/g, ' '));
   check('numbers: per case, in solves (times · recognise + do), training and what it costs per solve', /\d+ · 2\.\d s \+ \d\.\d s/.test(ubRow) && /10 con el cubo/.test(ubRow) && /reconocer 100 %/.test(ubRow) && /0\.\d\d s/.test(ubRow), ubRow);
   const tiles = await p.evaluate(() => [...document.querySelectorAll('#trStats .stat')].map((x) => x.innerText.replace(/\s+/g, ' ')));
   check('numbers: this week, recognising, with the cube, with a normal cube, lost', tiles.length === 5 && /ESTA SEMANA \d+ casos en \d+ días/i.test(tiles[0]) && /RECONOCER 93 %/i.test(tiles[1]) && /TE PERDISTE 5/i.test(tiles[4]), JSON.stringify(tiles));
@@ -154,10 +161,11 @@ const keys = (d) => ({ 'cfop:times:v1': d.times, 'cfop:trlog:v1': d.trlog, 'cfop
   await p.evaluate(() => window.Fridrich.cube().link.turn("R U R'"));   // a mess
   await p.click('[data-tr-lost]');
   await p.waitForFunction(() => { const t = window.Fridrich._.tr; return t.follow && !t.ready && !t.busy; }, null, { timeout: 30000 });
-  const cl = await p.evaluate((id) => ({ t: JSON.parse(localStorage.getItem('cfop:train:v1'))[id], last: JSON.parse(localStorage.getItem('cfop:trlog:v1')).slice(-1)[0], c: window.Fridrich._.tr.c.id, setup: window.Fridrich._.tr.setup }), c1.id);
-  check('lost (smart cube): counted as a fail, and another case of the set, from where the cube is', cl.t.fail === fail0 + 1 && cl.last.m === 'c' && cl.last.x === 1 && cl.last.id === c1.id && ['ub', 'z', 'diag', 'pi', 'ua'].includes(cl.c) && cl.setup.length > 0, JSON.stringify(cl));
-  await p.click('#setLeave');
-  check('plan: «Dejar el set» → every case again', await p.evaluate(() => JSON.parse(localStorage.getItem('cfop:pick:v1')).length === 16 && document.getElementById('trSetNote').hidden));
+  const cl = await p.evaluate((id) => ({ t: JSON.parse(localStorage.getItem('cfop:train:v1'))[id], last: JSON.parse(localStorage.getItem('cfop:trlog:v1')).slice(-1)[0], c: window.Fridrich._.tr.c.id, setup: window.Fridrich._.tr.setup, set: window.Fridrich._.session().set }), c1.id);
+  check('lost (smart cube): counted as a fail, and another case of the set, from where the cube is', cl.t.fail === fail0 + 1 && cl.last.m === 'c' && cl.last.x === 1 && cl.last.id === c1.id && cl.set.includes(cl.c) && cl.setup.length > 0, JSON.stringify(cl));
+  await p.click('#sessEnd');
+  await p.click('#sessClose');
+  check('session: «Terminar sesión» → every case again', await p.evaluate(() => JSON.parse(localStorage.getItem('cfop:pick:v1')).length === 16 && !document.body.classList.contains('training')));
 
   // ================= The training log travels with sync =================
   const merged = await p.evaluate(() => {
@@ -196,8 +204,8 @@ const keys = (d) => ({ 'cfop:times:v1': d.times, 'cfop:trlog:v1': d.trlog, 'cfop
   }));
   check('pace: while solving, each part done against the reference (ahead, and gold if the best ever), the next one waiting', /^gold:CRUZ 0\.\d\d −4\.\d ★$/i.test(mid.chips[0]) && /^gold:F2L \d\.\d\d −2\d\.\d ★$/i.test(mid.chips[1]) && /^cur:OLL …/i.test(mid.chips[2]) && /^todo:PLL/i.test(mid.chips[3]), JSON.stringify(mid.chips));
   check('pace: where it is heading', /^Vas para \d+\.\d\d$/.test(mid.proj), mid.proj);
-  await q.evaluate(() => window.Fridrich._.paceTick(99999));
-  const late = await q.evaluate(() => { const c = document.querySelector('#pace .pc.cur'); return c ? `${c.className}|${c.innerText.replace(/\s+/g, ' ')}` : ''; });
+  // (read at once: the next frame puts the real gap back)
+  const late = await q.evaluate(() => { window.Fridrich._.paceTick(99999); const c = document.querySelector('#pace .pc.cur'); return c ? `${c.className}|${c.textContent.replace(/\s+/g, ' ')}` : ''; });
   check('pace: past the reference for the part under way → the gap counts up, in red', /late/.test(late) && /\+\d+\.\d/.test(late), late);
   for (let i = 6; i < SOLVE.length; i++) await q.evaluate((x) => window.Fridrich.cube().link.play([x], 25), SOLVE[i]);
   await q.waitForFunction(() => document.getElementById('clock').dataset.phase === 'done', null, { timeout: 5000 }).catch(() => {});

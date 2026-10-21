@@ -215,6 +215,36 @@ const save = (p, name, opts) => p.screenshot({ path: path.join(OUT, name), ...op
     await p.clock.runFor(2600);   // the heads-up gone
     await save(p, 'fridrich-ranking.png');
     done.push('fridrich-ranking.png');
+    // A training session in «Reconocer», a few cases in.
+    await p.evaluate(() => window.Fridrich.showView('entrenar'));
+    await p.clock.runFor(300);
+    await p.click('[data-set-go="look"]');
+    await p.clock.runFor(300);
+    for (let i = 0; i < 9; i++) {
+      const id = await p.evaluate(() => window.Fridrich._.tr.c.id);
+      await p.clock.runFor(i === 4 ? 1400 : 600);
+      await p.click(`[data-answer="${id}"]`);
+      await p.clock.runFor(700);
+      await p.keyboard.press('Enter');
+      await p.clock.runFor(200);
+    }
+    await p.evaluate(() => window.scrollTo(0, 0));
+    await p.clock.runFor(2600);   // the heads-up gone
+    await save(p, 'fridrich-sesion.png');
+    done.push('fridrich-sesion.png');
+    await ctx.close();
+  }
+
+  // The stream overlay while learning: a case just solved with the smart cube, and the session.
+  {
+    const ctx = await browser.newContext({ viewport: { width: 1600, height: 900 }, deviceScaleFactor: 1 });
+    await ctx.route(/fonts\.googleapis\.com/, (r) => r.fulfill({ contentType: 'text/css', body: FONTS_CSS }));
+    await ctx.route(/fonts\.gstatic\.com/, (r) => r.abort());
+    const ov = await ctx.newPage();
+    await ov.goto(`${SITE}/wrap.html#${encodeURIComponent('overlay.html?demo=1&modo=cfop&phase=done&learn=result')}`);
+    await ov.waitForTimeout(800);
+    await ov.screenshot({ path: path.join(OUT, 'overlay-aprendiendo.jpg'), type: 'jpeg', quality: 86 });
+    done.push('overlay-aprendiendo.jpg');
     await ctx.close();
   }
 
