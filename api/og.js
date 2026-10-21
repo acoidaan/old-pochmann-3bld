@@ -1,7 +1,8 @@
 // Link preview image (1200x630) for Discord and other sites: the app's card, or ?reto=<id> for a
 // challenge, with who sent it, the best time so far and the scrambled cube.
 const Cube = require('cubejs');
-const { query, send, readReto, RETO_ID, fmtTime, summarizeReto } = require('./_lib');
+const { kv, query, send, RETO_ID, fmtTime, summarizeReto } = require('./_lib');
+const { readReto } = require('./_reto');
 
 const W = 1200;
 const H = 630;
@@ -158,7 +159,7 @@ module.exports = async (req, res) => {
     let tree = null;
     let cache = 'public, max-age=86400, s-maxage=604800, stale-while-revalidate=604800';
     if (RETO_ID.test(id)) {
-      const reto = await readReto(id).catch(() => null);
+      const reto = kv() ? await readReto(kv(), id).catch(() => null) : null;
       if (reto) {
         tree = retoImage(summarizeReto(reto));
         cache = 'public, max-age=600, s-maxage=600, stale-while-revalidate=86400';

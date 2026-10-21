@@ -1,10 +1,9 @@
 // Friends' leagues for «Fridrich reducido»: a group with a code; each member keeps their best single, ao5 and
 // ao12 (with those solves and their scrambles, and the steps when done with a smart cube). Only the total time
-// ranks, as in a competition. Plain logic over a small store, so the API route and the tests' server run the
-// same code:
-//   store = { list(prefix) → [{ pathname, url, uploadedAt }], read(url) → object | null, write(pathname, obj), del(urls) }
-// Each member writes only their own files (liga/<code>/m/<id>/…), so friends posting at once do not clash; a
-// secret token, kept hashed, stops anyone else from changing someone's entry.
+// ranks, as in a competition. Pure logic over the store (api/_kv.js), so the API route and the tests' server
+// run the same code. A league is one map: «.» is the league itself, «m:<id>» each member's entry. Each member
+// writes only their own entry, and a secret token, kept hashed, stops anyone else from changing it.
+// If the store loses a league (a new store, say), a member who still has it brings it back with its name.
 const crypto = require('crypto');
 
 const CODE = /^[a-z0-9]{8}$/;
@@ -23,7 +22,7 @@ function newCode() {
   const abc = 'abcdefghijkmnpqrstuvwxyz23456789';
   return [...crypto.randomBytes(8)].map((b) => abc[b % 32]).join('');
 }
-const newest = (blobs) => blobs.slice().sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
+const keyOf = (code) => `liga/${code}`;
 
 // ---- What a solve may carry
 function cleanSp(sp) {
@@ -82,24 +81,11 @@ function cleanBest(b) {
 
 // ---- Reading a league
 async function readLeague(store, code) {
-  const blobs = await store.list(`liga/${code}/`);
-  const metaBlob = newest(blobs.filter((b) => b.pathname.startsWith(`liga/${code}/meta`)))[0];
-  if (!metaBlob) return null;
-  const meta = await store.read(metaBlob.url);
-  if (!meta) return null;
-  const byMember = new Map();
-  blobs.forEach((b) => {
-    const m = b.pathname.match(new RegExp(`^liga/${code}/m/([a-z0-9]+)/`));
-    if (!m) return;
-    if (!byMember.has(m[1])) byMember.set(m[1], []);
-    byMember.get(m[1]).push(b);
-  });
-  const members = (await Promise.all([...byMember.values()].map(async (list) => {
-    const [latest, ...older] = newest(list);
-    const doc = await store.read(latest.url).catch(() => null);
-    return doc ? { doc, blobs: [latest, ...older] } : null;
-  }))).filter(Boolean);
-  return { meta, members, blobs };
+  const m = await store.all(keyOf(code));
+  const meta = m['.'];
+  if (!meta || typeof meta !== 'object') return null;
+  const members = Object.keys(m).filter((f) => f.startsWith('m:')).map((f) => m[f]).filter((d) => d && typeof d === 'object' && d.id);
+  return { meta, members };
 }
 const publicMember = (d) => ({ id: d.id, name: d.name, joined: d.joined, updated: d.updated, n: d.n || 0, best: d.best || { single: null, ao5: null, ao12: null } });
 const publicLeague = (code, meta, docs) => ({
@@ -113,7 +99,7 @@ async function handle(store, { method, code, body }) {
     if (!CODE.test(code || '')) return fail(400, 'código de liga no válido');
     const lg = await readLeague(store, code);
     if (!lg) return fail(404, 'esa liga no existe');
-    return { status: 200, body: publicLeague(code, lg.meta, lg.members.map((m) => m.doc)) };
+    return { status: 200, body: publicLeague(code, lg.meta, lg.members) };
   }
   if (method !== 'POST') return fail(405, 'método no permitido');
   const b = body && typeof body === 'object' ? body : {};
@@ -137,30 +123,43 @@ async function handle(store, { method, code, body }) {
     if (b.action !== 'create') return fail(400, 'acción no válida');
     const lname = clean(b.name, 40);
     if (!lname || !name) return fail(400, 'falta el nombre de la liga o el tuyo');
-    const created = newCode();
-    await store.write(`liga/${created}/meta.json`, { name: lname, by: name, at: now });
+    const meta = { name: lname, by: name, at: now };
+    let created = null;
+    for (let i = 0; i < 4 && !created; i++) {
+      const c = newCode();
+      if (await store.putNew(keyOf(c), '.', meta)) created = c;
+    }
+    if (!created) return fail(500, 'error del servidor');
     const doc = memberDoc(null, !!b.best);
-    await store.write(`liga/${created}/m/${pid}/${now}.json`, doc);
-    return { status: 200, body: publicLeague(created, { name: lname, by: name, at: now }, [doc]) };
+    await store.put(keyOf(created), `m:${pid}`, doc);
+    return { status: 200, body: publicLeague(created, meta, [doc]) };
   }
 
   if (!CODE.test(code)) return fail(400, 'código de liga no válido');
   if (!['join', 'post', 'leave'].includes(b.action)) return fail(400, 'acción no válida');
-  const lg = await readLeague(store, code);
+  let lg = await readLeague(store, code);
+  if (!lg && b.action !== 'leave') {
+    // A member bringing back a league the store lost: its name (and who made it) come from their device.
+    const hint = b.league && typeof b.league === 'object' ? b.league : null;
+    const lname = hint ? clean(hint.name, 40) : '';
+    if (lname) {
+      const meta = { name: lname, by: clean(hint.by, 24) || name || 'Alguien', at: int(hint.at, 1e14) || now };
+      await store.putNew(keyOf(code), '.', meta);
+      lg = await readLeague(store, code);
+    }
+  }
   if (!lg) return fail(404, 'esa liga no existe');
-  const mine = lg.members.find((m) => m.doc.id === pid);
-  if (mine && mine.doc.tokenHash !== hash(token)) return fail(403, 'ese sitio de la liga es de otra persona');
+  const mine = lg.members.find((m) => m.id === pid);
+  if (mine && mine.tokenHash !== hash(token)) return fail(403, 'ese sitio de la liga es de otra persona');
   if (b.action === 'leave') {
-    if (mine) await store.del(mine.blobs.map((x) => x.url));
-    return { status: 200, body: publicLeague(code, lg.meta, lg.members.filter((m) => m !== mine).map((m) => m.doc)) };
+    if (mine) await store.drop(keyOf(code), `m:${pid}`);
+    return { status: 200, body: publicLeague(code, lg.meta, lg.members.filter((m) => m !== mine)) };
   }
   if (!mine && lg.members.length >= MAX_MEMBERS) return fail(409, 'la liga está llena');
   if (!mine && !name) return fail(400, 'falta tu nombre');
-  const doc = memberDoc(mine ? mine.doc : null, b.action === 'post' || !!b.best);
-  await store.write(`liga/${code}/m/${pid}/${now}.json`, doc);
-  // Only the newest file of each member is kept.
-  if (mine) await store.del(mine.blobs.map((x) => x.url)).catch(() => {});
-  const docs = lg.members.filter((m) => m !== mine).map((m) => m.doc).concat([doc]);
+  const doc = memberDoc(mine || null, b.action === 'post' || !!b.best);
+  await store.put(keyOf(code), `m:${pid}`, doc);
+  const docs = lg.members.filter((m) => m !== mine).concat([doc]);
   return { status: 200, body: publicLeague(code, lg.meta, docs) };
 }
 

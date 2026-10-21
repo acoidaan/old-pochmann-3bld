@@ -1,6 +1,5 @@
-// Local server for the tests: the built site (public/) plus an in-memory fake of the API with the same
-// contract as api/*.js (retos, sync, ping, /r/<id>; the leagues run the real api/_liga.js), the scramble
-// generator's files and a few fixtures.
+// Local server for the tests: the built site (public/) plus the API's real logic (api/_sync.js, _reto.js,
+// _liga.js) over the in-memory store of api/_kv.js, the scramble generator's files and a few fixtures.
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
@@ -12,26 +11,19 @@ const TYPES = {
 const FIXTURES = path.join(__dirname, 'fixtures');
 const FONT_DIRS = ['unbounded', 'atkinson-hyperlegible', 'martian-mono']
   .map((p) => path.join(__dirname, 'node_modules', '@fontsource', p, 'files'));
-// The leagues run the real logic (api/_liga.js) over an in-memory store shaped like Vercel Blob.
-const { handle: ligaHandle } = require(path.join(__dirname, '..', 'api', '_liga.js'));
+const API = path.join(__dirname, '..', 'api');
+const { memoryKv } = require(path.join(API, '_kv.js'));
+const sync = require(path.join(API, '_sync.js'));
+const reto = require(path.join(API, '_reto.js'));
+const liga = require(path.join(API, '_liga.js'));
 const CUBEJS = [path.join(__dirname, 'node_modules', 'cubejs', 'lib'), path.join(__dirname, '..', 'node_modules', 'cubejs', 'lib')]
   .find((d) => fs.existsSync(path.join(d, 'cube.js')));
 
 // root: folder to serve; cubejs: false makes /cubejs/* fail, as when the generator cannot load.
 function start({ root, port, cubejs = true }) {
-  const blobs = new Map();
-  let seq = 0;
-  const files = new Map();   // pathname → { pathname, url, uploadedAt, data }
-  let tick = 0;
-  const ligaStore = {
-    list: async (prefix) => [...files.values()].filter((f) => f.pathname.startsWith(prefix)),
-    read: async (url) => { const f = [...files.values()].find((x) => x.url === url); return f ? JSON.parse(JSON.stringify(f.data)) : null; },
-    write: async (pathname, data) => {
-      const name = `${pathname.replace(/\.json$/, '')}-${(tick++).toString(36)}.json`;
-      files.set(name, { pathname: name, url: `mem://${name}`, uploadedAt: new Date(1e12 + tick * 1000).toISOString(), data: JSON.parse(JSON.stringify(data)) });
-    },
-    del: async (urls) => { urls.forEach((u) => { for (const [k, f] of files) if (f.url === u) files.delete(k); }); },
-  };
+  const kv = memoryKv();
+  // A sync interval the client may use on its own (seconds); the tests sync by hand.
+  const every = 60;
   const server = http.createServer(async (req, res) => {
     const u = new URL(req.url, 'http://x');
     const send = (status, obj) => { res.writeHead(status, { 'content-type': 'application/json' }); res.end(JSON.stringify(obj)); };
@@ -46,40 +38,25 @@ function start({ root, port, cubejs = true }) {
       for await (const c of req) b += c;
       body = JSON.parse(b || '{}');
     }
-    const list = (prefix) => [...blobs.entries()].filter(([k]) => k.startsWith(prefix)).map(([, v]) => v);
+    const q = (n) => u.searchParams.get(n) || '';
+    const answer = async (fn) => {
+      try { const out = await fn(); return send(out.status, out.body); } catch (e) { return send(500, { error: e.message }); }
+    };
 
-    if (u.pathname === '/api/ping') return send(200, { ok: true, store: true });
+    if (u.pathname === '/api/ping') return send(200, { ok: true, store: true, kind: kv.kind, every });
     if (u.pathname === '/api/reto') {
-      const id = u.searchParams.get('id');
-      if (!body) {
-        const meta = list(`retos/${id}/meta`)[0];
-        if (!meta) return send(404, { error: 'ese reto no existe' });
-        const seen = new Set();
-        const results = list(`retos/${id}/r/`)
-          .filter((r) => (seen.has(r.dev) ? false : seen.add(r.dev)))
-          .map((r) => ({ ...r, mine: r.dev === u.searchParams.get('dev'), dev: undefined }));
-        return send(200, { id, ...meta, results });
-      }
-      if (!id) {
+      return answer(async () => {
+        const out = await reto.handle(kv, { method: req.method, id: q('id'), dev: q('dev'), body });
         // A new challenge comes with two results from friends, so the list has something to show.
-        const nid = `k3x9m2p${seq++ % 10}`;
-        blobs.set(`retos/${nid}/meta`, { ...body, at: Date.now() });
-        blobs.set(`retos/${nid}/r/a`, { name: 'Carla', memo: 98000, exec: 61000, ok: true, at: 1, dev: 'x' });
-        blobs.set(`retos/${nid}/r/b`, { name: 'Dani', memo: 75000, exec: 70500, ok: false, at: 2, dev: 'y' });
-        return send(200, { id: nid });
-      }
-      blobs.set(`retos/${id}/r/${seq++}`, { ...body, at: Date.now() });
-      return send(200, { ok: true });
+        if (req.method === 'POST' && !q('id') && out.status === 200) {
+          await kv.putNew(`reto/${out.body.id}`, 'd:x', { name: 'Carla', memo: 98000, exec: 61000, ok: true, at: 1, dev: 'x' });
+          await kv.putNew(`reto/${out.body.id}`, 'd:y', { name: 'Dani', memo: 75000, exec: 70500, ok: false, at: 2, dev: 'y' });
+        }
+        return out;
+      });
     }
-    if (u.pathname === '/api/liga') {
-      const out = await ligaHandle(ligaStore, { method: req.method, code: u.searchParams.get('code') || '', body });
-      return send(out.status, out.body);
-    }
-    if (u.pathname === '/api/sync') {
-      const k = `sync/${u.searchParams.get('k')}`;
-      if (body) { blobs.set(k, body.data); return send(200, { ok: true }); }
-      return send(200, { data: blobs.get(k) || null });
-    }
+    if (u.pathname === '/api/liga') return answer(() => liga.handle(kv, { method: req.method, code: q('code'), body }));
+    if (u.pathname === '/api/sync') return answer(() => sync.handle(kv, { method: req.method, k: q('k'), body }));
     if (u.pathname.startsWith('/r/')) {
       res.writeHead(302, { location: `/?reto=${u.pathname.slice(3)}` });
       return res.end();

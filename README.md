@@ -258,7 +258,7 @@ Cada letra se resuelve como **setup → algoritmo → deshacer el setup**. Cualq
 
 ## Arquitectura
 
-JavaScript, HTML y CSS sin frameworks ni empaquetador: lo que hay en el repo es lo que se sirve (versionado y sin minificar). En el servidor, unas pocas funciones de Vercel con Vercel Blob como almacenamiento.
+JavaScript, HTML y CSS sin frameworks ni empaquetador: lo que hay en el repo es lo que se sirve (versionado y sin minificar). En el servidor, unas pocas funciones de Vercel con Redis (Upstash) o Vercel Blob como almacenamiento.
 
 ```mermaid
 flowchart LR
@@ -277,7 +277,7 @@ flowchart LR
   ov["overlay.html"]
   obs["OBS"]
   api["api/*<br/>Vercel Functions"]
-  blob[("Vercel Blob")]
+  blob[("Redis o<br/>Vercel Blob")]
   model --> core
   model --> fr
   cube -- "Web Bluetooth" --> gan
@@ -299,6 +299,7 @@ flowchart LR
 | `cubemodel.js` | El modelo del cubo, compartido por las dos páginas: permutación de 54 pegatinas con giros de cara, anchos, de capa y rotaciones, el marco del cubo inteligente (centros fijos) y el generador de scrambles de estado aleatorio (Web Worker con cubejs). Expone `window.CubeModel`. |
 | `core.js` | El método, Practicar, la ejecución guiada, el Cronómetro, el modo competición y Entrenar. Expone `window.OP3`. |
 | `learn.js` | Las 9 lecciones interactivas de Aprender. |
+| `syncplan.js` | Cuándo sincroniza cada página por su cuenta (lo usan las dos). Expone `window.SyncPlan`. |
 | `social.js` | Retos, compartir como imagen y la sincronización entre dispositivos. |
 | `stream.js` | El overlay: genera el estado y lo manda por obs-websocket y BroadcastChannel. |
 | `cube.js` | El cubo inteligente en la página de 3BLD: conexión, cubo virtual, seguimiento, análisis de DNF, Entrenar y guía con el cubo. |
@@ -309,7 +310,7 @@ flowchart LR
 | `overlay.html` | El overlay para OBS, una página independiente. |
 | `sw.js` | El service worker: guarda la app para usarla sin conexión. |
 | `build.js` | Genera `public/`: copia los archivos con un hash en la URL, dibuja los iconos PNG y anota el número de versión. |
-| `api/` | Funciones de Vercel: retos, sincronización, ligas de amigos (la lógica, en `_liga.js`, la usan también las pruebas), imágenes de vista previa y enlaces cortos. |
+| `api/` | Funciones de Vercel: retos, sincronización, ligas de amigos (la lógica, en `_reto.js`, `_sync.js` y `_liga.js` sobre el almacén de `_kv.js`, la usan también las pruebas), imágenes de vista previa y enlaces cortos. |
 | `vendor/` | gan-web-bluetooth empaquetado ([cómo se genera](vendor/README.md)). |
 | `tests/` | Pruebas en navegador y auditorías de accesibilidad ([cómo se ejecutan](tests/README.md)). |
 | `docs/img/` | Las capturas de este README (se regeneran con `npm run shots`). |
@@ -359,22 +360,30 @@ Todo se guarda en `localStorage`, en tu dispositivo:
 
 ## API
 
-Funciones de Vercel (`api/`) con los datos en un almacén privado de [Vercel Blob](https://vercel.com/docs/storage/vercel-blob). Todas responden JSON sin caché, salvo las imágenes.
+Funciones de Vercel (`api/`). La lógica de retos, sincronización y ligas está en `_reto.js`, `_sync.js` y `_liga.js`, sobre un almacén pequeño (`_kv.js`: documentos y mapas de documentos, sin listar nunca) que puede ser:
+
+- **Redis** de [Upstash](https://upstash.com) (lo crea el Marketplace de Vercel, con `KV_REST_API_URL` y `KV_REST_API_TOKEN`). Si el proyecto lo tiene, se usa este. El plan gratis da 500 000 comandos al mes, y cada petición de la app gasta uno o dos.
+- **[Vercel Blob](https://vercel.com/docs/vercel-blob)** (`BLOB_READ_WRITE_TOKEN`): un archivo por clave, que se sobrescribe y se lee por su nombre. Guardar es una «operación avanzada» (el plan gratis da 2 000 al mes) y leer, una «simple» (10 000). Los mapas se cambian con escritura condicional (ETag), así que dos amigos escribiendo a la vez no se pisan.
+- **Memoria**, en las pruebas.
+
+Todas responden JSON sin caché, salvo las imágenes. Si el almacén está en pausa (el plan gratis de Blob se pasó del límite), responden 503 y la app lo dice.
 
 | Ruta | Método | Qué hace |
 |:--|:--|:--|
-| `/api/ping` | GET | Dice si hay almacén (`?deep=1` escribe, lee y borra una prueba). |
+| `/api/ping` | GET | Dice si hay almacén, cuál (`kind`) y cada cuánto puede sincronizar la app por su cuenta (`every`, en segundos: 60 con Redis, 600 con Blob). Con `?deep=1` escribe, lee y borra una prueba. |
 | `/api/reto` | POST | Crea un reto `{ scramble, by, kind }` y devuelve `{ id }` (8 caracteres). |
 | `/api/reto?id=` | GET | El reto con sus resultados (uno por dispositivo: cuenta el primero). |
-| `/api/reto?id=` | POST | Añade un resultado `{ name, dev, memo, exec, ok }`. Máximo 300 por reto. |
-| `/api/sync?k=` | GET · POST | Lee o guarda los datos sincronizados. Guarda las 3 últimas versiones, hasta 500 KB. |
+| `/api/reto?id=` | POST | Añade un resultado `{ name, dev, memo, exec, ok }`. Máximo 150 por reto. |
+| `/api/sync?k=` | GET · POST | Lee o guarda los datos sincronizados (un documento por código, hasta 500 KB). |
 | `/api/liga` | POST | Crea una liga `{ action: 'create', name, player, best }` y la devuelve con su código (8 caracteres). |
 | `/api/liga?code=` | GET | La liga y lo mejor de cada uno: single, ao5 y ao12 con sus solves (scramble, y los pasos si fue con cubo inteligente). |
-| `/api/liga?code=` | POST | `join`, `post` (tus mejores, que se comprueban: la media tiene que salir de sus solves) o `leave`. Cada uno escribe solo lo suyo, con un token secreto que el servidor guarda cifrado. Hasta 60 por liga. |
+| `/api/liga?code=` | POST | `join`, `post` (tus mejores, que se comprueban: la media tiene que salir de sus solves) o `leave`. Cada uno escribe solo lo suyo, con un token secreto que el servidor guarda cifrado. Hasta 60 por liga. Cada `post` lleva el nombre de la liga: si el almacén la ha perdido (uno nuevo, por ejemplo), el primero que publica la recupera. |
 | `/api/og` | GET | Imagen de vista previa de 1200×630 (`?reto=` para la de un reto). |
 | `/r/:id` | GET | Enlace corto de un reto. Los bots de vista previa reciben una página con título, descripción e imagen; las personas van directas a la app. |
 
-En el almacén: `retos/<id>/meta.json`, `retos/<id>/r/<hora>.json` y `sync/<clave>/<hora>.json`.
+En el almacén: `sync/<clave>` (un documento), `reto/<id>` (un mapa: `.` es el reto y `d:<dispositivo>` cada resultado) y `liga/<código>` (`.` es la liga y `m:<jugador>` cada miembro). En Blob son `v2/<clave>.json`; en Redis, `op3:<clave>`.
+
+**Cada cuánto sincroniza la app** (`syncplan.js`, igual en las dos páginas): un cambio no se guarda al momento, espera al siguiente turno (como pronto 20 s después, para juntar varios; como mucho, uno cada `every`) o a que salgas de la página. Abrirla o volver a ella solo lee, y guarda solo si queda algo pendiente. «Sincronizar ahora» lee y guarda siempre. El ranking se actualiza cada 30 s mientras lo miras (cada 5 min con Blob) y al volver a la página.
 
 ## Privacidad
 
@@ -395,9 +404,9 @@ node server.js                   # sirve public/ con una API falsa en http://loc
 npm test                         # todas las pruebas (unas 340 comprobaciones)
 ```
 
-`tests/server.js` imita la API, así que retos y sincronización funcionan en local sin Vercel ni Blob. Con `vercel dev` se prueba la API de verdad.
+`tests/server.js` usa la lógica de verdad de la API sobre el almacén en memoria, así que retos, sincronización y ligas funcionan en local sin Vercel. Con `vercel dev` se prueba la API de verdad.
 
-**Despliegue.** Cada push a `main` se despliega solo en Vercel: instala `package.json` (`@vercel/blob`, `@vercel/og`, `cubejs`), ejecuta `node build.js` y publica `public/` y `api/`. Hace falta un almacén de Vercel Blob conectado al proyecto (variable `BLOB_READ_WRITE_TOKEN`); sin él, la app funciona igual pero sin retos ni sincronización. `vercel.json` sirve `cubejs` desde jsDelivr en el mismo dominio (para el generador sin conexión), traduce `/r/:id` a `/api/r`, sirve `/fridrich` desde `fridrich.html` y fija las cabeceras de caché de `sw.js` y `vendor/`.
+**Despliegue.** Cada push a `main` se despliega solo en Vercel: instala `package.json` (`@vercel/blob`, `@vercel/og`, `cubejs`), ejecuta `node build.js` y publica `public/` y `api/`. Hace falta un almacén conectado al proyecto: Redis de Upstash desde el Marketplace (Storage → Upstash for Redis, plan gratis, con el prefijo de variables por defecto, `KV_`) o Vercel Blob; sin ninguno, la app funciona igual pero sin retos, sincronización ni ranking. `vercel.json` sirve `cubejs` desde jsDelivr en el mismo dominio (para el generador sin conexión), traduce `/r/:id` a `/api/r`, sirve `/fridrich` desde `fridrich.html` y fija las cabeceras de caché de `sw.js` y `vendor/`.
 
 **Pruebas.** Doce suites en Chromium con Playwright (unas 340 comprobaciones) y cuatro auditorías con axe-core; ver [tests/README.md](tests/README.md).
 

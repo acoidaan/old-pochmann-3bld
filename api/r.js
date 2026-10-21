@@ -1,6 +1,7 @@
 // Short challenge link /r/<id>. Link-preview bots (Discord, WhatsApp, Telegram…) get a page with the
 // challenge's title and image; everyone else goes straight to the app.
-const { query, readReto, RETO_ID, fmtTime, summarizeReto } = require('./_lib');
+const { kv, query, RETO_ID, fmtTime, summarizeReto } = require('./_lib');
+const { readReto } = require('./_reto');
 
 const BOTS = /bot\b|bot\/|discord|twitterbot|telegram|whatsapp|facebookexternalhit|facebot|slack|linkedin|embedly|skypeuripreview|iframely|mastodon|bluesky|pinterest|vkshare|redditbot|applebot|preview/i;
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -18,7 +19,7 @@ module.exports = async (req, res) => {
   const app = `/?reto=${id}`;
   if (!BOTS.test(req.headers['user-agent'] || '')) return redirect(res, app);
   let reto = null;
-  try { reto = await readReto(id); } catch (e) { console.error(e); }
+  try { if (kv()) reto = await readReto(kv(), id); } catch (e) { console.error(e); }
   if (!reto) return redirect(res, '/');
   const s = summarizeReto(reto);
   const host = req.headers['x-forwarded-host'] || req.headers.host;

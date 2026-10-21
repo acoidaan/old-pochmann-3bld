@@ -1,20 +1,22 @@
-// Health check: tells the app whether challenges and sync are available.
-// With ?deep=1 it also writes, reads and deletes a test record in the store.
-const { readJson, listAll, writeJson, send, del } = require('./_lib');
+// Health check: tells the app whether challenges and sync are available, which store holds them and how often
+// the app may sync on its own («every», in seconds). With ?deep=1 it also writes, reads and deletes a test
+// record (that costs a write, so the app never asks for it).
+const { kv, kindFor, EVERY, send, query } = require('./_lib');
 
 module.exports = async (req, res) => {
-  const store = !!(process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID);
-  if (!store) return send(res, 200, { ok: true, store: false });
-  if (new URL(req.url, 'http://localhost').searchParams.get('deep') !== '1') return send(res, 200, { ok: true, store: true });
+  const kind = kindFor();
+  if (!kind) return send(res, 200, { ok: true, store: false });
+  const info = { ok: true, store: true, kind, every: EVERY[kind] };
+  if (query(req, 'deep') !== '1') return send(res, 200, info);
   try {
     const stamp = Date.now();
-    await writeJson('ping/check.json', { stamp });
-    const blobs = await listAll('ping/');
-    const docs = await Promise.all(blobs.map((b) => readJson(b.url).catch(() => null)));
-    const roundtrip = docs.some((d) => d && d.stamp === stamp);
-    if (blobs.length) await del(blobs.map((b) => b.url));
-    return send(res, 200, { ok: true, store: roundtrip, deep: true, roundtrip });
+    const store = kv();
+    await store.set('ping/check', { stamp });
+    const back = await store.get('ping/check');
+    await store.del('ping/check');
+    const roundtrip = !!back && back.stamp === stamp;
+    return send(res, 200, { ...info, store: roundtrip, deep: true, roundtrip });
   } catch (e) {
-    return send(res, 200, { ok: true, store: false, deep: true, error: e.message });
+    return send(res, 200, { ...info, store: false, deep: true, paused: !!e.paused, error: e.message });
   }
 };

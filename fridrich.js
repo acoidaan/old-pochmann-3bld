@@ -2697,8 +2697,10 @@
   let pubT = 0;
   const pubSig = (best) => JSON.stringify([myName(), best.single && [best.single.t, best.single.pen, best.single.at], best.ao5 && [best.ao5.v, best.ao5.at], best.ao12 && [best.ao12.v, best.ao12.at]]);
   function ligaPublishSoon(ms = 1200) { if (!ligas().length) return; clearTimeout(pubT); pubT = setTimeout(() => ligaPublish(), ms); }
-  async function ligaPublish(force) {
-    const list = ligas();
+  // only: one league (to bring it back if the server lost it). Each post carries the league's name, so a
+  // server that lost it (a new store) gets it back from whoever posts first.
+  async function ligaPublish(force, only) {
+    const list = ligas().filter((x) => !only || x.code === only);
     if (!list.length) return [];
     const best = myBests();
     const sig = pubSig(best);
@@ -2707,7 +2709,8 @@
     for (const l of list) {
       if (!force && pub[l.code] === sig) continue;
       try {
-        const league = await api(`api/liga?code=${l.code}`, { action: 'post', player: playerBody(), best, n: times.length });
+        const league = await api(`api/liga?code=${l.code}`, { action: 'post', player: playerBody(), best, n: times.length, league: { name: l.name, by: l.by, at: l.made } });
+        if (!Array.isArray(league.members)) throw new Error('respuesta incompleta del servidor');
         pub[l.code] = sig;
         save(K.ligaPub, pub);
         lg.data[l.code] = { league, at: Date.now() };
@@ -2733,12 +2736,19 @@
     if (!code) return;
     if (!quiet) { lg.busy = true; renderRanking(); }
     try {
-      const league = await api(`api/liga?code=${code}`);
+      let league;
+      try { league = await api(`api/liga?code=${code}`); } catch (e) {
+        // A league of yours that the server no longer has: bring it back with your entry.
+        if (!/no existe/.test(e.message) || !ligas().some((x) => x.code === code)) throw e;
+        league = (await ligaPublish(true, code))[0];
+        if (!league) throw e;
+      }
+      if (!Array.isArray(league.members)) throw new Error('respuesta incompleta del servidor');
       lg.data[code] = { league, at: Date.now() };
       lg.err = '';
       const list = ligas();
       const it = list.find((x) => x.code === code);
-      if (it && it.name !== league.name) { it.name = league.name; save(K.ligas, list); }
+      if (it && (it.name !== league.name || it.by !== league.by || it.made !== league.at)) { Object.assign(it, { name: league.name, by: league.by, made: league.at }); save(K.ligas, list); }
       newsOf(code, league);
     } catch (e) { lg.err = e.message; }
     lg.busy = false;
@@ -2883,7 +2893,7 @@
   // ---- Joining, creating, leaving
   function addLeague(league) {
     const list = ligas().filter((x) => x.code !== league.code);
-    list.push({ code: league.code, name: league.name, at: Date.now() });
+    list.push({ code: league.code, name: league.name, at: Date.now(), by: league.by, made: league.at });
     save(K.ligas, list);
     settings.liga = league.code;
     saveSettings();
@@ -2984,16 +2994,21 @@
       });
     }
   });
-  // While you look at it: again every 30 s, and when you come back to the page.
-  function pollRanking() {
+  // While you look at it: again every 30 s (every 5 min if the server is on Vercel Blob's free tier, which
+  // counts each read), and when you come back to the page if it is more than a minute old.
+  const stale = (code, ms) => !lg.data[code] || Date.now() - lg.data[code].at > ms;
+  async function pollRanking() {
     clearInterval(lg.timer);
-    lg.timer = setInterval(() => { if (view === 'ranking' && document.visibilityState === 'visible') loadLeague(curCode(), true); }, 30000);
+    const b = await backend();
+    const every = b && b.every > 60 ? 300000 : 30000;
+    clearInterval(lg.timer);
+    lg.timer = setInterval(() => { if (view === 'ranking' && document.visibilityState === 'visible' && stale(curCode(), every - 2000)) loadLeague(curCode(), true); }, every);
   }
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && view === 'ranking') loadLeague(curCode(), true); });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && view === 'ranking' && stale(curCode(), 60000)) loadLeague(curCode(), true); });
   onView('ranking', () => {
     renderRanking();
     const code = curCode();
-    if (code) { ligaPublish(); loadLeague(code, !!lg.data[code]); }
+    if (code) { ligaPublish(); if (stale(code, 15000)) loadLeague(code, !!lg.data[code]); }
     pollRanking();
   });
 
@@ -3178,13 +3193,16 @@
         method: body ? 'POST' : 'GET', headers: body ? { 'content-type': 'application/json' } : {},
         body: body ? JSON.stringify(body) : undefined, cache: 'no-store', signal: ctrl ? ctrl.signal : undefined,
       });
-      const j = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(j.error || `error ${r.status}`);
+      // A body cut short (a timeout halfway through) is a failure too, not an empty answer.
+      const j = await r.json().catch(() => null);
+      if (!r.ok) throw new Error((j && j.error) || `error ${r.status}`);
+      if (!j || typeof j !== 'object') throw new Error('respuesta incompleta del servidor');
       return j;
     } catch (e) { throw new Error(e.name === 'AbortError' ? 'el servidor no responde' : e.message); } finally { clearTimeout(tm); }
   }
+  // What the server has: null without a store; otherwise { kind, every } (how often to sync on our own, in s).
   let pingP = null;
-  const backend = () => { if (!pingP) pingP = api('api/ping').then((j) => !!(j.ok && j.store), () => false); return pingP; };
+  const backend = () => { if (!pingP) pingP = api('api/ping').then((j) => (j.ok && j.store ? j : null), () => null); return pingP; };
   const syncState = () => load(K.sync, null);
   function syncData() {
     const keep = times.length - 200;   // the turns and the analysis of the last 200 solves travel; older ones stay here
@@ -3255,25 +3273,34 @@
     }
     if (Array.isArray(remote.ligas)) {
       const mineL = ligas();
-      remote.ligas.forEach((x) => { if (x && /^[a-z0-9]{8}$/.test(x.code) && !mineL.some((y) => y.code === x.code)) { mineL.push({ code: x.code, name: cleanName(x.name), at: x.at || Date.now() }); changedHere = true; } });
+      remote.ligas.forEach((x) => { if (x && /^[a-z0-9]{8}$/.test(x.code) && !mineL.some((y) => y.code === x.code)) { mineL.push({ code: x.code, name: cleanName(x.name), at: x.at || Date.now(), by: x.by ? cleanName(x.by).slice(0, 24) : undefined, made: Number.isFinite(x.made) ? x.made : undefined }); changedHere = true; } });
       save(K.ligas, mineL);
     }
     return changedHere;
   }
+  // When to sync on its own: syncplan.js (a change waits for the next turn, or for leaving the page).
+  const syncPlan = window.SyncPlan.create({
+    name: 'cfop', enabled: () => !!(syncState() && syncState().code), sync: (why) => syncNow(false, why),
+    gap: async () => { const b = await backend(); return b && b.every; },
+  });
   let syncing = null;
-  async function syncNow(manual) {
+  async function syncNow(manual, why = 'hand') {
     const st = syncState();
     if (!st || !st.code) return;
     if (syncing) return syncing;
     syncing = (async () => {
-      setSyncStatus('Sincronizando…');
+      if (manual) setSyncStatus('Sincronizando…');
       try {
         if (!(window.crypto && crypto.subtle)) throw new Error('este navegador no lo permite');
         if (!(await backend())) throw new Error('no hay conexión con el servidor');
         const k = await sha(`cfop:${normCode(st.code)}`);
         const remote = await api(`api/sync?k=${k}`);
         const changedHere = mergeIn(remote.data);
-        await api(`api/sync?k=${k}`, { data: syncData() });
+        if (syncPlan.shouldPush(why, manual, !remote.data)) {
+          const mark = syncPlan.mark();
+          await api(`api/sync?k=${k}`, { data: syncData() });
+          syncPlan.pushed(mark);
+        }
         save(K.synced, Date.now());
         setSyncStatus(`Sincronizado ${changedHere ? 'y actualizado con tus otros dispositivos' : 'correctamente'}.`);
         if (changedHere) {
@@ -3286,17 +3313,9 @@
         }
       } catch (e) { setSyncStatus(`No se ha podido sincronizar: ${e.message}.`, true); }
     })();
-    try { await syncing; } finally { syncing = null; }
+    try { await syncing; } finally { syncing = null; syncPlan.done(); }
   }
-  let pushTimer = 0;
-  document.addEventListener('fr:changed', () => {
-    if (!syncState()) return;
-    clearTimeout(pushTimer);
-    pushTimer = setTimeout(() => syncNow(false), 5000);
-  });
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible' && syncState() && Date.now() - load(K.synced, 0) > 60000) syncNow(false);
-  });
+  document.addEventListener('fr:changed', () => syncPlan.changed());
   function setSyncStatus(text, bad) {
     const el = $('syncStatus');
     if (!el) return;
@@ -3625,7 +3644,7 @@
     paceFor: (r) => { const pf = settings.pace !== 'off' ? paceFor(r) : null; return pf ? { d: pf.rows.map((x) => Math.round(x.d)), gold: pf.rows.map((x) => x.gold), total: Math.round(pf.total), label: pf.label } : null; },
     recordsOf,
     // For tests.
-    _: { simSolution, caseTarget, tr, settings, celebrate, paceRef, bestsOf, paceTick, myBests, ligaPublish, player, loadLeague, lg, session: () => session, endSession, startSession, openPicker, follow: () => follow, makeFollow, partialKeys, setScramble, makeTry, ct, vibes, syncNow, mergeIn, offerUpdate, focus: () => focus.on },
+    _: { simSolution, caseTarget, tr, settings, celebrate, paceRef, bestsOf, paceTick, myBests, ligaPublish, player, loadLeague, lg, session: () => session, endSession, startSession, openPicker, follow: () => follow, makeFollow, partialKeys, setScramble, makeTry, ct, vibes, syncNow, syncPlan, mergeIn, offerUpdate, focus: () => focus.on },
   };
 
   // ================= Start =================
@@ -3640,7 +3659,7 @@
   if (lastWithSp && lastWithSp.sp) renderSplits(lastWithSp);
   if (scramble) setScramble(scramble); else { renderScramble(); newScramble(); }
   // Sync set up on the 3BLD page (or another tab): bring this page up to date.
-  if (syncState()) setTimeout(() => syncNow(false), 1500);
+  syncPlan.start(1500);
   if (ligas().length) setTimeout(() => ligaPublish(), 2500);
   setTimeout(() => { if (typeof Worker !== 'undefined') M.startScrambler().catch(() => {}); }, 400);
   if ('serviceWorker' in navigator && document.querySelector('link[rel=manifest]')) {

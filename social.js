@@ -47,18 +47,26 @@
         cache: 'no-store',
         signal: ctrl ? ctrl.signal : undefined,
       });
-      const j = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(j.error || `error ${r.status}`);
+      // A body cut short (a timeout halfway through) is a failure too, not an empty answer.
+      const j = await r.json().catch(() => null);
+      if (!r.ok) throw new Error((j && j.error) || `error ${r.status}`);
+      if (!j || typeof j !== 'object') throw new Error('respuesta incompleta del servidor');
       return j;
     } catch (e) {
       throw new Error(e.name === 'AbortError' ? 'el servidor no responde' : e.message);
     } finally { clearTimeout(tm); }
   }
+  // What the server has: null without a store; otherwise { kind, every } (how often to sync on our own, in s).
   let pingP = null;
   const backend = () => {
-    if (!pingP) pingP = api('api/ping', { timeout: 8000 }).then((j) => !!(j.ok && j.store), () => false);
+    if (!pingP) pingP = api('api/ping', { timeout: 8000 }).then((j) => (j.ok && j.store ? j : null), () => null);
     return pingP;
   };
+  // When to sync on its own: syncplan.js (a change waits for the next turn, or for leaving the page).
+  const plan = window.SyncPlan.create({
+    name: 'op3bld', enabled: () => !!(syncState() && syncState().key), sync: (why) => syncNow(false, why),
+    gap: async () => { const b = await backend(); return b && b.every; },
+  });
   const offlineNote = '<div class="result ko"><p>Esto necesita la app publicada en internet: ábrela en <b>old-pochmann-3bld.vercel.app</b>. Si ya estás ahí, revisa tu conexión.</p></div>';
 
   // ---------------- Name ----------------
@@ -553,37 +561,32 @@
     return changedHere;
   }
   let syncing = null;
-  async function syncNow(manual) {
+  async function syncNow(manual, why = 'hand') {
     const st = syncState();
     if (!st || !st.key) return;
     if (syncing) return syncing;
     syncing = (async () => {
-      setSyncStatus('Sincronizando…');
+      if (manual) setSyncStatus('Sincronizando…');
       try {
         if (!(await backend())) throw new Error('no hay conexión con el servidor');
         const remote = await api(`api/sync?k=${st.key}`);
         const changedHere = mergeIn(remote.data);
-        await api(`api/sync?k=${st.key}`, { body: { data: snapshot() } });
-        store.set(SYNC_KEY, { ...st, last: Date.now() });
+        if (plan.shouldPush(why, manual, !remote.data)) {
+          const mark = plan.mark();
+          await api(`api/sync?k=${st.key}`, { body: { data: snapshot() } });
+          plan.pushed(mark);
+        }
+        store.set(SYNC_KEY, { ...(syncState() || st), last: Date.now() });
         setSyncStatus(`Sincronizado ${changedHere ? 'y actualizado con tus otros dispositivos' : 'correctamente'}.`);
         if (changedHere) { renderList(); if (manual) toast('Datos actualizados'); }
       } catch (e) {
         setSyncStatus(`No se ha podido sincronizar: ${e.message}.`, true);
       }
     })();
-    try { await syncing; } finally { syncing = null; }
+    try { await syncing; } finally { syncing = null; plan.done(); }
   }
-  let pushTimer = 0;
-  function changed() {
-    if (!syncState()) return;
-    clearTimeout(pushTimer);
-    pushTimer = setTimeout(() => syncNow(false), 5000);
-  }
+  function changed() { plan.changed(); }
   document.addEventListener('op3:changed', changed);
-  document.addEventListener('visibilitychange', () => {
-    const st = syncState();
-    if (document.visibilityState === 'visible' && st && Date.now() - (st.last || 0) > 60000) syncNow(false);
-  });
   function setSyncStatus(text, bad) {
     const s = $('syncStatus');
     if (!s) return;
@@ -660,5 +663,5 @@
     try { history.replaceState(null, '', `${location.pathname}#retos`); } catch (e) { /* sandboxed */ }
     openReto(linkReto);
   }
-  if (syncState()) setTimeout(() => syncNow(false), 1200);
+  plan.start(1200);
 })();

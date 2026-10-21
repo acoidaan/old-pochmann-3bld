@@ -1,28 +1,5 @@
-// Shared helpers for the API routes. Data lives in a private Vercel Blob store.
-const { put, list, get, del } = require('@vercel/blob');
-
-const ACCESS = process.env.BLOB_ACCESS === 'public' ? 'public' : 'private';
-
-async function readJson(url) {
-  const r = await get(url, { access: ACCESS, useCache: false });
-  if (!r || r.statusCode !== 200 || !r.stream) return null;
-  return JSON.parse(await new Response(r.stream).text());
-}
-
-async function listAll(prefix) {
-  const out = [];
-  let cursor;
-  do {
-    const r = await list({ prefix, cursor, limit: 1000 });
-    out.push(...r.blobs);
-    cursor = r.hasMore ? r.cursor : undefined;
-  } while (cursor);
-  return out;
-}
-
-function writeJson(pathname, data) {
-  return put(pathname, JSON.stringify(data), { access: ACCESS, addRandomSuffix: true, contentType: 'application/json' });
-}
+// Shared helpers for the API routes. The data lives behind api/_kv.js (Redis, Vercel Blob or memory).
+const { kv, kindFor, EVERY } = require('./_kv');
 
 function send(res, status, obj) {
   res.statusCode = status;
@@ -49,29 +26,25 @@ function query(req, name) {
   return new URL(req.url, 'http://localhost').searchParams.get(name) || '';
 }
 
-const newest = (blobs) => blobs.slice().sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
-
 const RETO_ID = /^[a-z0-9]{8}$/;
 
-// A challenge with its results, one per device (the first one sent), oldest first; null if it does not exist.
-async function readReto(id) {
-  const blobs = await listAll(`retos/${id}/`);
-  const metaBlob = newest(blobs.filter((b) => b.pathname.startsWith(`retos/${id}/meta`)))[0];
-  if (!metaBlob) return null;
-  const meta = await readJson(metaBlob.url);
-  const rows = await Promise.all(blobs
-    .filter((b) => b.pathname.startsWith(`retos/${id}/r/`))
-    .sort((a, b) => new Date(a.uploadedAt) - new Date(b.uploadedAt))
-    .slice(0, 150)
-    .map((b) => readJson(b.url).catch(() => null)));
-  const seen = new Set();
-  const results = [];
-  rows.filter(Boolean).sort((a, b) => a.at - b.at).forEach((r) => {
-    if (seen.has(r.dev)) return;
-    seen.add(r.dev);
-    results.push(r);
-  });
-  return { meta, results, count: blobs.length };
+// The error a route answers with: the store being paused says so; anything else stays vague.
+function sendError(res, e) {
+  if (!(e && (e.paused || e.status || e instanceof SyntaxError))) console.error(e);
+  if (e && e.paused) return send(res, 503, { error: 'el almacenamiento de la app está en pausa', paused: true });
+  if (e && e.status === 413) return send(res, 413, { error: 'demasiados datos' });
+  if (e && e.status === 409) return send(res, 409, { error: e.message });
+  if (e instanceof SyntaxError) return send(res, 400, { error: 'datos no válidos' });
+  return send(res, 500, { error: 'error del servidor' });
+}
+// A pure handler's answer ({ status, body }) to the response; with no store, 503.
+async function run(res, fn) {
+  try {
+    const store = kv();
+    if (!store) return send(res, 503, { error: 'la app no tiene almacenamiento' });
+    const out = await fn(store);
+    return send(res, out.status, out.body);
+  } catch (e) { return sendError(res, e); }
 }
 
 const KIND_TEXT = { full: 'completo', edges: 'solo aristas', corners: 'solo esquinas' };
@@ -101,6 +74,4 @@ function summarizeReto(reto) {
   };
 }
 
-module.exports = {
-  readJson, listAll, writeJson, send, readBody, query, newest, del, readReto, RETO_ID, fmtTime, summarizeReto,
-};
+module.exports = { kv, kindFor, EVERY, send, sendError, run, readBody, query, RETO_ID, fmtTime, summarizeReto };
