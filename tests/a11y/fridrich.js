@@ -92,7 +92,10 @@ const SOLVE = ["D R' F2 L", "U R U' R'", "U' F' U F", "L' U' L", "U B U' B'", "F
     await p.evaluate(() => window.Fridrich.showView('entrenar'));
     await p.waitForTimeout(200);
     await run('entrenar · qué entrenar hoy');
-    // A training session, and its summary.
+    // Choosing the cases, a training session (and changing them), and its summary.
+    await p.click('[data-set-pick]');
+    await run('entrenar · elegir los casos');
+    await p.click('#pickCancel');
     await p.click('[data-set-go="look"]');
     await p.waitForFunction(() => window.Fridrich._.session(), null, { timeout: 5000 });
     for (let i = 0; i < 3; i++) {
@@ -102,6 +105,9 @@ const SOLVE = ["D R' F2 L", "U R U' R'", "U' F' U F", "L' U' L", "U B U' B'", "F
       await p.waitForTimeout(60);
     }
     await run('entrenar · sesión');
+    await p.click('#sessEdit');
+    await run('entrenar · sesión · cambiar los casos');
+    await p.keyboard.press('Escape');
     await p.click('#sessEnd');
     await run('entrenar · resumen de la sesión');
     await p.click('#sessClose');

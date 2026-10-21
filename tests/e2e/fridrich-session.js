@@ -1,5 +1,6 @@
 // «Fridrich reducido», learning against the timer: the two modes (their look switches by itself), a training
-// session (each case tracked, mastered after a few right in a row, the next case that costs most coming in),
+// session (each case tracked, mastered after a few right in a row, the next case that costs most coming in;
+// or the cases you choose, before or during it),
 // the OBS overlay switching to a learning layout by itself, leaving and coming back, a reload in the middle,
 // the summary and the past sessions, the suggestion that keeps up by itself outside a session, sync and the
 // phone.
@@ -148,6 +149,44 @@ const keys = (d) => ({ 'cfop:times:v1': d.times, 'cfop:trlog:v1': d.trlog, 'cfop
   });
   check('sync: sessions from your other devices come in once', synced === 1, String(synced));
   await ctx.close();
+
+  // ================= Your own cases =================
+  const own = await open({}, keys(seed(Date.now())), 'entrenar');
+  const q = own.p;
+  await q.click('[data-set-pick]');
+  const pk0 = await q.evaluate(() => ({ open: !document.getElementById('pickSheet').hidden, on: [...document.querySelectorAll('[data-pc][aria-pressed="true"]')].map((x) => x.dataset.pc).sort().join(), auto: document.getElementById('pickAuto').checked, go: document.getElementById('pickGo').textContent, stars: document.querySelectorAll('#pickCases .fr-chip-star').length }));
+  check('choose: «Elegir yo los casos» opens the 16, the recommended ones ticked (★) to start from', pk0.open && pk0.on === 'diag,pi,ua,ub,z' && pk0.stars === 5 && pk0.auto && /con 5 casos/.test(pk0.go), JSON.stringify(pk0));
+  await q.click('[data-pq="pll"]');
+  const pk1 = await q.evaluate(() => ({ n: document.querySelectorAll('[data-pc][aria-pressed="true"]').length, auto: document.getElementById('pickAuto').checked }));
+  await q.click('[data-pq="none"]');
+  const pk2 = await q.evaluate(() => ({ disabled: document.getElementById('pickGo').disabled, hint: document.getElementById('pickHint').textContent }));
+  check('choose: quick picks (all PLL: 6), and with none you cannot start', pk1.n === 6 && !pk1.auto && pk2.disabled && /al menos un caso/.test(pk2.hint), JSON.stringify([pk1, pk2]));
+  for (const id of ['z', 't', 'sune']) await q.click(`[data-pc="${id}"]`);
+  await q.click('[data-pm="look"]');
+  await q.click('#pickGo');
+  await q.waitForFunction(() => window.Fridrich._.session(), null, { timeout: 5000 });
+  const ses = await q.evaluate(() => { const x = window.Fridrich._.session(); return { set: x.set.join(), auto: x.auto, mode: x.mode, pick: JSON.parse(localStorage.getItem('cfop:pick:v1')).join(), rule: document.getElementById('sessRule').textContent, cards: [...document.querySelectorAll('#sessSet .fr-sc')].map((c) => c.dataset.sc).join() }; });
+  check('choose: the session with exactly your cases, how you chose', ses.set === 'sune,t,z' && ses.pick === 'sune,t,z' && ses.cards === 'sune,t,z' && ses.mode === 'look' && ses.auto === false && /Se queda en el set hasta que lo quites/.test(ses.rule), JSON.stringify(ses));
+  let kept = null;
+  for (let i = 0; i < 30 && !kept; i++) {
+    await answer(q, true);
+    kept = await q.evaluate(() => window.Fridrich._.session().done[0] || null);
+  }
+  const k1 = await q.evaluate((id) => ({ set: window.Fridrich._.session().set.join(), card: document.querySelector(`#sessSet [data-sc="${id}"]`) ? document.querySelector(`#sessSet [data-sc="${id}"]`).className + '|' + document.querySelector(`#sessSet [data-sc="${id}"]`).innerText.replace(/\s+/g, ' ') : '' }), kept);
+  check('choose: a mastered case of yours stays in the set, marked «Dominado»', !!kept && k1.set === 'sune,t,z' && /mastered/.test(k1.card) && /✓ Dominado/i.test(k1.card), JSON.stringify({ kept, k1 }));
+  await q.click('#sessEdit');
+  const ed0 = await q.evaluate(() => ({ title: document.getElementById('pickTitle').textContent, on: [...document.querySelectorAll('[data-pc][aria-pressed="true"]')].map((x) => x.dataset.pc).join(), mode: document.getElementById('pickModeRow').hidden }));
+  check('change: in the session, «Cambiar los casos» with yours ticked', /Cambiar los casos de la sesión/.test(ed0.title) && ed0.on === 'sune,t,z' && ed0.mode, JSON.stringify(ed0));
+  await q.keyboard.press('Escape');
+  check('change: Esc closes it, nothing changed', await q.evaluate(() => document.getElementById('pickSheet').hidden && window.Fridrich._.session().set.join() === 'sune,t,z'));
+  await q.click('#sessEdit');
+  await q.click('[data-pc="t"]');
+  await q.click('[data-pc="ua"]');
+  await q.click('#pickGo');
+  await q.waitForTimeout(200);
+  const ed1 = await q.evaluate(() => ({ set: window.Fridrich._.session().set.join(), pick: JSON.parse(localStorage.getItem('cfop:pick:v1')).join(), cur: window.Fridrich._.tr.c.id, toast: document.getElementById('toast').innerText, cards: document.querySelectorAll('#sessSet .fr-sc').length }));
+  check('change: out goes T, in comes Ua (the rest keep their place and count), and only those come up', ed1.set === 'sune,z,ua' && ed1.pick === 'sune,z,ua' && ['sune', 'z', 'ua'].includes(ed1.cur) && /Set cambiado: 3 casos/.test(ed1.toast) && ed1.cards === 3, JSON.stringify(ed1));
+  await own.ctx.close();
 
   // ================= The overlay's demo: with the smart cube =================
   const od = await browser.newContext({ viewport: { width: 1920, height: 1080 } });

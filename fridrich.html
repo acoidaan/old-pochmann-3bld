@@ -209,7 +209,7 @@
         </details>
       </section>
       <section class="panel fr-sess-panel" aria-labelledby="hSessSet" id="sessPanel" hidden>
-        <div class="panel-head"><h2 id="hSessSet">Tu set</h2></div>
+        <div class="panel-head"><h2 id="hSessSet">Tu set</h2><button class="btn" type="button" id="sessEdit">Cambiar los casos</button></div>
         <p class="hint fr-sess-rule" id="sessRule"></p>
         <div id="sessSet" aria-live="polite"></div>
       </section>
@@ -358,6 +358,33 @@
     <div class="actions">
       <button class="btn primary" type="submit">Conectar</button>
       <button class="btn" type="button" id="macCancel">Cancelar</button>
+    </div>
+  </form>
+</div>
+<div class="sheet" id="pickSheet" hidden role="dialog" aria-modal="true" aria-labelledby="pickTitle">
+  <form class="sheet-card fr-pick-sheet" id="pickForm">
+    <div class="panel-head"><h2 id="pickTitle">Elige tus casos</h2></div>
+    <div class="actions fr-pick-quick" role="group" aria-label="Elegir rápido">
+      <button class="btn" type="button" data-pq="rec">Los recomendados</button>
+      <button class="btn" type="button" data-pq="learning">Los que estoy aprendiendo</button>
+      <button class="btn" type="button" data-pq="oll">OLL</button>
+      <button class="btn" type="button" data-pq="pll">PLL</button>
+      <button class="btn" type="button" data-pq="none">Ninguno</button>
+    </div>
+    <div id="pickCases"></div>
+    <div class="field" id="pickModeRow">
+      <span class="field-title">Cómo</span>
+      <div class="seg small" role="group" aria-label="Cómo entrenar">
+        <button type="button" data-pm="cube">Cubo inteligente</button>
+        <button type="button" data-pm="hand">Cubo normal</button>
+        <button type="button" data-pm="look">Reconocer</button>
+      </div>
+    </div>
+    <label class="check"><input type="checkbox" id="pickAuto"> Cuando domine uno, cambiarlo por el siguiente que más me cueste</label>
+    <p class="hint" id="pickHint"></p>
+    <div class="actions">
+      <button class="btn primary" type="submit" id="pickGo">Empezar sesión</button>
+      <button class="btn" type="button" id="pickCancel">Cancelar</button>
     </div>
   </form>
 </div>

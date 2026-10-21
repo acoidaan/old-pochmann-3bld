@@ -1936,6 +1936,7 @@
       <div class="actions fr-set-go">
         <button class="btn primary" type="button" data-set-go="${rec}">Empezar sesión · ${MODE_NAME[rec]}</button>
         ${['cube', 'hand', 'look'].filter((m) => m !== rec).map((m) => `<button class="btn" type="button" data-set-go="${m}">${MODE_NAME[m]}</button>`).join('')}
+        <button class="btn" type="button" data-set-pick>Elegir yo los casos…</button>
       </div>
       <p class="hint">${setWhy(plan.setMode)} En la sesión llevo la cuenta de cada caso y, cuando dominas uno, entra el siguiente que más te cuesta.</p></div>`;
     box.innerHTML = html;
@@ -1977,6 +1978,7 @@
   $('planBox').addEventListener('click', (ev) => {
     const set = ev.target.closest('[data-set-go]');
     if (set) { startSet(set.dataset.setGo); return; }
+    if (ev.target.closest('[data-set-pick]')) { openPicker('start'); return; }
     const go = ev.target.closest('[data-plan-go]');
     if (!go) return;
     if (go.dataset.planGo === 'slow') {
@@ -2021,14 +2023,17 @@
     };
   }
   const caseNow = () => S.caseStats(times, train, trlog, learn);
-  function startSession(mode) {
+  // ids: the cases you chose (the recommended set if none); auto: a mastered case makes way for the next one
+  // that costs most (by default only with the recommended set: the ones you chose stay).
+  function startSession(mode, ids0, auto) {
     if (!plan) plan = recommendation();
     if (session) { setTrMode(mode); return; }
-    const ids = plan.set.map((x) => x.id);
+    const ids = ids0 && ids0.length ? ids0.slice() : plan.set.map((x) => x.id);
     const now2 = Date.now();
     session = {
       at: now2, mode, set: ids, done: [], swaps: [], per: {}, n: 0, ok: 0, lost: 0, active: 0, lastAt: now2, since: 0,
       prevPick: pick.slice(), refRec: plan.refRec, refTps: plan.refTps, look: lookTarget(),
+      auto: auto != null ? !!auto : !ids0, chosen: !!ids0,
     };
     const stats = caseNow();
     ids.forEach((id) => initPer(id, stats));
@@ -2071,7 +2076,7 @@
     session.since++;
     saveSession();
     if (won) masterCase(won);
-    else if (session.since >= 12) reweigh();
+    else if (session.since >= 12 && session.auto !== false) reweigh();
     renderSession();
   }
   // The next case that costs you most, of the ones not in the set nor mastered today.
@@ -2094,8 +2099,9 @@
     const p = session.per[id];
     p.mastered = Date.now();
     session.done.push(id);
-    const next = candidate();
-    if (next || session.set.length > 1) swapIn(id, next && next.id, 'dominado');
+    // With the cases you chose (and that option off), a mastered one stays: you take it out if you want.
+    const next = session.auto !== false ? candidate() : null;
+    if (session.auto !== false && (next || session.set.length > 1)) swapIn(id, next && next.id, 'dominado');
     session.since = 0;
     saveSession();
     const c = C.caseById(id);
@@ -2153,10 +2159,11 @@
     }
     const last = p.last.map((x) => (x.x ? '<span class="ko">perdido</span>' : x.ok ? `<span class="ok">✓${x.t != null && x.m !== 'h' ? ` ${f1(x.t)}` : ''}</span>` : '<span class="ko">✗</span>')).join('');
     const cur = !!(tr.c && tr.c.id === id);
-    return `<article class="fr-sc${cur ? ' cur' : ''}${lastWon === id ? ' won' : ''}" data-sc="${id}">
+    const won = !!p.mastered;
+    return `<article class="fr-sc${cur ? ' cur' : ''}${won ? ' mastered' : ''}${lastWon === id ? ' won' : ''}" data-sc="${id}">
       <div class="fr-sc-pic">${casePicture(c)}</div>
       <div class="fr-sc-body">
-        <div class="fr-sc-top"><b>${esc(c.name)}</b><span class="muted">${STEP_NAME[c.step]}</span><span class="fr-pips" role="img" aria-label="${k} de ${need} seguidos para dominarlo">${pips}</span><span class="fr-sc-now"${cur ? '' : ' hidden'}>Ahora</span></div>
+        <div class="fr-sc-top"><b>${esc(c.name)}</b><span class="muted">${STEP_NAME[c.step]}</span><span class="fr-pips" role="img" aria-label="${k} de ${need} seguidos para dominarlo">${pips}</span>${won ? '<span class="fr-sc-won">✓ Dominado</span>' : ''}<span class="fr-sc-now"${cur ? '' : ' hidden'}>Ahora</span></div>
         <p class="fr-sc-line">${line}</p>
         ${last ? `<p class="fr-sc-last" aria-label="Últimos intentos">${last}</p>` : ''}
       </div>
@@ -2167,15 +2174,16 @@
     const need = NEED[session.mode];
     $('sessClock').textContent = clockText();
     $('sessNums').innerHTML = `<b>${session.n}</b> ${session.n === 1 ? 'caso' : 'casos'} · <b>${pct(session.ok, session.n)} %</b> bien${session.lost ? ` · ${session.lost} perdido${session.lost === 1 ? '' : 's'}` : ''} · <b>${session.done.length}</b> ${session.done.length === 1 ? 'dominado' : 'dominados'}`;
-    $('sessRule').textContent = session.mode === 'cube' ? `Dominas un caso con ${need} seguidos por debajo de su objetivo (tu buen nivel para ese caso).`
+    $('sessRule').textContent = (session.mode === 'cube' ? `Dominas un caso con ${need} seguidos por debajo de su objetivo (tu buen nivel para ese caso).`
       : session.mode === 'look' ? `Dominas un caso con ${need} seguidos bien y en menos de ${secs(session.look)}.`
-        : `Dominas un caso con ${need} seguidos bien, sin perderte.`;
+        : `Dominas un caso con ${need} seguidos bien, sin perderte.`)
+      + (session.auto !== false ? ' Entonces sale del set y entra el siguiente que más te cuesta.' : ' Se queda en el set hasta que lo quites.');
     // On a phone the set is below the trainer: a line with each case and its progress, in the bar.
     $('sessMini').innerHTML = session.set.map((id) => {
       const k = Math.min(need, streakOf(session.per[id]));
       return `<span class="${tr.c && tr.c.id === id ? 'cur' : ''}">${esc(shortName(C.caseById(id)))} ${'●'.repeat(k)}${'○'.repeat(need - k)}</span>`;
     }).join('');
-    const done = session.done.map((id) => C.caseById(id));
+    const done = session.done.filter((id) => !session.set.includes(id)).map((id) => C.caseById(id));
     const swaps = session.swaps.filter((x) => x.why !== 'dominado');
     $('sessSet').innerHTML = session.set.map(caseCard).join('')
       + (done.length ? `<div class="fr-sc-done"><span class="field-title">Dominados en esta sesión</span><ul>${done.map((c) => `<li>✓ <b>${esc(c.name)}</b> <span class="muted">${STEP_NAME[c.step]}</span></li>`).join('')}</ul></div>` : '')
@@ -2274,6 +2282,107 @@
     save(K.session, null);
     if (old && old.n) { const list = load(K.sessions, []); list.push({ at: old.at, end: old.lastAt, active: old.active, mode: old.mode, n: old.n, ok: old.ok, lost: old.lost, done: old.done || [], cases: [] }); save(K.sessions, list.slice(-200)); }
   }
+
+  // ================= Choosing the cases of a session =================
+  // Before (from «Qué entrenar hoy») or during a session: the 16 cases to tick, a few quick picks, how to train
+  // them, and whether a mastered case makes way for the next one.
+  const pk = { ids: new Set(), mode: 'cube', auto: false, kind: 'start', autoTouched: false };
+  function openPicker(kind) {
+    if (!plan) plan = recommendation();
+    pk.kind = kind;
+    pk.autoTouched = false;
+    if (kind === 'edit' && session) {
+      pk.ids = new Set(session.set);
+      pk.mode = session.mode;
+      pk.auto = session.auto !== false;
+    } else {
+      const last = Array.isArray(settings.pickLast) ? settings.pickLast.filter((id) => C.caseById(id)) : [];
+      pk.ids = new Set(last.length ? last : plan.set.map((x) => x.id));
+      pk.mode = modeFor(plan.setMode);
+      pk.auto = sameAsRec();
+    }
+    $('pickTitle').textContent = kind === 'edit' ? 'Cambiar los casos de la sesión' : 'Elige tus casos';
+    $('pickModeRow').hidden = kind === 'edit';
+    renderPicker();
+    $('pickSheet').hidden = false;
+    const first = $('pickCases').querySelector('button');
+    if (first) first.focus();
+  }
+  function sameAsRec() {
+    const rec = plan.set.map((x) => x.id);
+    return rec.length === pk.ids.size && rec.every((id) => pk.ids.has(id));
+  }
+  function renderPicker() {
+    const recIds = new Set(plan.set.map((x) => x.id));
+    const cost = Object.fromEntries(plan.scored.map((x) => [x.id, x.ms]));
+    $('pickCases').innerHTML = C.LL.map((step) => `<div class="fr-pick-row"><span class="field-title">${STEP_NAME[step]}</span>${C.CASES.filter((c) => c.step === step).map((c) => {
+      const on = pk.ids.has(c.id);
+      const st = statusOf(c.id);
+      return `<button type="button" class="fr-chip${st === 'learning' ? ' learning' : ''}" data-pc="${c.id}" aria-pressed="${on}" title="${esc(`${c.name}${recIds.has(c.id) ? ' · recomendado' : ''}${cost[c.id] >= 15 ? ` · te cuesta ${(cost[c.id] / 1000).toFixed(2)} s por solve` : ''}`)}">${recIds.has(c.id) ? '<span class="fr-chip-star" aria-label="recomendado">★</span> ' : ''}${esc(shortName(c))}</button>`;
+    }).join('')}</div>`).join('');
+    document.querySelectorAll('[data-pm]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.pm === pk.mode)));
+    $('pickAuto').checked = pk.auto;
+    const n = pk.ids.size;
+    $('pickGo').textContent = pk.kind === 'edit' ? `Guardar (${n} ${n === 1 ? 'caso' : 'casos'})` : `Empezar sesión con ${n} ${n === 1 ? 'caso' : 'casos'}`;
+    $('pickGo').disabled = !n;
+    $('pickHint').textContent = n ? '★: los recomendados para ti. Con línea discontinua, los que marcaste como «Aprendiendo».' : 'Elige al menos un caso.';
+  }
+  $('pickCases').addEventListener('click', (ev) => {
+    const b = ev.target.closest('[data-pc]');
+    if (!b) return;
+    const id = b.dataset.pc;
+    if (pk.ids.has(id)) pk.ids.delete(id); else pk.ids.add(id);
+    if (!pk.autoTouched && pk.kind === 'start') pk.auto = sameAsRec();
+    renderPicker();
+    const again = $('pickCases').querySelector(`[data-pc="${id}"]`);
+    if (again) again.focus();
+  });
+  document.querySelectorAll('[data-pq]').forEach((b) => b.addEventListener('click', () => {
+    const q = b.dataset.pq;
+    const all = C.CASES.map((c) => c.id);
+    const ids = q === 'rec' ? plan.set.map((x) => x.id) : q === 'none' ? [] : q === 'learning' ? all.filter((id) => statusOf(id) === 'learning')
+      : all.filter((id) => C.caseById(id).step.startsWith(q));
+    if (q === 'learning' && !ids.length) { toast('Marca en «Casos» los que estás aprendiendo'); return; }
+    pk.ids = new Set(ids);
+    if (!pk.autoTouched && pk.kind === 'start') pk.auto = sameAsRec();
+    renderPicker();
+  }));
+  document.querySelectorAll('[data-pm]').forEach((b) => b.addEventListener('click', () => { pk.mode = b.dataset.pm; renderPicker(); }));
+  $('pickAuto').addEventListener('change', (ev) => { pk.auto = ev.target.checked; pk.autoTouched = true; });
+  const closePicker = () => { $('pickSheet').hidden = true; };
+  $('pickCancel').addEventListener('click', closePicker);
+  $('pickSheet').addEventListener('click', (ev) => { if (ev.target.id === 'pickSheet') closePicker(); });
+  document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape' && !$('pickSheet').hidden) closePicker(); });
+  $('pickForm').addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    if (!pk.ids.size) return;
+    // In the order of the steps, the way you see them.
+    const ids = C.CASES.map((c) => c.id).filter((id) => pk.ids.has(id));
+    closePicker();
+    if (pk.kind === 'edit' && session) { editSet(ids, pk.auto); return; }
+    settings.pickLast = ids;
+    saveSettings();
+    startSession(pk.mode, ids, pk.auto);
+  });
+  // During a session: the cases kept keep their place and their count; the new ones start from zero.
+  function editSet(ids, auto) {
+    const keep = session.set.filter((id) => ids.includes(id));
+    const added = ids.filter((id) => !keep.includes(id));
+    const stats = caseNow();
+    added.forEach((id) => { if (!session.per[id]) initPer(id, stats); });
+    session.set = keep.concat(added);
+    session.auto = !!auto;
+    pick = session.set.slice();
+    save(K.pick, pick);
+    renderPick();
+    saveSession();
+    renderSession();
+    toast(`Set cambiado: ${session.set.length} ${session.set.length === 1 ? 'caso' : 'casos'}`);
+    if (!tr.c || !session.set.includes(tr.c.id)) {
+      if (settings.trMode === 'cube' && cube && cube.on) { tr.result = null; tr.c = nextCase(tr.c && tr.c.id); markCurrent(); trPrepare(); } else trNext();
+    }
+  }
+  $('sessEdit').addEventListener('click', () => openPicker('edit'));
 
   // ================= Your cases, in numbers =================
   let caseSort = 'cost';
@@ -3516,7 +3625,7 @@
     paceFor: (r) => { const pf = settings.pace !== 'off' ? paceFor(r) : null; return pf ? { d: pf.rows.map((x) => Math.round(x.d)), gold: pf.rows.map((x) => x.gold), total: Math.round(pf.total), label: pf.label } : null; },
     recordsOf,
     // For tests.
-    _: { simSolution, caseTarget, tr, settings, celebrate, paceRef, bestsOf, paceTick, myBests, ligaPublish, player, loadLeague, lg, session: () => session, endSession, startSession, follow: () => follow, makeFollow, partialKeys, setScramble, makeTry, ct, vibes, syncNow, mergeIn, offerUpdate, focus: () => focus.on },
+    _: { simSolution, caseTarget, tr, settings, celebrate, paceRef, bestsOf, paceTick, myBests, ligaPublish, player, loadLeague, lg, session: () => session, endSession, startSession, openPicker, follow: () => follow, makeFollow, partialKeys, setScramble, makeTry, ct, vibes, syncNow, mergeIn, offerUpdate, focus: () => focus.on },
   };
 
   // ================= Start =================

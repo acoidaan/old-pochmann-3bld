@@ -326,6 +326,17 @@ body.training #trPanel { position: sticky; top: 124px; border-color: var(--fr-mo
 .fr-sc-done { display: grid; gap: 6px; padding: 10px 12px; border-radius: 12px; background: var(--fr-mode-soft); font-size: 13.5px; }
 .fr-sc-done ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 3px; }
 .fr-sc-swaps { margin: 0; font-size: 12.5px; color: var(--muted); }
+.fr-sc.mastered { border-color: var(--ok); }
+.fr-sc-won { font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--ok); }
+.fr-pick-sheet { width: min(620px, 100%); }
+.fr-pick-sheet .fr-pick-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 8px; }
+.fr-pick-sheet .fr-pick-row .field-title { flex-basis: 100%; }
+.fr-pick-quick { gap: 6px; }
+.fr-pick-quick .btn { font-size: 13px; padding: 5px 10px; }
+.fr-pick-sheet .fr-chip { font-size: 14px; padding: 7px 14px; }
+.fr-chip-star { color: var(--fr-gold); }
+.fr-chip[aria-pressed="true"] .fr-chip-star { color: inherit; }
+.panel-head #sessEdit { font-size: 13px; padding: 5px 12px; }
 .fr-sess-sum { width: min(560px, 100%); }
 .fr-sess-sum .stats { margin: 0; }
 .fr-sess-sum table { width: 100%; border-collapse: collapse; font-size: 13.5px; font-variant-numeric: tabular-nums; }
