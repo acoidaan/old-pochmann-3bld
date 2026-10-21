@@ -163,6 +163,34 @@ const save = (p, name, opts) => p.screenshot({ path: path.join(OUT, name), ...op
     await ctx.close();
   }
 
+  // «Fridrich reducido» with a history: Progreso and «Qué entrenar hoy».
+  {
+    const { seed } = require('./fixtures/cfop-seed');
+    const d = seed(START.getTime());
+    const ctx = await browser.newContext({ deviceScaleFactor: 1, viewport: { width: 1280, height: 1000 }, colorScheme: 'light', timezoneId: 'Europe/Madrid' });
+    await ctx.route(/fonts\.googleapis\.com/, (r) => r.fulfill({ contentType: 'text/css', body: FONTS_CSS }));
+    await ctx.route(/fonts\.gstatic\.com/, (r) => r.abort());
+    await ctx.addInitScript((x) => {
+      if (sessionStorage.getItem('seeded')) return;
+      sessionStorage.setItem('seeded', '1');
+      Object.entries(x).forEach(([k, v]) => localStorage.setItem(k, JSON.stringify(v)));
+    }, { 'cfop:times:v1': d.times, 'cfop:trlog:v1': d.trlog, 'cfop:train:v1': d.train, 'cfop:crosstr:v1': d.crossTr, 'cfop:learn:v1': d.learn });
+    const p = await ctx.newPage();
+    await p.clock.install({ time: START });
+    await p.goto(`${SITE}/fridrich#progreso`);
+    await p.clock.runFor(2500);
+    await p.evaluate(() => document.fonts.ready);
+    await save(p, 'fridrich-progreso.png', { clip: { x: 0, y: 0, width: 1280, height: 1000 } });
+    done.push('fridrich-progreso.png');
+    await p.evaluate(() => window.Fridrich.showView('entrenar'));
+    await p.clock.runFor(300);
+    const top = await p.evaluate(() => document.getElementById('planBox').closest('section').getBoundingClientRect().top + window.scrollY);
+    await p.evaluate((y) => window.scrollTo(0, y - 80), top);
+    await save(p, 'fridrich-plan.png');
+    done.push('fridrich-plan.png');
+    await ctx.close();
+  }
+
   // The stream overlay over a scene, executing with the cube.
   {
     const ctx = await browser.newContext({ viewport: { width: 1600, height: 900 }, deviceScaleFactor: 1 });

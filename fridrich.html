@@ -42,6 +42,7 @@
     <button type="button" class="tab" data-go="crono"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13.5" r="7.5"/><path d="M12 13.5V9.5M9.5 2.5h5M12 2.5V6M18.3 6.7 19.8 5.2"/></svg><span>Cronómetro</span></button>
     <button type="button" class="tab" data-go="casos"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2.5"/><path d="M4 9.3h16M4 14.7h16M9.3 4v16M14.7 4v16"/></svg><span>Casos</span></button>
     <button type="button" class="tab" data-go="entrenar"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/></svg><span>Entrenar</span></button>
+    <button type="button" class="tab" data-go="progreso"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16"/><path d="M5 16l4.5-5 3.5 3 6-7"/><path d="M15 7h4v4"/></svg><span>Progreso</span></button>
     <button type="button" class="tab tab-ajustes" data-go="ajustes"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2.2"/><circle cx="9" cy="17" r="2.2"/></svg><span>Ajustes</span></button>
   </nav>
 
@@ -170,7 +171,11 @@
 
     <!-- ================= Entrenar ================= -->
     <div class="view" data-view="entrenar" hidden>
-      <section class="panel" aria-labelledby="hTrain">
+      <section class="panel fr-plan" aria-labelledby="hPlan">
+        <div class="panel-head"><h2 id="hPlan">Qué entrenar hoy</h2></div>
+        <div id="planBox"></div>
+      </section>
+      <section class="panel" aria-labelledby="hTrain" id="trPanel">
         <div class="panel-head">
           <h2 id="hTrain">Entrenar casos</h2>
           <div class="seg" role="group" aria-label="Cómo entrenar">
@@ -179,6 +184,7 @@
             <button type="button" id="trModeLook" aria-pressed="false">Reconocer</button>
           </div>
         </div>
+        <div class="fr-set-note" id="trSetNote" hidden></div>
         <div class="fr-train" id="trBox" aria-live="polite"></div>
         <details class="fr-pick" open>
           <summary>Qué casos salen</summary>
@@ -191,10 +197,61 @@
           <div class="fr-pick-cases" id="trPick"></div>
         </details>
       </section>
-      <section class="panel" aria-labelledby="hCrossTr">
+      <section class="panel" aria-labelledby="hCrossTr" id="ctPanel">
         <div class="panel-head"><h2 id="hCrossTr">Entrenar la cruz</h2></div>
         <p class="hint">Mezcla, planea la cruz entera en la inspección y hazla de una vez, sin parar. Después te enseño la más corta para que compares. Con el cubo inteligente, además, cuento tus giros y tu tiempo.</p>
         <div class="fr-crosstr" id="crossTr" aria-live="polite"></div>
+      </section>
+      <section class="panel" aria-labelledby="hTrStats">
+        <div class="panel-head">
+          <h2 id="hTrStats">Tus casos, en números</h2>
+          <div class="seg small" role="group" aria-label="Orden de los casos">
+            <button type="button" data-case-sort="cost" aria-pressed="true">Lo que más cuesta</button>
+            <button type="button" data-case-sort="step" aria-pressed="false">Por paso</button>
+          </div>
+        </div>
+        <div id="trStats"></div>
+      </section>
+    </div>
+
+    <!-- ================= Progreso ================= -->
+    <div class="view" data-view="progreso" hidden>
+      <section class="panel" aria-labelledby="hProg">
+        <div class="panel-head"><h2 id="hProg">Tu progreso</h2></div>
+        <div id="progSummary"></div>
+      </section>
+      <section class="panel" aria-labelledby="hDays" id="progDaysPanel">
+        <div class="panel-head">
+          <h2 id="hDays">Día a día</h2>
+          <div class="seg small" role="group" aria-label="Qué días">
+            <button type="button" data-days="30" aria-pressed="false">30 días</button>
+            <button type="button" data-days="90" aria-pressed="true">90 días</button>
+            <button type="button" data-days="0" aria-pressed="false">Todo</button>
+          </div>
+        </div>
+        <div class="fr-chart-plot" id="dayChart"></div>
+        <p class="fr-chart-legend" id="dayLegend"></p>
+        <div id="progMilestones"></div>
+      </section>
+      <section class="panel" aria-labelledby="hAct" id="progActPanel">
+        <div class="panel-head"><h2 id="hAct">Constancia</h2></div>
+        <div id="progActivity"></div>
+      </section>
+      <section class="panel" aria-labelledby="hStepsP" id="progStepsPanel">
+        <div class="panel-head"><h2 id="hStepsP">Por pasos</h2></div>
+        <div id="progSteps"></div>
+      </section>
+      <section class="panel" aria-labelledby="hEff" id="progEffPanel">
+        <div class="panel-head"><h2 id="hEff">Eficiencia</h2></div>
+        <div id="progEff"></div>
+      </section>
+      <section class="panel" aria-labelledby="hCrossP" id="progCrossPanel">
+        <div class="panel-head"><h2 id="hCrossP">La cruz</h2></div>
+        <div id="progCross"></div>
+      </section>
+      <section class="panel" aria-labelledby="hCasesP" id="progCasesPanel">
+        <div class="panel-head"><h2 id="hCasesP">Casos</h2></div>
+        <div id="progCases"></div>
       </section>
     </div>
 
@@ -279,6 +336,7 @@
 
 <script src="cubemodel.js"></script>
 <script src="cfop.js"></script>
+<script src="cfopstats.js"></script>
 <script src="smartcube.js"></script>
 <script src="fridrich.js"></script>
 <script src="stream.js"></script>

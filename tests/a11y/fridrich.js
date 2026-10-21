@@ -1,8 +1,9 @@
 // axe-core and horizontal overflow on «Fridrich reducido»: every view, phone and desktop, light and dark,
-// with the cube following a solve and both trainers.
+// with the cube following a solve and both trainers, and with a history (Progreso, «Qué entrenar hoy»).
 const { chromium, devices } = require('playwright');
 const { SITE } = require('../env');
 const fs = require('fs');
+const { seed } = require('../fixtures/cfop-seed');
 const axeSrc = fs.readFileSync(require.resolve('axe-core/axe.min.js'), 'utf8');
 let problems = 0;
 const SOLVE = ["D R' F2 L", "U R U' R'", "U' F' U F", "L' U' L", "U B U' B'", "F R U R' U' F'", "R U R' U R U2 R'", "R U R' U' R' F R2 U' R' U' R U R' F'", "R U' R U R U R U' R' U' R2"];
@@ -64,6 +65,16 @@ const SOLVE = ["D R' F2 L", "U R U' R'", "U' F' U F", "L' U' L", "U B U' B'", "F
     await p.click('#trModeCube');
     await p.waitForFunction(() => window.Fridrich._.tr.follow || window.Fridrich._.tr.err, null, { timeout: 30000 });
     await run('entrenar · con el cubo');
+    // With a history: Progreso and «Qué entrenar hoy».
+    await p.evaluate((d) => {
+      Object.entries({ 'cfop:times:v1': d.times, 'cfop:trlog:v1': d.trlog, 'cfop:train:v1': d.train, 'cfop:crosstr:v1': d.crossTr, 'cfop:learn:v1': d.learn }).forEach(([k, v]) => localStorage.setItem(k, JSON.stringify(v)));
+    }, seed(Date.now()));
+    await p.goto(`${SITE}/fridrich?cubo=virtual#progreso`);
+    await p.waitForFunction(() => window.Fridrich && document.querySelector('.fr-prog-lead'), null, { timeout: 30000 });
+    await run('progreso');
+    await p.evaluate(() => window.Fridrich.showView('entrenar'));
+    await p.waitForTimeout(200);
+    await run('entrenar · qué entrenar hoy');
     await ctx.close();
   }
   console.log(`${problems} problems`);

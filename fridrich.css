@@ -256,6 +256,91 @@ body.fr .install { padding: 4px 12px; font-size: 13px; }
 .fr-feedback .btn { margin-left: 4px; }
 @media (hover: none) { .fr-options kbd { display: none; } }
 
+/* ---------- What to train today ---------- */
+:root { --fr-h0: #E6EAF0; --fr-h1: #C6D8F5; --fr-h2: #8FB4EC; --fr-h3: #4F86D9; --fr-h4: #2459A8; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --fr-h0: #252C37; --fr-h1: #1F3B66; --fr-h2: #2C5A9C; --fr-h3: #4479CC; --fr-h4: #7FA9EE; } }
+:root[data-theme="dark"] { --fr-h0: #252C37; --fr-h1: #1F3B66; --fr-h2: #2C5A9C; --fr-h3: #4479CC; --fr-h4: #7FA9EE; }
+#planBox { display: grid; gap: 18px; }
+.fr-gain { display: grid; gap: 10px; }
+.fr-gain > summary { cursor: pointer; }
+.fr-gain[open] > summary { margin-bottom: 10px; }
+.fr-gain-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.fr-gain-list li { display: grid; gap: 5px; justify-items: start; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--raise); }
+.fr-gain-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; width: 100%; }
+.fr-gain-s { font-variant-numeric: tabular-nums; font-weight: 700; white-space: nowrap; }
+.fr-gain-bar { display: block; width: 100%; height: 8px; border-radius: 4px; background: var(--fr-h0); overflow: hidden; }
+.fr-gain-bar i { display: block; height: 100%; border-radius: 4px; background: var(--fr-a5); }
+.fr-gain-list .hint { margin: 0; }
+.fr-setbox { display: grid; gap: 10px; }
+.fr-set { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 10px; }
+.fr-set-card { display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 12px; align-items: start; padding: 10px; border: 1px solid var(--line); border-radius: 12px; background: var(--raise); }
+.fr-set-pic .fr-top { width: 84px; height: auto; }
+.fr-set-body { display: grid; gap: 4px; min-width: 0; }
+.fr-set-body h4 { margin: 0; font-size: 15px; }
+.fr-set-body h4 .muted { font-weight: 600; font-size: 12.5px; }
+.fr-set-alg { margin: 0; }
+.fr-why { margin: 0; padding-left: 16px; font-size: 13px; color: var(--muted); display: grid; gap: 2px; }
+.fr-set-note { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; border-radius: 10px; background: var(--accent-soft); font-size: 14px; }
+.fr-sess { margin: 6px 0 0; font-size: 13.5px; color: var(--muted); }
+.fr-sess b { color: var(--ink); }
+.fr-lost { align-items: center; }
+.fr-lost .hint { margin: 0; }
+.stat small { font-size: 12px; color: var(--muted); line-height: 1.3; }
+.fr-tr-tiles { margin-bottom: 12px; }
+.fr-badge { display: inline-block; padding: 1px 7px; border-radius: 999px; font-size: 11px; font-weight: 700; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+.fr-badge.known { border-color: var(--ok); color: var(--ok); }
+.fr-badge.learning { border-color: var(--accent); color: var(--accent); border-style: dashed; }
+.fr .fr-case-table th .muted { font-weight: 600; text-transform: none; letter-spacing: 0; }
+.fr .fr-case-table td { font-size: 13px; }
+.fr-case-n { font-weight: 700; }
+.fr .fr-case-table td.fr-cost-c { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.fr-cost { display: inline-block; vertical-align: middle; width: 56px; height: 6px; margin-right: 6px; border-radius: 3px; background: var(--fr-h0); overflow: hidden; }
+.fr-cost i { display: block; height: 100%; background: var(--fr-a5); }
+@media (max-width: 640px) {
+  .fr-hm-wrap { --hm: 13px; }
+  .fr .fr-an-table.fr-case-table thead { display: none; }
+  .fr .fr-an-table.fr-case-table tbody tr { grid-template-columns: minmax(0, 1fr) auto; }
+  .fr .fr-an-table.fr-case-table tbody td { grid-column: 1 / -1; padding-top: 0; }
+  .fr .fr-an-table.fr-case-table tbody td.fr-cost-c { grid-column: 2; grid-row: 1; padding-top: 6px; }
+  .fr .fr-case-table td:nth-child(2)::before { content: "En tus solves: "; color: var(--muted); }
+  .fr .fr-case-table td:nth-child(3)::before { content: "Entrenando: "; color: var(--muted); }
+}
+
+/* ---------- Progreso ---------- */
+.fr-prog-lead { margin: 0 0 12px; font-size: 15.5px; line-height: 1.6; }
+.fr-delta { font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.fr-delta.good { color: var(--ok); }
+.fr-delta.bad { color: var(--accent); }
+.fr-delta.same { color: var(--muted); font-weight: 600; }
+.fr-miles { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px 24px; margin-top: 12px; }
+.fr-miles ul { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 4px; font-size: 14px; }
+.fr-key.best { width: 9px; height: 9px; border-radius: 50%; border: 2px solid var(--fr-a12); background: none; }
+.fr-dmean { fill: var(--fr-a5); }
+.fr-dbest { fill: var(--surface); stroke: var(--fr-a12); stroke-width: 2; }
+.fr-hm-wrap { --hm: 16px; display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
+.fr-hm-days { display: grid; grid-template-rows: repeat(7, var(--hm)); gap: 3px; margin-top: 19px; font-size: 10px; color: var(--muted); line-height: var(--hm); }
+.fr-hm-main { display: grid; gap: 4px; }
+.fr-hm-months { display: grid; gap: 3px; font-size: 10px; color: var(--muted); height: 15px; white-space: nowrap; }
+.fr-hm { display: grid; grid-template-rows: repeat(7, var(--hm)); grid-auto-flow: column; gap: 3px; }
+.fr-hm i, .fr-hm-key i { display: block; width: var(--hm); height: var(--hm); border-radius: 3px; background: var(--fr-h0); }
+.fr-hm i.h1, .fr-hm-key i.h1 { background: var(--fr-h1); }
+.fr-hm i.h2, .fr-hm-key i.h2 { background: var(--fr-h2); }
+.fr-hm i.h3, .fr-hm-key i.h3 { background: var(--fr-h3); }
+.fr-hm i.h4, .fr-hm-key i.h4 { background: var(--fr-h4); }
+.fr-hm-key { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin: 8px 0 12px; font-size: 12px; color: var(--muted); }
+.fr-hm-key i { --hm: 11px; }
+.fr-prog-tiles { margin-top: 4px; }
+.fr-step-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+.fr-step-card { display: grid; gap: 3px; align-content: start; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--raise); font-size: 13px; }
+.fr-step-v { font-family: var(--font-display); font-size: 22px; font-variant-numeric: tabular-nums; }
+.fr-spark { width: 100%; height: auto; margin-top: 4px; overflow: visible; }
+.fr-spark path { fill: none; stroke: var(--fr-a5); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.fr-spark circle { fill: var(--fr-a5); }
+.fr-eff-spark { display: grid; gap: 4px; max-width: 420px; margin-top: 12px; }
+.fr-top-cases { margin: 6px 0 10px; padding-left: 20px; display: grid; gap: 6px; font-size: 14px; }
+#progSteps .hint, #progEff .hint { margin: 0 0 8px; }
+#progSteps .fr-note { margin-top: 10px; }
+
 /* ---------- Ajustes ---------- */
 .fr-settings { display: grid; gap: 12px; max-width: 640px; }
 .fr-settings .field select { justify-self: start; min-width: 220px; }
@@ -263,7 +348,7 @@ body.fr .install { padding: 4px 12px; font-size: 13px; }
 /* ---------- Phones ---------- */
 @media (max-width: 860px) {
   .fr .brand { display: grid; }
-  .fr .tabs { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .fr .tabs { grid-template-columns: repeat(5, minmax(0, 1fr)); }
   .fr .tab-ajustes { display: flex; margin-left: 0; }
   .fr-head { align-items: center; }
   .fr-head .brand h1 { font-size: 20px; }
