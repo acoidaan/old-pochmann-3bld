@@ -1,7 +1,7 @@
 // «Fridrich reducido», the numbers: the stats engine on a known history (fixtures/cfop-seed.js), the
 // «Progreso» view, «Qué entrenar hoy» (where the time goes, the recommended set and training it), the cases in
-// numbers, «me he perdido» with the smart cube and with a normal cube, the training log in sync, the empty
-// page and the phone.
+// numbers, «me he perdido» with the smart cube and with a normal cube, the training log in sync, the live pace
+// against your average and the records (page and OBS overlay), the empty page and the phone.
 const { chromium, devices } = require('playwright');
 const { SITE, SHOTS } = require('../env');
 const { seed } = require('../fixtures/cfop-seed');
@@ -170,6 +170,73 @@ const keys = (d) => ({ 'cfop:times:v1': d.times, 'cfop:trlog:v1': d.trlog, 'cfop
   });
   check('sync: training attempts merge in once, in order, unknown cases left out', merged.n === 1 && !merged.bad && merged.sorted, JSON.stringify(merged));
   await ctx.close();
+
+  // ================= Pace and records =================
+  // A seeded history (best 38.70, mean of the last 12 about 42.6) and a quick solve with the virtual cube.
+  const SOLVE = ["D R' F2 L", "U R U' R'", "U' F' U F", "L' U' L", "U B U' B'", "F R U R' U' F'", "R U R' U R U2 R'", "R U R' U' R' F R2 U' R' U' R U R' F'", "R U' R U R U R U' R' U' R2"];
+  const pr = await open({}, { 'cfop:times:v1': seed(Date.now()).times }, 'crono');
+  const q = pr.p;
+  await q.evaluate(() => document.getElementById('cubeSim').click());
+  await q.waitForFunction(() => window.Fridrich.cube().on);
+  await q.evaluate((sol) => {
+    const M = window.CubeModel; const link = window.Fridrich.cube().virtualLink(); const out = [];
+    link.events$.subscribe((e2) => { if (e2.type === 'MOVE') out.push(e2.move); });
+    link.turn(`z2 ${M.invertAlg(sol.join(' '))} z2`);
+    window.Fridrich._.setScramble(M.simplifyAlg(out.join(' ')));
+  }, SOLVE);
+  await q.evaluate((x) => window.Fridrich.cube().link.turn(x), await q.evaluate(() => window.Fridrich.scramble()));
+  await q.evaluate(() => window.Fridrich.cube().link.turn('z2'));
+  const ref = await q.evaluate(() => window.Fridrich._.paceRef());
+  check('pace: the reference is the mean of the last 12 smart-cube solves, part by part', ref && ref.label === 'tu media de 12' && Math.round(ref.cum[3]) === 42551 && ref.best.every((x) => x > 0), JSON.stringify(ref));
+  for (let i = 0; i < 6; i++) await q.evaluate((x) => window.Fridrich.cube().link.play([x], 25), SOLVE[i]);
+  await q.waitForTimeout(150);
+  const mid = await q.evaluate(() => ({
+    chips: [...document.querySelectorAll('#pace .pc')].map((c) => `${c.className.replace('pc ', '')}:${c.innerText.replace(/\s+/g, ' ')}`),
+    proj: (document.querySelector('#pace .pc-proj') || {}).innerText || '',
+  }));
+  check('pace: while solving, each part done against the reference (ahead, and gold if the best ever), the next one waiting', /^gold:CRUZ 0\.\d\d −4\.\d ★$/i.test(mid.chips[0]) && /^gold:F2L \d\.\d\d −2\d\.\d ★$/i.test(mid.chips[1]) && /^cur:OLL …/i.test(mid.chips[2]) && /^todo:PLL/i.test(mid.chips[3]), JSON.stringify(mid.chips));
+  check('pace: where it is heading', /^Vas para \d+\.\d\d$/.test(mid.proj), mid.proj);
+  await q.evaluate(() => window.Fridrich._.paceTick(99999));
+  const late = await q.evaluate(() => { const c = document.querySelector('#pace .pc.cur'); return c ? `${c.className}|${c.innerText.replace(/\s+/g, ' ')}` : ''; });
+  check('pace: past the reference for the part under way → the gap counts up, in red', /late/.test(late) && /\+\d+\.\d/.test(late), late);
+  for (let i = 6; i < SOLVE.length; i++) await q.evaluate((x) => window.Fridrich.cube().link.play([x], 25), SOLVE[i]);
+  await q.waitForFunction(() => document.getElementById('clock').dataset.phase === 'done', null, { timeout: 5000 }).catch(() => {});
+  await q.waitForTimeout(150);
+  const fin = await q.evaluate(() => ({
+    pace: document.getElementById('pace').innerText.replace(/\s+/g, ' '),
+    banner: document.getElementById('pbBanner').hidden ? '' : document.getElementById('pbBanner').innerText.replace(/\s+/g, ' '),
+    confetti: !!document.querySelector('.fr-confetti'),
+    toast: document.getElementById('toast').innerText,
+    line: (document.querySelector('.fr-pace-line') || {}).innerText || '',
+    tag: !!document.querySelector('#history tbody tr .fr-pbtag'),
+  }));
+  check('pace: after the solve, the four parts and the total against the reference', /CRUZ.*F2L.*OLL.*PLL.*−\d+\.\d s contra tu media de 12/i.test(fin.pace), fin.pace);
+  check('records: a new single, ao5 and ao12 → «¡Nuevo récord!» with what it beat, and confetti', /¡Nuevo récord! Single \d\.\d\d · ao5 \d+\.\d\d · ao12 \d+\.\d\d antes Single 38\.70/.test(fin.banner) && fin.confetti && /¡Nuevo récord!/.test(fin.toast), JSON.stringify(fin));
+  check('records: in the splits too, and a PB tag in the history', /Contra tu media de 12:/.test(fin.line) && /★ tu mejor cruz/.test(fin.line) && fin.tag, fin.line.replace(/\s+/g, ' '));
+  const forOverlay = await q.evaluate(() => { const F = window.Fridrich; const l = F.last(); return { rec: F.recordsOf(l).map((x) => x.k), pace: F.paceFor(l) }; });
+  check('records: what the OBS overlay gets (records, and each part against the reference)', forOverlay.rec.join() === 'single,ao5,ao12' && forOverlay.pace.d.length === 4 && forOverlay.pace.gold.every(Boolean) && forOverlay.pace.label === 'tu media de 12', JSON.stringify(forOverlay));
+  await q.evaluate(() => window.Fridrich.showView('ajustes'));
+  await q.selectOption('#setPace', 'pb');
+  check('pace: «Contra tu mejor solve» → your best solve is the reference', await q.evaluate(() => /^tu mejor solve \(\d\.\d\d\)$/.test(window.Fridrich._.paceRef().label)));
+  await q.selectOption('#setPace', 'off');
+  await q.evaluate(() => window.Fridrich.showView('crono'));
+  check('pace: «No mostrarlo» → nothing', await q.evaluate(() => !document.getElementById('pace').innerText && !window.Fridrich._.paceRef() && !document.querySelector('.fr-pace-line')));
+  await pr.ctx.close();
+
+  // The overlay: a record and the parts against the reference (its demo).
+  const ovc = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+  await ovc.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
+  const ov = await ovc.newPage();
+  ov.on('pageerror', (e2) => errs.push(`overlay: ${e2.message}`));
+  await ov.goto(`${SITE}/overlay.html?demo=1&modo=cfop&phase=pb`);
+  await ov.waitForTimeout(400);
+  const ovPb = await ov.evaluate(() => ({ banner: (document.querySelector('.banner') || {}).textContent || '', d: [...document.querySelectorAll('#cfSplits .pd')].map((x) => `${x.className}:${x.textContent}`), confetti: !!document.querySelector('.confetti') }));
+  check('overlay: «¡Nuevo récord! · Single 21.30», confetti, and each part against the reference (gold ★ for the best ever)', ovPb.banner === '¡Nuevo récord! · Single 21.30' && ovPb.confetti && ovPb.d.join('|') === 'pd ahead:−1.3|pd gold:−2.6 ★|pd ahead:−3.6|pd gold:−6.6 ★', JSON.stringify(ovPb));
+  await ov.goto(`${SITE}/overlay.html?demo=1&modo=cfop&phase=run&ms=23000`);
+  await ov.waitForTimeout(300);
+  const ovRun = await ov.evaluate(() => [...document.querySelectorAll('#cfSplits .pd')].map((x) => x.textContent));
+  check('overlay: while solving, the parts done against the reference', ovRun.slice(0, 3).every((x) => /^−\d\.\d$/.test(x)) && ovRun[3] === '', JSON.stringify(ovRun));
+  await ovc.close();
 
   // ================= Nothing yet =================
   const e = await open({}, null);

@@ -229,6 +229,21 @@ body.no-net .net { display: none; }
 .splits.cf span { transition: color .2s ease; }
 .splits.cf .cur { color: var(--ink); }
 .splits.cf .cur b { color: var(--exec); }
+/* Against the reference: ahead, behind, the best ever for that part. */
+.splits.cf span { display: inline-grid; grid-template-columns: auto auto; align-items: baseline; }
+.splits.cf .pd { grid-column: 1 / -1; font-style: normal; font-weight: 700; font-size: 16px; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.splits.cf .pd:empty { display: none; }
+.splits.cf .pd.ahead { color: var(--ok); }
+.splits.cf .pd.behind { color: var(--dnf); }
+.splits.cf .pd.gold { color: var(--wait); }
+.banner.pb { background: var(--wait); color: #1D1800; }
+.confetti { position: absolute; left: 0; right: 0; bottom: 100%; height: 520px; pointer-events: none; overflow: visible; }
+.confetti i { position: absolute; bottom: 0; width: 12px; height: 17px; border-radius: 2px; opacity: 0; animation: burst 2.6s cubic-bezier(.15, .7, .3, 1) forwards; }
+@keyframes burst {
+  0% { opacity: 1; transform: translate(0, 0) rotate(0); }
+  70% { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--x), var(--y)) rotate(var(--r)); }
+}
 .casename { font-family: var(--font-display); font-weight: 700; font-size: 26px; line-height: 1.15; }
 .lalg { font-family: var(--font-mono); font-size: 21px; color: var(--muted); word-spacing: .1em; }
 .lalg b { color: var(--ink); font-weight: 600; }
@@ -276,7 +291,7 @@ body.no-net .net { display: none; }
     <div class="trow"><span class="pill" id="phase"></span><span class="retotag" id="retoTag"></span></div>
     <div class="time" id="time"></div>
     <div class="splits" id="bldSplits"><span>Memo<b id="sMemo">—</b></span><span>Ejecución<b id="sExec">—</b></span></div>
-    <div class="splits cf" id="cfSplits" hidden><span>Cruz<b>—</b></span><span>F2L<b>—</b></span><span>OLL<b>—</b></span><span>PLL<b>—</b></span></div>
+    <div class="splits cf" id="cfSplits" hidden><span>Cruz<b>—</b><i class="pd"></i></span><span>F2L<b>—</b><i class="pd"></i></span><span>OLL<b>—</b><i class="pd"></i></span><span>PLL<b>—</b><i class="pd"></i></span></div>
     <div class="memoline" id="memoLine" hidden></div>
     <div class="liveline" id="liveLine" hidden></div>
   </section>
@@ -561,13 +576,34 @@ body.no-net .net { display: none; }
     const span = (a, b) => (at(b) == null ? null : at(b) - (a < 0 ? 0 : at(a)));
     return [span(-1, 0), span(0, 1), span(1, 3), span(3, 5)];
   }
-  function setCfSplits(vals, cur) {
+  const signed = (ms) => (Math.abs(ms) < 50 ? '±0.0' : `${ms < 0 ? '−' : '+'}${(Math.abs(ms) / 1000).toFixed(1)}`);
+  function setCfSplits(vals, cur, deltas) {
     const spans = $('cfSplits').children;
     vals.forEach((v, i) => {
-      const b = spans[i].lastElementChild;
+      const b = spans[i].querySelector('b');
       text(b, v == null ? (i === cur ? '…' : '—') : fmtC(v));
       spans[i].classList.toggle('cur', i === cur);
+      const pd = spans[i].querySelector('.pd');
+      const x = deltas && deltas[i];
+      text(pd, x ? `${signed(x.d)}${x.gold ? ' ★' : ''}` : '');
+      pd.className = `pd${x ? (x.gold ? ' gold' : x.d < 0 ? ' ahead' : ' behind') : ''}`;
     });
+  }
+  // This solve against the app's reference, part by part (and, for the part under way, once past it).
+  const ENDS = [0, 1, 3, 5];
+  function liveDeltas(lv, P, el) {
+    if (!lv || !P || !lv.steps) return null;
+    const reach = lv.steps;
+    const out = [0, 1, 2, 3].map((g) => {
+      const e = reach[ENDS[g]];
+      if (e == null) return null;
+      const st = g ? reach[ENDS[g - 1]] || 0 : 0;
+      const skipped = lv.skips ? [[0], [1], [2, 3], [4, 5]][g].some((k) => lv.skips[k]) : false;
+      return { d: e - P.cum[g], gold: !skipped && P.best[g] != null && e - st < P.best[g] };
+    });
+    const cur = out.findIndex((x) => !x);
+    if (cur >= 0 && el - P.cum[cur] > 0) out[cur] = { d: el - P.cum[cur], gold: false };
+    return out;
   }
   function setCfLive(phase) {
     const box = $('liveLine');
@@ -600,7 +636,7 @@ body.no-net .net { display: none; }
       setPill('exec', 'Resolviendo');
       setTime(fmtC(now - t.t0));
       const g = cfGroups(lv && lv.steps);
-      setCfSplits(g, g.findIndex((x) => x == null));
+      setCfSplits(g, g.findIndex((x) => x == null), liveDeltas(lv, S.smart && S.smart.pace, now - t.t0));
       setCfLive('run');
     } else if (cancelUntil > now) {
       setPill('idle', 'Solve cancelado');
@@ -611,7 +647,7 @@ body.no-net .net { display: none; }
       const L = S.last;
       setPill(L.ok ? 'ok' : 'dnf', L.ok ? (L.pen === 2 ? 'Resuelto · +2' : 'Resuelto') : 'DNF');
       setTime(L.ok ? fmtC(L.t + (L.pen === 2 ? 2000 : 0)) : 'DNF', !L.ok);
-      setCfSplits(L.sp || [null, null, null, null], -1);
+      setCfSplits(L.sp || [null, null, null, null], -1, L.pace ? L.pace.d.map((d, i) => ({ d, gold: L.pace.gold[i] })) : null);
       setCfLive('idle');
     } else {
       setPill('idle', 'Listo');
@@ -673,12 +709,26 @@ body.no-net .net { display: none; }
     card.classList.add(L.ok ? 'flash-ok' : 'flash-dnf');
     const old = card.querySelector('.banner');
     if (old) old.remove();
-    if (L.ok && (L.first || L.pb)) {
+    const recs = L.records && L.records.length ? L.records : null;
+    if (L.ok && (L.first || L.pb || recs)) {
       const b = document.createElement('div');
-      b.className = 'banner' + (L.first ? ' first' : '');
-      b.textContent = L.first ? '¡Primer resuelto!' : '¡Nuevo récord!';
+      b.className = 'banner' + (L.first ? ' first' : ' pb');
+      const NAME = { single: 'Single', ao5: 'ao5', ao12: 'ao12' };
+      b.textContent = L.first ? '¡Primer resuelto!' : `¡Nuevo récord!${recs ? ` · ${recs.map((x) => `${NAME[x.k] || x.k} ${S.mode === 'cfop' ? fmtC(x.v) : fmt(x.v)}`).join(' · ')}` : ''}`;
       card.appendChild(b);
       setTimeout(() => b.remove(), 9500);
+      if (!L.first) {
+        const box = document.createElement('div');
+        box.className = 'confetti';
+        const COLS = ['#ECEEE8', '#F0CF0C', '#D7263D', '#EE7A1A', '#2563D6', '#1E9E4B'];
+        let html = '';
+        for (let i = 0; i < 60; i++) {
+          html += `<i style="left:${(20 + Math.random() * 60).toFixed(1)}%;background:${COLS[i % 6]};--x:${Math.round(Math.random() * 700 - 350)}px;--y:${Math.round(-180 - Math.random() * 320)}px;--r:${Math.round(Math.random() * 900 - 450)}deg;animation-delay:${(Math.random() * 0.25).toFixed(2)}s"></i>`;
+        }
+        box.innerHTML = html;
+        card.appendChild(box);
+        setTimeout(() => box.remove(), 3200);
+      }
     }
   }
 
@@ -745,7 +795,7 @@ body.no-net .net { display: none; }
       recent: [{ ok: true, t: 31200 }, { ok: true, t: 27450 }, { ok: true, t: 24310 }, { ok: true, t: 29900 }, { ok: true, t: 26380 }, { ok: true, t: 28120 }],
       last: { ok: true, t: 27450, pen: 0, at: day - 90000, sp: [3120, 13410, 5480, 5440], cases: 'L-Shape · Sune · Headlights · Ua', pb: false },
       timer: { phase: 'idle' },
-      smart: { name: 'GANi3', net: null, scr: { n: 20, done: 20, half: false, undo: '', lost: false }, live: null },
+      smart: { name: 'GANi3', net: null, scr: { n: 20, done: 20, half: false, undo: '', lost: false }, live: null, pace: { cum: [3300, 16200, 21900, 27900], best: [2600, 11800, 4900, 5100], label: 'tu media de 12' } },
     };
     base.smart.net = base.cube;
     const CASES = [
@@ -767,7 +817,11 @@ body.no-net .net { display: none; }
         const c = CASES.find(([st]) => st === stage);
         s.smart.live = { stage, pairs: stage === 1 ? Math.min(3, Math.floor((ms - REACH[0]) / 3200)) : 4, steps: REACH.map((x) => (x <= ms ? x : null)), case: c ? c[1] : null };
       }
-      if (phase === 'done') { s.last = { ok: true, t: REACH[5], pen: 0, at: now, sp: [2900, 12900, 5400, 5900], cases: 'L-Shape · Sune · Headlights · Ua', pb: false }; s.today.n = 15; }
+      if (phase === 'done' || phase === 'pb') {
+        s.last = { ok: true, t: REACH[5], pen: 0, at: now, sp: [2900, 12900, 5400, 5900], cases: 'L-Shape · Sune · Headlights · Ua', pb: false, records: [], pace: { d: [-400, -400, -700, -800], gold: [false, false, false, false], total: -800, label: 'tu media de 12' } };
+        s.today.n = 15;
+      }
+      if (phase === 'pb') { s.last.t = 21300; s.last.pb = true; s.last.records = [{ k: 'single', v: 21300 }]; s.last.pace = { d: [-1300, -2600, -3600, -6600], gold: [false, true, false, true], total: -6600, label: 'tu media de 12' }; s.record = 21300; }
       return s;
     };
     const pick = q.get('phase');

@@ -100,6 +100,8 @@
           <span class="clock-phase" id="clockPhase">Listo</span>
           <span class="clock-time" id="clockTime">0.00</span>
           <span class="clock-split" id="clockSplit">Mantén pulsado y suelta para empezar</span>
+          <span class="clock-pace" id="pace" aria-hidden="true"></span>
+          <span class="clock-pb" id="pbBanner" aria-hidden="true" hidden></span>
         </button>
 
         <section class="fr-live" id="live" aria-label="Ayuda en directo" hidden>
@@ -264,6 +266,16 @@
           <label class="check"><input type="checkbox" id="setHelp"> Con el cubo, decirme el caso y el algoritmo también mientras corre el crono</label>
           <label class="check"><input type="checkbox" id="setSound"> Sonido al resolver y al acabar un caso</label>
           <label class="check" id="setVibrateRow"><input type="checkbox" id="setVibrate"> Vibrar al resolver (en el móvil)</label>
+          <label class="check"><input type="checkbox" id="setCelebrate"> Celebrar los récords (confeti y sonido)</label>
+          <div class="field">
+            <label for="setPace">Ritmo en directo, con el cubo</label>
+            <select id="setPace" class="text-input">
+              <option value="avg">Contra tu media (últimos 12 solves)</option>
+              <option value="pb">Contra tu mejor solve</option>
+              <option value="off">No mostrarlo</option>
+            </select>
+            <span class="hint">Al acabar cada paso (cruz, F2L, OLL, PLL): verde si vas por delante, rojo si vas por detrás y dorado si ese paso es el más rápido que has hecho nunca.</span>
+          </div>
           <div class="field">
             <label for="setCross">Color de la cruz</label>
             <select id="setCross" class="text-input">

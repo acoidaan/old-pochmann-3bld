@@ -179,20 +179,22 @@
     if (!audio) return;
     try {
       const t0 = audio.currentTime + 0.02;
-      const notes = short ? [[1319, 0]] : [[1047, 0], [1319, 0.1], [1568, 0.2]];
+      // A tick, the solved chime, or a little fanfare for a record.
+      const notes = short === 'pb' ? [[1047, 0], [1319, 0.09], [1568, 0.18], [2093, 0.3], [1568, 0.42], [2093, 0.52]]
+        : short ? [[1319, 0]] : [[1047, 0], [1319, 0.1], [1568, 0.2]];
       notes.forEach(([f, d]) => {
         const o = audio.createOscillator();
         const g = audio.createGain();
         o.type = 'sine';
         o.frequency.value = f;
         g.gain.setValueAtTime(0.0001, t0 + d);
-        g.gain.exponentialRampToValueAtTime(short ? 0.18 : 0.3, t0 + d + 0.015);
+        g.gain.exponentialRampToValueAtTime(short && short !== 'pb' ? 0.18 : 0.3, t0 + d + 0.015);
         g.gain.exponentialRampToValueAtTime(0.0001, t0 + d + (d > 0.15 ? 0.9 : 0.3));
         o.connect(g).connect(audio.destination);
         o.start(t0 + d);
         o.stop(t0 + d + 1);
       });
-      fxLog.push(short ? 'tick' : 'chime');
+      fxLog.push(short === 'pb' ? 'pb' : short ? 'tick' : 'chime');
     } catch (e) { /* no sound */ }
   }
 

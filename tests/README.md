@@ -11,7 +11,7 @@ cd tests
 npm install
 npx playwright install chromium   # solo la primera vez
 
-npm test                  # las 14 suites (unas 420 comprobaciones, ~5 min)
+npm test                  # las 14 suites (unas 430 comprobaciones, ~5 min)
 npm test -- smart-cube    # solo las que tienen «smart-cube» en el nombre
 npm run audit             # accesibilidad y maquetación
 npm run shots             # vuelve a hacer las capturas de docs/img
@@ -23,7 +23,7 @@ npm run shots             # vuelve a hacer las capturas de docs/img
 ✓ e2e/competition-mode.js · 18 comprobaciones · 6 s
 ✓ e2e/smart-cube.js · 69 comprobaciones · 46 s
 …
-✓ Todo bien: 14 suites, 417 comprobaciones (5.0 min)
+✓ Todo bien: 14 suites, 430 comprobaciones (5.1 min)
 ```
 
 Las capturas que hacen las suites (útiles para revisar a ojo) quedan en `tests/shots/`, que no se sube al repo.
@@ -33,7 +33,7 @@ Las capturas que hacen las suites (útiles para revisar a ojo) quedan en `tests/
 | Suite | Qué cubre |
 |:--|:--|
 | `e2e/fridrich-extras.js` | Fridrich, lo demás: modo competición (F, Esc, toda la pantalla como botón), la pareja más corta en el F2L (y que de verdad la mete), la reconstrucción (en el panel, copiada y en el historial), el análisis de cada paso (giros contra lo más corto, eficiencia, qué mejorar, la media), el entrenador de la cruz (con y sin cubo), aviso de versión nueva, instalar, la gráfica con ao5/ao12, sincronizar entre dos dispositivos y la vibración en el móvil. |
-| `e2e/fridrich-stats.js` | Los números de Fridrich con un historial inventado (`fixtures/cfop-seed.js`): las cuentas (medias, racha, logros, pasos, el set y por qué), Progreso (resumen, días, calendario, pasos, eficiencia, cruz, casos), «Qué entrenar hoy» y entrenar el set, «Me he perdido» con el cubo inteligente y con uno normal, la tabla de casos, el registro de entrenos al sincronizar, la página vacía y el móvil. |
+| `e2e/fridrich-stats.js` | Los números de Fridrich con un historial inventado (`fixtures/cfop-seed.js`): las cuentas (medias, racha, logros, pasos, el set y por qué), Progreso (resumen, días, calendario, pasos, eficiencia, cruz, casos), «Qué entrenar hoy» y entrenar el set, «Me he perdido» con el cubo inteligente y con uno normal, la tabla de casos, el registro de entrenos al sincronizar, el ritmo en directo contra tu media (verde, rojo, dorado, «Vas para», el retraso en directo, contra tu mejor solve o sin él), los récords (aviso, confeti, PB en el historial) y cómo se ven en el overlay, la página vacía y el móvil. |
 | `e2e/fridrich.js` | Fridrich reducido: cronómetro con Espacio y con el ratón, inspección, +2/DNF y borrar, el cubo (seguir el scramble, empezar al girar, parar al resolver), un solve CFOP entero con sus seis pasos y sus casos (I-Shape, Sune, Headlights, Ua), la ayuda en directo (que no vuelve atrás cuando un algoritmo o una pareja deshacen la cruz un momento, ni si haces el caso desde otro lado), la cruz más corta, sin crono, Casos y «Pruébalo» (los 16 casos con las dos mezclas acaban resueltos), los tres entrenadores, el overlay, el plan B sin generador y el móvil. |
 | `e2e/competition-mode.js` | Modo competición: pantalla completa, toda la pantalla como botón, Espacio/F/Esc, gesto de volver en Android, pantalla encendida. |
 | `e2e/history-theme-retos.js` | Historial con filtros y «Ver más», tema claro/oscuro, atajo del spoiler, quitar retos (también entre dispositivos sincronizados). |
@@ -49,7 +49,7 @@ Las capturas que hacen las suites (útiles para revisar a ojo) quedan en `tests/
 | `a11y/views.js` | axe-core y desbordamiento horizontal en todas las vistas, móvil y escritorio, claro y oscuro. |
 | `a11y/smart-cube.js` | Lo mismo con el cubo conectado: seguimiento, informe de DNF y diálogo de la MAC. |
 | `a11y/trainer-guide.js` | Lo mismo en Entrenar con el cubo, en Practicar siguiendo el cubo y en la ejecución guiada. |
-| `a11y/fridrich.js` | Lo mismo en todas las vistas de Fridrich, con el cubo en la última capa, un solve entero con su análisis y su reconstrucción, los entrenadores, y con un historial: Progreso y «Qué entrenar hoy». |
+| `a11y/fridrich.js` | Lo mismo en todas las vistas de Fridrich, con el cubo en la última capa, un solve entero con su análisis y su reconstrucción, los entrenadores, y con un historial: un solve récord con su ritmo, Progreso y «Qué entrenar hoy». |
 
 ## Cómo están hechas
 

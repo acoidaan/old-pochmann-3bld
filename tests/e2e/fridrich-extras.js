@@ -81,6 +81,7 @@ const SOLVE = ["D R' F2 L", "U R U' R'", "U' F' U F", "L' U' L", "U B U' B'", "F
   await p.waitForFunction(() => document.querySelector('.fr-an-box'), null, { timeout: 15000 }).catch(() => {});
   const last = await p.evaluate(() => { const t = JSON.parse(localStorage.getItem('cfop:times:v1')); return t[t.length - 1]; });
   const want = [SOLVE[0], SOLVE.slice(1, 5).join(' '), ...SOLVE.slice(5)];
+  check('pace and records: not on a first smart-cube solve (no reference yet, no earlier record beaten)', await p.evaluate(() => !document.getElementById('pace').innerText && document.getElementById('pbBanner').hidden));
   check('recon: the turns of each step, as held (white down), half turns joined', JSON.stringify(last.rc) === JSON.stringify(want), JSON.stringify(last.rc));
   await p.evaluate(() => { document.querySelector('.fr-recon-box').open = true; });
   const recon = await p.evaluate(() => document.querySelector('.fr-recon-box').innerText.replace(/\s+/g, ' '));

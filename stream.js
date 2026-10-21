@@ -110,6 +110,8 @@
         first: last.pen !== 'dnf' && !before.length,
         pb: last.pen !== 'dnf' && prevBest != null && val(last) < prevBest,
         sp: groups(last.sp), cases: caseNames(last.sp),
+        records: FR.recordsOf ? FR.recordsOf(last).map((x) => ({ k: x.k, v: Math.round(x.v) })) : [],
+        pace: FR.paceFor ? FR.paceFor(last) : null,
       };
     }
     const learned = (prefix) => {
@@ -127,7 +129,8 @@
         name: cube.name,
         net: netOf(cube.state),
         scr: live && live.scr ? { n: live.scr.n, done: live.scr.pos, half: live.scr.half, undo: live.scr.undo, lost: live.scr.lost } : null,
-        live: live ? { stage: live.stage, pairs: live.pairs, steps: live.splits, case: live.case } : null,
+        live: live ? { stage: live.stage, pairs: live.pairs, steps: live.splits, skips: live.skips, case: live.case } : null,
+        pace: FR.pace ? FR.pace() : null,
       };
     }
     const fin = (x) => (x === Infinity ? -1 : x);
@@ -231,7 +234,7 @@
   let cubeT = 0;
   let cubeAt = 0;
   ['fr:timer'].forEach((ev) => document.addEventListener(ev, (e) => { touch(); push(e.detail && e.detail.cancelled ? { cancelled: true } : null); }));
-  ['fr:result', 'fr:scramble'].forEach((ev) => document.addEventListener(ev, soon));
+  ['fr:result', 'fr:scramble', 'fr:record'].forEach((ev) => document.addEventListener(ev, soon));
   ['op3:cube', 'fr:cube'].forEach((ev) => document.addEventListener(ev, () => {
     const wait = 150 - (Date.now() - cubeAt);
     if (wait <= 0) { cubeAt = Date.now(); push(); return; }

@@ -256,6 +256,43 @@ body.fr .install { padding: 4px 12px; font-size: 13px; }
 .fr-feedback .btn { margin-left: 4px; }
 @media (hover: none) { .fr-options kbd { display: none; } }
 
+/* ---------- Pace and records ---------- */
+:root { --fr-gold: #8A5A00; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --fr-gold: #F0C24B; } }
+:root[data-theme="dark"] { --fr-gold: #F0C24B; }
+.clock-pace { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 16px; margin-top: 6px; font-size: 14px; font-variant-numeric: tabular-nums; }
+.clock-pace:empty { display: none; }
+.pc { display: inline-flex; align-items: baseline; gap: 5px; color: var(--muted); white-space: nowrap; }
+.pc b { color: var(--ink); font-weight: 700; }
+.pc-n { font-size: .86em; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.pc-d { font-weight: 700; }
+.pc.ahead .pc-d { color: var(--ok); }
+.pc.behind .pc-d, .pc.late .pc-d { color: var(--accent); }
+.pc.gold .pc-d { color: var(--fr-gold); }
+.pc.todo b { color: var(--muted); }
+.pc.cur .pc-n { color: var(--ink); }
+.pc-proj { flex-basis: 100%; font-size: 12.5px; color: var(--muted); }
+body.focus .clock-pace { font-size: 19px; gap: 6px 26px; margin-top: 10px; }
+body.focus .pc-proj { font-size: 15px; }
+.fr-pace-line { margin: 0; font-size: 13.5px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 6px; }
+.fr-pace-line .pc { color: var(--ink); }
+.clock-pb { display: grid; justify-items: center; gap: 2px; margin-top: 8px; padding: 8px 18px; border-radius: 14px; background: var(--fr-gold); color: #FFFFFF; font-size: 15px; }
+.clock-pb[hidden] { display: none; }
+.clock-pb b { font-family: var(--font-display); font-size: 18px; }
+.clock-pb small { font-size: 12px; }
+.clock-pb.pop { animation: frPop .5s cubic-bezier(.2, 1.4, .4, 1); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .clock-pb { color: #1C1300; } }
+body.focus .clock-pb { font-size: 18px; }
+body.focus .clock-pb b { font-size: 24px; }
+@keyframes frPop { from { transform: scale(.7); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.fr-confetti { position: fixed; inset: 0; z-index: 80; pointer-events: none; overflow: hidden; }
+.fr-confetti i { position: absolute; top: -16px; width: 9px; height: 13px; border-radius: 2px; box-shadow: 0 0 0 1px rgba(0, 0, 0, .15); animation: frFall linear forwards; }
+@keyframes frFall { to { transform: translate(var(--x), 110vh) rotate(var(--r)); } }
+@media (prefers-reduced-motion: reduce) { .clock-pb.pop { animation: none; } .fr-confetti { display: none; } }
+.fr-pbtag { display: inline-block; margin-left: 4px; padding: 0 5px; border-radius: 4px; font-size: 10.5px; font-weight: 700; letter-spacing: .04em; background: var(--fr-gold); color: #fff; vertical-align: 1px; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .fr-pbtag { color: #1C1300; } }
+:root[data-theme="dark"] .fr-pbtag, :root[data-theme="dark"] .clock-pb { color: #1C1300; }
+
 /* ---------- What to train today ---------- */
 :root { --fr-h0: #E6EAF0; --fr-h1: #C6D8F5; --fr-h2: #8FB4EC; --fr-h3: #4F86D9; --fr-h4: #2459A8; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --fr-h0: #252C37; --fr-h1: #1F3B66; --fr-h2: #2C5A9C; --fr-h3: #4479CC; --fr-h4: #7FA9EE; } }

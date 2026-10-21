@@ -23,7 +23,7 @@
   };
   const load = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; } catch (e) { return d; } };
   const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* this visit only */ } };
-  const settings = { inspect: false, help: true, sound: true, vibrate: true, cross: 'U', timed: true, trMode: 'cube', chart: 50, ...load(K.set, {}) };
+  const settings = { inspect: false, help: true, sound: true, vibrate: true, cross: 'U', timed: true, trMode: 'cube', chart: 50, pace: 'avg', celebrate: true, ...load(K.set, {}) };
   if (!(settings.cross in C.DOWN)) settings.cross = 'U';
   const saveSettings = () => save(K.set, settings);
   let times = load(K.times, []);
@@ -387,7 +387,7 @@
   function tick() {
     cancelAnimationFrame(timer.raf);
     const step = () => {
-      if (timer.phase === 'run') $('clockTime').textContent = fmt(now() - timer.t0);
+      if (timer.phase === 'run') { $('clockTime').textContent = fmt(now() - timer.t0); paceTick(now() - timer.t0); }
       else if (timer.phase === 'inspect' || timer.phase === 'ihold' || timer.phase === 'iready') {
         const left = inspectLeft();
         $('clockTime').textContent = left > 0 ? String(Math.ceil(left / 1000)) : left > -2000 ? '+2' : 'DNF';
@@ -409,6 +409,9 @@
     timer.startState = startState || (cube && cube.state);
     track = null;
     resetProg();
+    pace.ref = paceRef();
+    pace.at = null;
+    hideRecord();
     setPhase('run');
     tick();
     renderLive();
@@ -438,6 +441,7 @@
       }
     }
     timer.insp0 = 0;
+    const prevBests = bestsOf(times);
     times.push(r);
     if (times.length > 2000) times = times.slice(-2000);
     // The turns of each solve are kept for the last 500.
@@ -449,8 +453,11 @@
     if (follow && cube && cube.on && !locate(follow, cube.state)) markLost();
     if (follow && follow.pos >= follow.n) { follow.pos = 0; follow.lost = true; }
     $('clockTime').textContent = fmtRes(r);
+    pace.at = r.at;
     setPhase('done');
-    if (cube && cube.on && isSolved(cube.state)) {
+    const recs = recordsAfter(prevBests, r);
+    if (recs.length) celebrate(recs);
+    else if (cube && cube.on && isSolved(cube.state)) {
       if (settings.sound) window.SmartCube.chime();
       buzz([80, 60, 180]);
     }
@@ -460,6 +467,7 @@
     newScramble();
   }
   function cancel() {
+    hideRecord();
     cancelAnimationFrame(timer.raf);
     timer.insp0 = 0;
     timer.line = null;
@@ -489,6 +497,7 @@
     $('clockSplit').textContent = sub;
     if (p === 'idle' && !timer.last) $('clockTime').textContent = fmt(0);
     $('clock').hidden = !settings.timed;
+    renderPace();
   }
   // Space is the timer's even on a focused button or checkbox; not while writing.
   const typing = (el) => el && ((el.tagName === 'INPUT' && !['checkbox', 'radio', 'button', 'submit'].includes(el.type)) || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable);
@@ -827,8 +836,183 @@
     if (splitsMemo.line === timer.line && splitsMemo.n === timer.line.length) return splitsMemo.out;
     const sp = C.splits(timer.line, settings.cross);
     const out = sp ? sp.steps.map((s) => (s.done ? s.end : null)) : null;
+    if (out) out.skip = sp.steps.map((s) => !!(s.done && s.skip));
     splitsMemo = { line: timer.line, n: timer.line.length, out };
     return out;
+  }
+
+  // ================= Pace: this solve against your average =================
+  // As in speedrunning: at the end of each part (cross, F2L, OLL, PLL), how far ahead or behind you are of your
+  // reference at that same point (your mean of the last 12 smart-cube solves, or your best solve); gold when the
+  // part itself is the quickest you have ever done it. While a part goes on, once you pass the reference's time
+  // for its end, the gap counts up live.
+  const PACE_GROUPS = [['Cruz', [0]], ['F2L', [1]], ['OLL', [2, 3]], ['PLL', [4, 5]]];
+  const PACE_END = [0, 1, 3, 5];
+  const fullSp = (r) => !!(r && r.sp && r.pen !== 'dnf' && Array.isArray(r.sp.s) && r.sp.s.length === 6 && r.sp.s.every(Boolean));
+  const segOf = (r, g) => PACE_GROUPS[g][1].reduce((a, i) => a + r.sp.s[i][0], 0);
+  const skipIn = (r, g) => PACE_GROUPS[g][1].some((i) => r.sp.s[i][4]);
+  const pace = { ref: null, at: null, live: '' };
+  // The reference, from the solves before index `upto`.
+  function paceRef(upto = times.length) {
+    if (settings.pace === 'off') return null;
+    const before = times.slice(0, upto).filter(fullSp);
+    let seg;
+    let label;
+    if (settings.pace === 'pb') {
+      if (!before.length) return null;
+      const pb = before.reduce((b, r) => (!b || value(r) < value(b) ? r : b), null);
+      seg = [0, 1, 2, 3].map((g) => segOf(pb, g));
+      label = `tu mejor solve (${fmt(value(pb))})`;
+    } else {
+      const last = before.slice(-12);
+      if (last.length < 3) return null;
+      seg = [0, 1, 2, 3].map((g) => last.reduce((a, r) => a + segOf(r, g), 0) / last.length);
+      label = `tu media de ${last.length}`;
+    }
+    const cum = [];
+    seg.reduce((a, x, g) => { cum[g] = a + x; return cum[g]; }, 0);
+    // Gold: quicker than every earlier time for that part (skips left out: a skip is luck, not a record).
+    const best = [0, 1, 2, 3].map((g) => {
+      const xs = before.filter((r) => !skipIn(r, g)).map((r) => segOf(r, g));
+      return xs.length >= 3 ? Math.min(...xs) : null;
+    });
+    return { seg, cum, best, label };
+  }
+  const signed = (ms) => (Math.abs(ms) < 50 ? '±0.0' : `${ms < 0 ? '−' : '+'}${(Math.abs(ms) / 1000).toFixed(1)}`);
+  // Each part of a solve against a reference: [{ t: part, d: gap at its end, gold }]; null for parts not done.
+  function paceRows(ends, skips, ref) {
+    return [0, 1, 2, 3].map((g) => {
+      const end = ends[PACE_END[g]];
+      if (end == null) return null;
+      const startT = g ? ends[PACE_END[g - 1]] : 0;
+      const seg = end - (startT || 0);
+      const skipped = skips ? PACE_GROUPS[g][1].some((i) => skips[i]) : false;
+      return { t: seg, d: end - ref.cum[g], gold: !skipped && ref.best[g] != null && seg < ref.best[g] };
+    });
+  }
+  function paceFor(r) {
+    if (!fullSp(r)) return null;
+    const i = times.indexOf(r);
+    const ref = paceRef(i < 0 ? times.length : i);
+    if (!ref) return null;
+    const ends = [];
+    r.sp.s.reduce((a, x, k) => { ends[k] = a + x[0]; return ends[k]; }, 0);
+    const rows = paceRows(ends, r.sp.s.map((x) => !!x[4]), ref);
+    return { rows, total: ends[5] - ref.cum[3], label: ref.label };
+  }
+  const chip = (g, row, cls, d) => `<span class="pc ${cls}" data-g="${g}"><span class="pc-n">${PACE_GROUPS[g][0]}</span><b>${row ? f1(row.t) : '…'}</b><span class="pc-d">${d}</span></span>`;
+  function renderPace() {
+    const box = $('pace');
+    if (!box) return;
+    let html = '';
+    if (settings.pace !== 'off' && cube && cube.on && settings.timed) {
+      if (timer.phase === 'run' && pace.ref && timer.line) {
+        const reach = liveSplits();
+        if (reach) {
+          const rows = paceRows(reach, reach.skip, pace.ref);
+          const cur = rows.findIndex((x) => !x);
+          html = rows.map((row, g) => (row ? chip(g, row, row.gold ? 'gold' : row.d < 0 ? 'ahead' : 'behind', `${signed(row.d)}${row.gold ? ' ★' : ''}`)
+            : chip(g, null, g === cur ? 'cur' : 'todo', ''))).join('');
+          const lastDone = cur < 0 ? 3 : cur - 1;
+          if (lastDone >= 0 && cur >= 0) html += `<span class="pc-proj">Vas para ${fmt(reach[PACE_END[lastDone]] + pace.ref.cum[3] - pace.ref.cum[lastDone])}</span>`;
+        }
+      } else if (timer.phase === 'done' && timer.last && timer.last.at === pace.at) {
+        const pf = paceFor(timer.last);
+        if (pf) {
+          html = pf.rows.map((row, g) => chip(g, row, row.gold ? 'gold' : row.d < 0 ? 'ahead' : 'behind', `${signed(row.d)}${row.gold ? ' ★' : ''}`)).join('')
+            + `<span class="pc-proj">${signed(pf.total)} s contra ${esc(pf.label)}</span>`;
+        }
+      }
+    }
+    if (box.dataset.h !== html) { box.dataset.h = html; box.innerHTML = html; pace.live = ''; }
+  }
+  // Every frame while running: the part under way, once past the reference's time for its end.
+  function paceTick(el) {
+    if (!pace.ref || settings.pace === 'off') return;
+    const c = document.querySelector('#pace .pc.cur');
+    if (!c) return;
+    const g = Number(c.dataset.g);
+    const over = el - pace.ref.cum[g];
+    const txt = over > 0 ? signed(over) : '';
+    if (txt === pace.live) return;
+    pace.live = txt;
+    c.classList.toggle('late', over > 0);
+    c.querySelector('.pc-d').textContent = txt;
+  }
+
+  // ================= Records =================
+  function bestsOf(list) {
+    let single = Infinity; let ao5 = Infinity; let ao12 = Infinity;
+    list.forEach((r, i) => {
+      single = Math.min(single, value(r));
+      if (i >= 4) ao5 = Math.min(ao5, avgOf(list.slice(i - 4, i + 1), 5));
+      if (i >= 11) ao12 = Math.min(ao12, avgOf(list.slice(i - 11, i + 1), 12));
+    });
+    return { single, ao5, ao12 };
+  }
+  // What a solve just beat: only records that existed before (a first ao5 is not a record yet).
+  function recordsAfter(prev, r) {
+    const out = [];
+    const cur = { single: value(r), ao5: avgOf(times, 5), ao12: avgOf(times, 12) };
+    ['single', 'ao5', 'ao12'].forEach((k) => {
+      const v = cur[k];
+      if (v != null && Number.isFinite(v) && Number.isFinite(prev[k]) && v < prev[k]) out.push({ k, v, prev: prev[k] });
+    });
+    return out;
+  }
+  let recMemo = { key: '', out: null };
+  // The records a solve set when it was done (for the overlay).
+  function recordsOf(r) {
+    const i = times.indexOf(r);
+    if (i < 1) return [];
+    const k = `${times.length}|${r.at}|${r.pen}|${times[i - 1].at}`;
+    if (recMemo.key === k) return recMemo.out;
+    const list = times.slice(0, i + 1);
+    const prev = bestsOf(times.slice(0, i));
+    const cur = { single: value(r), ao5: avgOf(list, 5), ao12: avgOf(list, 12) };
+    const out = ['single', 'ao5', 'ao12'].filter((x) => cur[x] != null && Number.isFinite(cur[x]) && Number.isFinite(prev[x]) && cur[x] < prev[x]).map((x) => ({ k: x, v: cur[x], prev: prev[x] }));
+    recMemo = { key: k, out };
+    return out;
+  }
+  const REC_NAME = { single: 'Single', ao5: 'ao5', ao12: 'ao12' };
+  let recHide = 0;
+  function celebrate(recs) {
+    const text = recs.map((x) => `${REC_NAME[x.k]} ${fmt(x.v)}`).join(' · ');
+    const b = $('pbBanner');
+    b.innerHTML = `<b>¡Nuevo récord!</b> <span>${esc(text)}</span><small>antes ${esc(recs.map((x) => `${REC_NAME[x.k]} ${fmt(x.prev)}`).join(' · '))}</small>`;
+    b.hidden = false;
+    b.classList.remove('pop');
+    void b.offsetWidth;
+    b.classList.add('pop');
+    clearTimeout(recHide);
+    recHide = setTimeout(hideRecord, 9000);
+    toast(`¡Nuevo récord! ${text}`);
+    if (settings.celebrate) {
+      if (settings.sound) window.SmartCube.chime('pb');
+      confetti();
+    } else if (settings.sound) window.SmartCube.chime();
+    buzz([60, 50, 60, 50, 220]);
+    emit('record', recs);
+  }
+  function hideRecord() { const b = $('pbBanner'); if (b) b.hidden = true; }
+  const STICKERS = ['#FFFFFF', '#F0CF0C', '#D7263D', '#EE7A1A', '#2563D6', '#1E9E4B'];
+  function confetti() {
+    try { if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return; } catch (e) { /* no media queries */ }
+    const box = document.createElement('div');
+    box.className = 'fr-confetti';
+    box.setAttribute('aria-hidden', 'true');
+    let html = '';
+    for (let i = 0; i < 70; i++) {
+      const x = Math.random() * 100;
+      const d = 1.6 + Math.random() * 1.6;
+      const delay = Math.random() * 0.35;
+      const rot = Math.round(Math.random() * 720 - 360);
+      const drift = Math.round(Math.random() * 160 - 80);
+      html += `<i style="left:${x.toFixed(1)}%;background:${STICKERS[i % 6]};animation-duration:${d.toFixed(2)}s;animation-delay:${delay.toFixed(2)}s;--r:${rot}deg;--x:${drift}px"></i>`;
+    }
+    box.innerHTML = html;
+    document.body.appendChild(box);
+    setTimeout(() => box.remove(), 3800);
   }
 
   // ================= Reconstruction =================
@@ -968,8 +1152,10 @@
       const rx = recog != null && !skip ? `<span class="muted">${f1(recog)} + ${f1(t - recog)}</span>` : '';
       return `<tr><th scope="row">${st.name}</th><td>${f1(t)}</td><td>${moves}<span class="muted"> · ${tps} TPS</span></td><td>${what}</td><td>${rx}</td></tr>`;
     }).join('');
+    const pf = settings.pace !== 'off' ? paceFor(r) : null;
+    const paceLine = pf ? `<p class="fr-pace-line"><span class="muted">Contra ${esc(pf.label)}:</span> ${pf.rows.map((row, g) => `<span class="pc ${row.gold ? 'gold' : row.d < 0 ? 'ahead' : 'behind'}"><span class="pc-n">${PACE_GROUPS[g][0]}</span> <span class="pc-d">${signed(row.d)}${row.gold ? ` ★ tu mejor ${g ? PACE_GROUPS[g][0] : 'cruz'}` : ''}</span></span>`).join(' · ')} → <b class="pc ${pf.total < 0 ? 'ahead' : 'behind'}"><span class="pc-d">${signed(pf.total)} s</span></b></p>` : '';
     box.innerHTML = `<div class="fr-splits-head"><span class="field-title">Tu solve por fases · ${esc(C.crossName(r.sp.f))}</span><b>${fmtRes(r)}</b></div>
-      <div class="fr-bar">${bar}</div>
+      <div class="fr-bar">${bar}</div>${paceLine}
       <div class="fr-table" tabindex="0" role="region" aria-label="Tiempos de cada paso"><table><thead><tr><th scope="col">Paso</th><th scope="col">Tiempo</th><th scope="col">Giros</th><th scope="col">Caso</th><th scope="col">Reconocer + hacer</th></tr></thead><tbody>${rows}</tbody></table></div>`
       + (r.an ? `<details class="fr-an-box" open><summary>Análisis: cómo de óptimo fue cada paso</summary>${analysisHtml(r)}</details>` : r.rc ? '<p class="hint">Analizando el solve…</p>' : '')
       + (r.rc ? `<details class="fr-recon-box"><summary>Reconstrucción: tus giros paso a paso</summary>${reconHtml(r)}</details>` : '')
@@ -1017,13 +1203,17 @@
   function renderHistory() {
     const box = $('history');
     if (!times.length) { box.innerHTML = '<p class="empty-note">Aún no hay tiempos. Mantén pulsado el reloj (o Espacio) y suelta para empezar.</p>'; $('histMore').hidden = true; return; }
+    // A «PB» tag on each solve that beat every earlier single.
+    const isPb = [];
+    let best = Infinity;
+    times.forEach((r, i) => { const v = value(r); isPb[i] = i > 0 && Number.isFinite(v) && v < best && Number.isFinite(best); best = Math.min(best, v); });
     const list = times.map((r, i) => ({ r, i })).reverse().slice(0, histShown);
     const step = (r, idx) => (r.sp && idx.every((i) => r.sp.s[i]) ? f1(idx.reduce((a, i) => a + r.sp.s[i][0], 0)) : '—');
     const cases = (r) => (r.sp ? [2, 3, 4, 5].map((i) => { const x = r.sp.s[i]; if (!x) return null; if (x[4]) return 'salto'; const c = x[3] && C.caseById(x[3]); return c ? c.name.replace('PLL (', '').replace(')', '') : null; }).filter(Boolean).join(' · ') : '');
     box.innerHTML = `<table><thead><tr><th scope="col">#</th><th scope="col">Tiempo</th><th scope="col">ao5</th><th scope="col">Cruz</th><th scope="col">F2L</th><th scope="col">OLL</th><th scope="col">PLL</th><th scope="col">Casos</th><th scope="col"><span class="sr-only">Acciones</span></th></tr></thead><tbody>${
       list.map(({ r, i }) => {
         const a5 = avgOf(times.slice(0, i + 1), 5);
-        return `<tr><td class="muted">${i + 1}</td><td><b>${fmtRes(r)}</b></td><td class="muted">${a5 == null ? '' : fmt(a5)}</td>`
+        return `<tr><td class="muted">${i + 1}</td><td><b>${fmtRes(r)}</b>${isPb[i] ? ' <span class="fr-pbtag" title="Mejor single hasta entonces">PB</span>' : ''}</td><td class="muted">${a5 == null ? '' : fmt(a5)}</td>`
           + `<td>${step(r, [0])}</td><td>${step(r, [1])}</td><td>${step(r, [2, 3])}</td><td>${step(r, [4, 5])}</td><td class="fr-cases">${esc(cases(r))}</td>`
           + `<td class="fr-acts"><button class="x" type="button" data-pen="2" data-i="${i}" aria-label="Poner o quitar +2 al solve ${i + 1}" aria-pressed="${r.pen === 2}">+2</button>`
           + `<button class="x" type="button" data-pen="dnf" data-i="${i}" aria-label="Marcar o desmarcar DNF el solve ${i + 1}" aria-pressed="${r.pen === 'dnf'}">DNF</button>`
@@ -2450,6 +2640,8 @@
     $('setSound').checked = settings.sound;
     $('setVibrate').checked = settings.vibrate;
     $('setVibrateRow').hidden = !canVibrate;
+    $('setCelebrate').checked = settings.celebrate !== false;
+    $('setPace').value = ['avg', 'pb', 'off'].includes(settings.pace) ? settings.pace : 'avg';
     $('setCross').value = settings.cross;
     const th = load(K.theme, 'auto') || 'auto';
     document.querySelectorAll('[data-theme-set]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.themeSet === th)));
@@ -2457,6 +2649,8 @@
   $('setInspect').addEventListener('change', (e) => { settings.inspect = e.target.checked; saveSettings(); renderClock(); });
   $('setHelp').addEventListener('change', (e) => { settings.help = e.target.checked; saveSettings(); });
   $('setVibrate').addEventListener('change', (e) => { settings.vibrate = e.target.checked; saveSettings(); });
+  $('setCelebrate').addEventListener('change', (e) => { settings.celebrate = e.target.checked; saveSettings(); });
+  $('setPace').addEventListener('change', (e) => { settings.pace = e.target.value; saveSettings(); renderPace(); if (timer.last && timer.last.sp) renderSplits(timer.last); });
   $('setSound').addEventListener('change', (e) => { settings.sound = e.target.checked; saveSettings(); if (settings.sound) window.SmartCube.unlockAudio(); });
   $('setCross').addEventListener('change', (e) => { settings.cross = e.target.value; saveSettings(); renderCross(); track = null; tr.c = null; });
   document.querySelectorAll('[data-theme-set]').forEach((b) => b.addEventListener('click', () => {
@@ -2542,13 +2736,18 @@
         facelets: toFacelets(cube.state),
         stage: info.stage, pairs: read.n, cross: read.cross, colour: read.colour,
         splits: timer.phase === 'run' && timer.line ? liveSplits() : null,
+        skips: timer.phase === 'run' && timer.line && liveSplits() ? liveSplits().skip : null,
         case: rec && rec.case ? { id: rec.case.id, name: rec.case.name, alg: rec.case.alg, step: rec.case.step, front: rec.front, pre: rec.pre, post: rec.post } : null,
         scr: follow ? { pos: follow.pos, n: follow.n, half: follow.halfway, undo: follow.off.length ? undoText(follow) : '', lost: follow.lost } : null,
       };
     },
     last: () => timer.last,
+    // The reference of the solve under way, and how a finished solve went against its own reference.
+    pace: () => (timer.phase === 'run' && pace.ref ? { cum: pace.ref.cum, best: pace.ref.best, label: pace.ref.label } : null),
+    paceFor: (r) => { const pf = settings.pace !== 'off' ? paceFor(r) : null; return pf ? { d: pf.rows.map((x) => Math.round(x.d)), gold: pf.rows.map((x) => x.gold), total: Math.round(pf.total), label: pf.label } : null; },
+    recordsOf,
     // For tests.
-    _: { simSolution, caseTarget, tr, settings, follow: () => follow, makeFollow, partialKeys, setScramble, makeTry, ct, vibes, syncNow, mergeIn, offerUpdate, focus: () => focus.on },
+    _: { simSolution, caseTarget, tr, settings, celebrate, paceRef, bestsOf, paceTick, follow: () => follow, makeFollow, partialKeys, setScramble, makeTry, ct, vibes, syncNow, mergeIn, offerUpdate, focus: () => focus.on },
   };
 
   // ================= Start =================

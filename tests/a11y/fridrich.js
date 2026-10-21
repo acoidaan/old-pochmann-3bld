@@ -69,8 +69,25 @@ const SOLVE = ["D R' F2 L", "U R U' R'", "U' F' U F", "L' U' L", "U B U' B'", "F
     await p.evaluate((d) => {
       Object.entries({ 'cfop:times:v1': d.times, 'cfop:trlog:v1': d.trlog, 'cfop:train:v1': d.train, 'cfop:crosstr:v1': d.crossTr, 'cfop:learn:v1': d.learn }).forEach(([k, v]) => localStorage.setItem(k, JSON.stringify(v)));
     }, seed(Date.now()));
-    await p.goto(`${SITE}/fridrich?cubo=virtual#progreso`);
-    await p.waitForFunction(() => window.Fridrich && document.querySelector('.fr-prog-lead'), null, { timeout: 30000 });
+    await p.goto(`${SITE}/fridrich?cubo=virtual#crono`);
+    await p.waitForFunction(() => window.Fridrich && window.Fridrich.scramble(), null, { timeout: 30000 });
+    // A record-breaking solve: the pace against the average and the celebration.
+    await p.evaluate(() => document.getElementById('cubeSim').click());
+    await p.waitForFunction(() => window.Fridrich.cube().on);
+    await p.evaluate((sol) => {
+      const M = window.CubeModel; const link = window.Fridrich.cube().virtualLink(); const out = [];
+      link.events$.subscribe((e) => { if (e.type === 'MOVE') out.push(e.move); });
+      link.turn(`z2 ${M.invertAlg(sol.join(' '))} z2`);
+      window.Fridrich._.setScramble(M.simplifyAlg(out.join(' ')));
+    }, SOLVE);
+    await p.evaluate((x) => window.Fridrich.cube().link.turn(x), await p.evaluate(() => window.Fridrich.scramble()));
+    await p.evaluate(() => window.Fridrich.cube().link.turn('z2'));
+    for (const a of SOLVE) await p.evaluate((x) => window.Fridrich.cube().link.play([x], 20), a);
+    await p.waitForFunction(() => !document.getElementById('pbBanner').hidden, null, { timeout: 5000 }).catch(() => {});
+    await p.waitForTimeout(3900);   // the confetti gone
+    await run('crono · récord y ritmo');
+    await p.evaluate(() => window.Fridrich.showView('progreso'));
+    await p.waitForFunction(() => document.querySelector('.fr-prog-lead'), null, { timeout: 30000 });
     await run('progreso');
     await p.evaluate(() => window.Fridrich.showView('entrenar'));
     await p.waitForTimeout(200);
