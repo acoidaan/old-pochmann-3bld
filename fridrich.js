@@ -19,7 +19,8 @@
     times: 'cfop:times:v1', set: 'cfop:settings:v1', learn: 'cfop:learn:v1', train: 'cfop:train:v1',
     view: 'cfop:view:v1', scr: 'cfop:scramble:v1', pick: 'cfop:pick:v1', theme: 'op3bld:theme:v1',
     crossTr: 'cfop:crosstr:v1', deleted: 'cfop:deleted:v1', learnAt: 'cfop:learn-at:v1', sync: 'op3bld:sync:v1', synced: 'cfop:synced:v1',
-    trlog: 'cfop:trlog:v1',
+    trlog: 'cfop:trlog:v1', player: 'cfop:player:v1', ligas: 'cfop:ligas:v1', ligaPub: 'cfop:liga-pub:v1', ligaSeen: 'cfop:liga-seen:v1',
+    name: 'op3bld:name:v1',
   };
   const load = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; } catch (e) { return d; } };
   const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* this visit only */ } };
@@ -75,7 +76,7 @@
   }
 
   // ================= Views =================
-  const VIEWS = ['crono', 'casos', 'entrenar', 'progreso', 'ajustes'];
+  const VIEWS = ['crono', 'casos', 'entrenar', 'progreso', 'ranking', 'ajustes'];
   const viewHooks = {};
   let view = 'crono';
   function showView(name) {
@@ -96,7 +97,12 @@
   }
   const onView = (name, fn) => { (viewHooks[name] = viewHooks[name] || []).push(fn); };
   document.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => showView(b.dataset.go)));
-  window.addEventListener('hashchange', () => { const h = location.hash.slice(1); if (VIEWS.includes(h) && h !== view) showView(h); });
+  window.addEventListener('hashchange', () => {
+    const h = location.hash.slice(1);
+    const inv = h.match(/^liga[=/]([a-z0-9]{8})$/i);
+    if (inv) { openInvite(inv[1].toLowerCase()); return; }
+    if (VIEWS.includes(h) && h !== view) showView(h);
+  });
 
   function toast(msg) {
     const t = $('toast');
@@ -301,6 +307,7 @@
     if (mine === scrSeq && timer.phase !== 'run') setScramble(scr);
   }
   function renderScramble() {
+    renderDuel();
     const moves = scramble ? parseAlg(scramble).map((m) => m.text) : [];
     $('scrCount').textContent = moves.length ? `· ${moves.length} movimientos` : '';
     const F = follow;
@@ -412,6 +419,7 @@
     pace.ref = paceRef();
     pace.at = null;
     hideRecord();
+    if (duel && duel.result) { duel = null; renderDuel(); }
     setPhase('run');
     tick();
     renderLive();
@@ -464,6 +472,8 @@
     renderSplits(r);
     renderStats();
     emit('result', r);
+    duelResult(r);
+    if (recs.length) ligaPublish().then((done) => announceRank(done, recs)); else ligaPublishSoon();
     newScramble();
   }
   function cancel() {
@@ -1252,6 +1262,7 @@
     renderStats();
     emit('result', null);
     changed();
+    ligaPublishSoon();
   });
   $('histMore').addEventListener('click', () => { histShown += 50; renderHistory(); });
 
@@ -2203,6 +2214,394 @@
   });
   onView('progreso', () => setTimeout(renderProgress, 0));
 
+  // ================= Ranking with friends =================
+  // A league: friends with a code. Each one's best single, ao5 and ao12 — total time only, as in a competition
+  // — published by itself whenever yours change (a record, a +2, a deleted solve). With the smart cube a record
+  // also carries its steps; without it, its scramble, to try it yourself.
+  const LIGA_CAT = [['single', 'Single'], ['ao5', 'Media de 5'], ['ao12', 'Media de 12']];
+  const CAT_TEXT = { single: 'single', ao5: 'media de 5', ao12: 'media de 12' };
+  const lg = { data: {}, err: '', busy: false, cat: 'single', open: null, invite: null, fresh: new Set(), timer: 0 };
+  const cleanName = (x) => String(x == null ? '' : x).replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 40);
+  const ABC = 'abcdefghijkmnpqrstuvwxyz23456789';
+  function player() {
+    let p = load(K.player, null);
+    if (!p || !/^[a-z0-9]{12,32}$/.test(p.id || '') || !/^[a-f0-9]{32,64}$/.test(p.token || '')) {
+      const a = new Uint8Array(32);
+      crypto.getRandomValues(a);
+      p = { id: [...a.slice(0, 16)].map((b) => ABC[b % 32]).join(''), token: [...a.slice(16)].map((b) => b.toString(16).padStart(2, '0')).join(''), at: Date.now() };
+      save(K.player, p);
+      changed();
+    }
+    return p;
+  }
+  const myName = () => cleanName(load(K.name, '')).slice(0, 24);
+  const playerBody = () => { const p = player(); return { id: p.id, token: p.token, name: myName() }; };
+  function ligas() { const l = load(K.ligas, []); return Array.isArray(l) ? l.filter((x) => x && /^[a-z0-9]{8}$/.test(x.code)) : []; }
+  const curCode = () => { const l = ligas(); return (l.find((x) => x.code === settings.liga) || l[0] || {}).code || null; };
+
+  // ---- Your bests, with what the others can look at
+  function bestWindow(n) {
+    let best = Infinity;
+    let end = -1;
+    for (let i = n - 1; i < times.length; i++) {
+      const a = avgOf(times.slice(i - n + 1, i + 1), n);
+      if (a < best) { best = a; end = i; }
+    }
+    return end < 0 || !Number.isFinite(best) ? null : { v: best, end };
+  }
+  function solveOut(r, full) {
+    const o = { t: r.t, pen: r.pen || 0, at: r.at, scr: r.scr || '' };
+    if (r.sp) o.sp = r.sp;
+    if (full && r.rc) o.rc = r.rc;
+    if (full && r.an && r.an.m) o.an = { m: r.an.m, i: r.an.i };
+    return o;
+  }
+  function myBests() {
+    let si = -1;
+    times.forEach((r, i) => { if (Number.isFinite(value(r)) && (si < 0 || value(r) < value(times[si]))) si = i; });
+    const avg = (n) => { const w = bestWindow(n); return w ? { v: Math.round(w.v), at: times[w.end].at, solves: times.slice(w.end - n + 1, w.end + 1).map((r) => solveOut(r, false)) } : null; };
+    return { single: si >= 0 ? solveOut(times[si], true) : null, ao5: avg(5), ao12: avg(12) };
+  }
+  const catVal = (m, cat) => {
+    const b = m.best && m.best[cat];
+    if (!b) return Infinity;
+    return cat === 'single' ? b.t + (b.pen === 2 ? 2000 : 0) : b.v;
+  };
+  const standings = (league, cat) => league.members.map((m) => ({ m, v: catVal(m, cat) })).sort((a, b) => a.v - b.v || a.m.joined - b.m.joined);
+  function rankOf(league, cat) {
+    const st = standings(league, cat);
+    const i = st.findIndex((x) => x.m.id === player().id);
+    return i >= 0 && Number.isFinite(st[i].v) ? i + 1 : null;
+  }
+
+  // ---- Publishing yours (only when they changed since the last time)
+  let pubT = 0;
+  const pubSig = (best) => JSON.stringify([myName(), best.single && [best.single.t, best.single.pen, best.single.at], best.ao5 && [best.ao5.v, best.ao5.at], best.ao12 && [best.ao12.v, best.ao12.at]]);
+  function ligaPublishSoon(ms = 1200) { if (!ligas().length) return; clearTimeout(pubT); pubT = setTimeout(() => ligaPublish(), ms); }
+  async function ligaPublish(force) {
+    const list = ligas();
+    if (!list.length) return [];
+    const best = myBests();
+    const sig = pubSig(best);
+    const pub = load(K.ligaPub, {});
+    const out = [];
+    for (const l of list) {
+      if (!force && pub[l.code] === sig) continue;
+      try {
+        const league = await api(`api/liga?code=${l.code}`, { action: 'post', player: playerBody(), best, n: times.length });
+        pub[l.code] = sig;
+        save(K.ligaPub, pub);
+        lg.data[l.code] = { league, at: Date.now() };
+        out.push(league);
+      } catch (e) { /* offline: tried again with the next change or visit */ }
+    }
+    if (out.length && view === 'ranking') renderRanking();
+    return out;
+  }
+  // After a record: where it leaves you in each league.
+  function announceRank(leagues, recs) {
+    const parts = [];
+    leagues.forEach((league) => {
+      const cat = recs.map((x) => x.k).find((k) => rankOf(league, k)) || 'single';
+      const pos = rankOf(league, cat);
+      if (pos && league.members.length > 1) parts.push(`«${league.name}»: ${pos}.º de ${league.members.length} en ${CAT_TEXT[cat]}`);
+    });
+    if (parts.length) setTimeout(() => toast(`Ranking ${parts.join(' · ')}`), 2600);
+  }
+
+  // ---- Reading a league, and what changed since you last looked
+  async function loadLeague(code, quiet) {
+    if (!code) return;
+    if (!quiet) { lg.busy = true; renderRanking(); }
+    try {
+      const league = await api(`api/liga?code=${code}`);
+      lg.data[code] = { league, at: Date.now() };
+      lg.err = '';
+      const list = ligas();
+      const it = list.find((x) => x.code === code);
+      if (it && it.name !== league.name) { it.name = league.name; save(K.ligas, list); }
+      newsOf(code, league);
+    } catch (e) { lg.err = e.message; }
+    lg.busy = false;
+    if (view === 'ranking' && !(document.activeElement && document.activeElement.closest && document.activeElement.closest('#rankBox input'))) renderRanking();
+  }
+  function newsOf(code, league) {
+    const seen = load(K.ligaSeen, {});
+    const was = seen[code];
+    const me = player().id;
+    const news = [];
+    league.members.forEach((m) => {
+      if (m.id === me) return;
+      if (was && (was[m.id] == null || m.updated > was[m.id])) { lg.fresh.add(`${code}|${m.id}`); if (was[m.id] != null) news.push(m.name); else news.push(`${m.name} (nuevo)`); }
+    });
+    seen[code] = Object.fromEntries(league.members.map((m) => [m.id, m.updated]));
+    save(K.ligaSeen, seen);
+    if (news.length && was) toast(`Ranking: novedades de ${news.join(', ')}`);
+  }
+
+  // ---- Drawing it
+  function ago(at) {
+    const s2 = Math.max(0, (Date.now() - at) / 1000);
+    if (s2 < 60) return 'ahora';
+    if (s2 < 3600) return `hace ${Math.round(s2 / 60)} min`;
+    if (s2 < 86400) return `hace ${Math.round(s2 / 3600)} h`;
+    const d = Math.round(s2 / 86400);
+    return d === 1 ? 'ayer' : d < 30 ? `hace ${d} días` : fdate(at);
+  }
+  const hasSteps = (b, cat) => (cat === 'single' ? !!(b && b.sp) : !!(b && b.solves && b.solves.some((x) => x.sp)));
+  function stepsHtml(x) {
+    const s2 = x.sp.s;
+    const groups = PACE_GROUPS.map(([name, idx]) => [name, idx.every((i) => s2[i]) ? idx.reduce((a, i) => a + s2[i][0], 0) : null]);
+    const bar = `<div class="fr-bar">${groups.map(([name, t]) => `<span class="fr-seg fr-seg-${name.toLowerCase()}" style="flex-grow:${Math.max(1, t || 1)}"><b>${name}</b> ${f1(t)}</span>`).join('')}</div>`;
+    const rows = C.STEPS.map((st, i) => {
+      const y = s2[i];
+      if (!y) return '';
+      const c = y[3] ? C.caseById(y[3]) : null;
+      return `<tr><th scope="row">${st.name}</th><td>${f1(y[0])}</td><td>${y[1]} giros</td><td>${y[4] ? '<span class="muted">salto</span>' : c ? esc(c.name) : ''}</td><td class="muted">${y[2] != null && !y[4] ? `${f1(y[2])} + ${f1(y[0] - y[2])}` : ''}</td></tr>`;
+    }).join('');
+    const eff = x.an ? `<p class="fr-note">Eficiencia <b>${Math.round((x.an.i / x.an.m) * 100)} %</b>: ${x.an.m} giros (lo más corto, ${x.an.i}).</p>` : '';
+    const rc = x.rc ? `<details class="fr-recon-box"><summary>Sus giros, paso a paso</summary><ol class="fr-recon">${C.DOWN[x.sp.f] ? `<li><b>Inspección</b><span class="fr-recon-moves">${algHtml(C.DOWN[x.sp.f])}</span></li>` : ''}${C.STEPS.map((st, i) => (x.rc[i] == null ? '' : `<li><b>${st.name}</b><span class="fr-recon-moves">${x.rc[i] ? algHtml(x.rc[i]) : '<i>nada</i>'}</span></li>`)).join('')}</ol></details>` : '';
+    return `${bar}<div class="fr-table" tabindex="0" role="region" aria-label="Sus tiempos de cada paso"><table><tbody>${rows}</tbody></table></div>${eff}${rc}`;
+  }
+  const tryBtn = (x, who, what) => (x.scr ? `<button class="btn" type="button" data-rk-try="${esc(x.scr)}" data-rk-who="${esc(who)}" data-rk-t="${value(x)}" data-rk-what="${esc(what)}">Probar este scramble</button><button class="btn" type="button" data-rk-copy="${esc(x.scr)}">Copiar</button>` : '');
+  function detailHtml(m, cat) {
+    const b = m.best[cat];
+    if (cat === 'single') {
+      return `<div class="rk-detail">
+        <p class="rk-scr"><span class="field-title">Scramble</span> <span class="fr-alg">${b.scr ? esc(b.scr) : '<i>sin scramble</i>'}</span></p>
+        <div class="actions">${tryBtn(b, m.name, 'single')}</div>
+        ${b.sp ? stepsHtml(b) : '<p class="hint">Sin cubo inteligente: solo el tiempo total. Haz su scramble y a ver si le ganas.</p>'}
+      </div>`;
+    }
+    const vals = b.solves.map(value);
+    const lo = vals.indexOf(Math.min(...vals));
+    const hi = vals.lastIndexOf(Math.max(...vals));
+    return `<div class="rk-detail"><ol class="rk-avg">${b.solves.map((x, i) => {
+      const trimmed = i === lo || i === hi;
+      const t = x.pen === 'dnf' ? 'DNF' : `${fmt(value(x))}${x.pen === 2 ? '+' : ''}`;
+      const steps = x.sp ? `<span class="muted">${PACE_GROUPS.map(([name, idx]) => (idx.every((k) => x.sp.s[k]) ? `${name} ${f1(idx.reduce((a, k) => a + x.sp.s[k][0], 0))}` : '')).filter(Boolean).join(' · ')}</span>` : '';
+      return `<li><b>${trimmed ? `(${t})` : t}</b> ${steps}<span class="fr-alg rk-scr-s">${esc(x.scr || '')}</span>${x.scr ? `<button class="x" type="button" data-rk-try="${esc(x.scr)}" data-rk-who="${esc(m.name)}" data-rk-t="${value(x)}" data-rk-what="solve ${i + 1} de su ${esc(CAT_TEXT[cat])}">Probar</button>` : ''}</li>`;
+    }).join('')}</ol><p class="hint">Entre paréntesis, el mejor y el peor: no cuentan para la media, como en las competiciones.</p></div>`;
+  }
+  function inviteLink(code) { return `${location.origin}${location.pathname}#liga=${code}`; }
+  function startHtml() {
+    return `<div class="rk-start">
+      <p>Compite con tus amigos solo por el tiempo total, como en una competición: el mejor single, la mejor media de 5 y la de 12 de cada uno. Se actualiza solo cada vez que alguien hace un récord. No hace falta cubo inteligente, basta con el cronómetro de esta página; si alguien lo usa, verás también cada paso de sus récords.</p>
+      <div class="field rk-name"><label for="rkName">Tu nombre</label><input id="rkName" class="text-input" maxlength="24" autocomplete="nickname" value="${esc(myName())}"></div>
+      <div class="rk-forms">
+        <form class="rk-form" id="rkCreate"><label class="field-title" for="rkLeague">Crea una liga</label><input id="rkLeague" class="text-input" maxlength="40" placeholder="Los del piso"><button class="btn primary" type="submit">Crear liga</button></form>
+        <form class="rk-form" id="rkJoin"><label class="field-title" for="rkCode">O únete a la de un amigo</label><input id="rkCode" class="text-input" placeholder="Código o enlace" autocomplete="off" autocapitalize="off" spellcheck="false"><button class="btn" type="submit">Unirme</button></form>
+      </div>
+    </div>`;
+  }
+  function inviteHtml() {
+    const d = lg.data[lg.invite];
+    const league = d && d.league;
+    return `<div class="rk-invite">
+      <p>${league ? `Te han invitado a la liga <b>«${esc(league.name)}»</b> de ${esc(league.by)} (${league.members.length} ${league.members.length === 1 ? 'persona' : 'personas'}).` : lg.err ? esc(lg.err) : 'Buscando la liga…'}</p>
+      ${league ? `<form class="rk-form" id="rkAccept">${myName() ? `<span>Entrarás como <b>${esc(myName())}</b>.</span>` : '<label class="field-title" for="rkName">Tu nombre</label><input id="rkName" class="text-input" maxlength="24" autocomplete="nickname">'}<button class="btn primary" type="submit">Unirme</button><button class="btn" type="button" data-rk="noinvite">Ahora no</button></form>` : ''}
+    </div>`;
+  }
+  function leagueHtml() {
+    const list = ligas();
+    const code = curCode();
+    const d = lg.data[code];
+    const league = d && d.league;
+    const me = player().id;
+    let html = `<div class="rk-head">
+      ${list.length > 1 ? `<select id="rkPick" class="text-input" aria-label="Liga">${list.map((x) => `<option value="${x.code}"${x.code === code ? ' selected' : ''}>${esc(x.name || x.code)}</option>`).join('')}</select>` : `<h3 class="rk-title">${esc((league && league.name) || (list[0] && list[0].name) || '')}</h3>`}
+      <div class="actions">
+        <button class="btn primary" type="button" data-rk="invite">Invitar amigos</button>
+        <button class="btn" type="button" data-rk="refresh">Actualizar</button>
+      </div>
+    </div>`;
+    if (!league) return `${html}<p class="fr-note">${lg.busy ? 'Cargando el ranking…' : lg.err ? `No he podido cargarlo: ${esc(lg.err)}. <button class="btn" type="button" data-rk="refresh">Reintentar</button>` : 'Cargando el ranking…'}</p>`;
+    html += `<div class="seg small rk-cats" role="group" aria-label="Qué ranking">${LIGA_CAT.map(([k, n]) => `<button type="button" data-rk-cat="${k}" aria-pressed="${lg.cat === k}">${n}</button>`).join('')}</div>`;
+    const st = standings(league, lg.cat);
+    const rows = st.map(({ m, v }, i) => {
+      const mine = m.id === me;
+      const b = m.best[lg.cat];
+      const key = `${m.id}|${lg.cat}`;
+      const fresh = lg.fresh.has(`${code}|${m.id}`);
+      const ok = Number.isFinite(v);
+      const pos = ok ? i + 1 : '';
+      const row = `<tr class="${mine ? 'me' : ''}${fresh ? ' fresh' : ''}">
+        <td class="rk-pos"><span class="rk-medal${ok && pos <= 3 ? ` m${pos}` : ''}">${pos || '—'}</span></td>
+        <th scope="row">${esc(m.name)}${mine ? ' <span class="muted">(tú)</span>' : ''}${fresh ? ' <span class="rk-new">nuevo</span>' : ''}</th>
+        <td class="rk-t">${ok ? `<b>${fmt(v)}</b>${hasSteps(b, lg.cat) ? ' <span class="rk-badge" title="Hecho con cubo inteligente: puedes ver cada paso">con pasos</span>' : ''}` : '<span class="muted">sin tiempo</span>'}</td>
+        <td class="muted rk-when">${ok ? ago(b.at) : ''}</td>
+        <td>${ok ? `<button class="x" type="button" data-rk-open="${key}" aria-expanded="${lg.open === key}" aria-label="Ver el ${CAT_TEXT[lg.cat]} de ${esc(m.name)}">ver</button>` : ''}</td>
+      </tr>`;
+      return row + (ok && lg.open === key ? `<tr class="rk-open"><td colspan="5">${detailHtml(m, lg.cat)}</td></tr>` : '');
+    }).join('');
+    html += `<div class="rk-table"><table><thead><tr><th scope="col">#</th><th scope="col">Nombre</th><th scope="col">${LIGA_CAT.find((x) => x[0] === lg.cat)[1]}</th><th scope="col">Cuándo</th><th scope="col"><span class="sr-only">Detalles</span></th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    html += `<p class="hint rk-foot">Actualizado ${ago(d.at)} · tus récords se publican solos · código <b>${code}</b></p>
+      <details class="rk-more"><summary>Más</summary>
+        <form class="rk-form" id="rkRename"><label class="field-title" for="rkName">Apareces como</label><input id="rkName" class="text-input" maxlength="24" value="${esc(myName())}"><button class="btn" type="submit">Cambiar</button></form>
+        <form class="rk-form" id="rkJoin"><label class="field-title" for="rkCode">Otra liga</label><input id="rkCode" class="text-input" placeholder="Código o enlace" autocomplete="off" autocapitalize="off" spellcheck="false"><button class="btn" type="submit">Unirme</button></form>
+        <form class="rk-form" id="rkCreate"><label class="field-title" for="rkLeague">Crear otra</label><input id="rkLeague" class="text-input" maxlength="40" placeholder="Nombre de la liga"><button class="btn" type="submit">Crear</button></form>
+        <div class="actions"><button class="btn" type="button" data-rk="leave">Salir de esta liga</button></div>
+      </details>`;
+    return html;
+  }
+  function renderRanking() {
+    const box = $('rankBox');
+    if (!box) return;
+    const list = ligas();
+    let html = '';
+    const inviting = lg.invite && !list.some((x) => x.code === lg.invite);
+    if (inviting) html += inviteHtml();
+    if (list.length) html += leagueHtml();
+    else if (!inviting) html += startHtml();
+    if (lg.err && !list.length && !lg.invite) html += `<p class="hint bad">${esc(lg.err)}</p>`;
+    const open = box.querySelector('details.rk-more[open]');
+    box.innerHTML = html;
+    if (open && box.querySelector('details.rk-more')) box.querySelector('details.rk-more').open = true;
+    // What you are looking at is no longer new.
+    if (list.length && lg.data[curCode()]) setTimeout(() => { if (view === 'ranking') lg.fresh.forEach((k) => { if (k.startsWith(`${curCode()}|`)) lg.fresh.delete(k); }); }, 8000);
+  }
+
+  // ---- Joining, creating, leaving
+  function addLeague(league) {
+    const list = ligas().filter((x) => x.code !== league.code);
+    list.push({ code: league.code, name: league.name, at: Date.now() });
+    save(K.ligas, list);
+    settings.liga = league.code;
+    saveSettings();
+    const pub = load(K.ligaPub, {});
+    pub[league.code] = pubSig(myBests());
+    save(K.ligaPub, pub);
+    lg.data[league.code] = { league, at: Date.now() };
+    newsOf(league.code, league);
+    changed();
+  }
+  function takeName() {
+    const el = $('rkName');
+    const n = el ? cleanName(el.value).slice(0, 24) : myName();
+    if (el && n) save(K.name, n);
+    return n;
+  }
+  async function act(fn) {
+    if (lg.busy) return;
+    lg.busy = true;
+    lg.err = '';
+    try { await fn(); } catch (e) { lg.err = e.message; toast(e.message); }
+    lg.busy = false;
+    renderRanking();
+  }
+  function openInvite(code) {
+    lg.invite = code;
+    if (ligas().some((x) => x.code === code)) { lg.invite = null; settings.liga = code; saveSettings(); }
+    showView('ranking');
+    if (lg.invite) loadLeague(code, true);
+  }
+  $('rankBox').addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    const f = ev.target;
+    if (f.id === 'rkCreate') {
+      const name = takeName();
+      const lname = cleanName($('rkLeague').value);
+      if (!name) { toast('Escribe tu nombre'); return; }
+      if (!lname) { toast('Ponle nombre a la liga'); return; }
+      act(async () => { addLeague(await api('api/liga', { action: 'create', name: lname, player: playerBody(), best: myBests() })); toast('Liga creada: invita a tus amigos'); });
+    } else if (f.id === 'rkJoin' || f.id === 'rkAccept') {
+      const name = takeName();
+      const m = f.id === 'rkAccept' ? [null, lg.invite] : String($('rkCode').value).trim().toLowerCase().match(/([a-z0-9]{8})\s*$/);
+      if (!name) { toast('Escribe tu nombre'); return; }
+      if (!m) { toast('Ese código no es válido: son 8 letras y números'); return; }
+      act(async () => { addLeague(await api(`api/liga?code=${m[1]}`, { action: 'join', player: playerBody(), best: myBests(), n: times.length })); lg.invite = null; toast('¡Dentro!'); });
+    } else if (f.id === 'rkRename') {
+      const name = takeName();
+      if (!name) return;
+      act(async () => { await ligaPublish(true); toast(`Ahora apareces como ${name}`); });
+    }
+  });
+  $('rankBox').addEventListener('change', (ev) => {
+    if (ev.target.id === 'rkPick') { settings.liga = ev.target.value; saveSettings(); lg.open = null; renderRanking(); loadLeague(curCode(), true); }
+  });
+  $('rankBox').addEventListener('click', async (ev) => {
+    const cat = ev.target.closest('[data-rk-cat]');
+    if (cat) { lg.cat = cat.dataset.rkCat; lg.open = null; renderRanking(); return; }
+    const op = ev.target.closest('[data-rk-open]');
+    if (op) { lg.open = lg.open === op.dataset.rkOpen ? null : op.dataset.rkOpen; renderRanking(); return; }
+    const tryIt = ev.target.closest('[data-rk-try]');
+    if (tryIt) {
+      if (timer.phase === 'run') return;
+      setScramble(tryIt.dataset.rkTry);
+      duel = { scr: tryIt.dataset.rkTry, who: tryIt.dataset.rkWho, t: Number(tryIt.dataset.rkT), what: tryIt.dataset.rkWhat, result: '' };
+      showView('crono');
+      renderDuel();
+      return;
+    }
+    const cp = ev.target.closest('[data-rk-copy]');
+    if (cp) { try { await navigator.clipboard.writeText(cp.dataset.rkCopy); toast('Scramble copiado'); } catch (e) { toast('No he podido copiarlo'); } return; }
+    const b = ev.target.closest('[data-rk]');
+    if (!b) return;
+    const what = b.dataset.rk;
+    const code = curCode();
+    if (what === 'refresh') loadLeague(code);
+    else if (what === 'noinvite') { lg.invite = null; renderRanking(); }
+    else if (what === 'invite') {
+      const league = lg.data[code] && lg.data[code].league;
+      const url = inviteLink(code);
+      const text = `Únete a mi liga de cubo «${league ? league.name : ''}»: solo cuenta el tiempo, como en una competición.`;
+      try {
+        if (navigator.share) await navigator.share({ title: 'Ranking de cubo', text, url });
+        else { await navigator.clipboard.writeText(`${text} ${url}`); toast('Enlace de invitación copiado'); }
+      } catch (e) {
+        if (e && e.name === 'AbortError') return;
+        try { await navigator.clipboard.writeText(url); toast('Enlace de invitación copiado'); } catch (e2) { toast(url); }
+      }
+    } else if (what === 'leave') {
+      if (b.dataset.armed !== '1') { b.dataset.armed = '1'; b.textContent = '¿Seguro? Pulsa otra vez'; b.classList.add('armed'); return; }
+      act(async () => {
+        await api(`api/liga?code=${code}`, { action: 'leave', player: playerBody() }).catch((e) => { if (!/no existe/.test(e.message)) throw e; });
+        save(K.ligas, ligas().filter((x) => x.code !== code));
+        delete lg.data[code];
+        settings.liga = null;
+        saveSettings();
+        changed();
+        toast('Has salido de la liga');
+      });
+    }
+  });
+  // While you look at it: again every 30 s, and when you come back to the page.
+  function pollRanking() {
+    clearInterval(lg.timer);
+    lg.timer = setInterval(() => { if (view === 'ranking' && document.visibilityState === 'visible') loadLeague(curCode(), true); }, 30000);
+  }
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && view === 'ranking') loadLeague(curCode(), true); });
+  onView('ranking', () => {
+    renderRanking();
+    const code = curCode();
+    if (code) { ligaPublish(); loadLeague(code, !!lg.data[code]); }
+    pollRanking();
+  });
+
+  // ---- Their scramble, in your timer
+  let duel = null;
+  function renderDuel() {
+    const el = $('duel');
+    if (!el) return;
+    const show = duel && (duel.result || duel.scr === scramble);
+    el.hidden = !show;
+    if (!show) return;
+    el.innerHTML = duel.result
+      ? `<span>${esc(duel.result)}</span><button class="x" type="button" id="duelOff" aria-label="Cerrar">×</button>`
+      : `<span>El scramble del ${esc(duel.what)} de <b>${esc(duel.who)}</b> (${fmt(duel.t)}): ¿le ganas?</span><button class="x" type="button" id="duelOff" aria-label="Dejar el reto">×</button>`;
+    $('duelOff').addEventListener('click', () => { duel = null; renderDuel(); });
+  }
+  function duelResult(r) {
+    if (!duel || duel.result || r.scr !== duel.scr) return;
+    const v = value(r);
+    const d = v - duel.t;
+    duel.result = !Number.isFinite(v) ? `DNF contra el ${fmt(duel.t)} de ${duel.who}.`
+      : d < 0 ? `¡Le has ganado a ${duel.who} por ${(-d / 1000).toFixed(2)} s! (${fmt(v)} contra ${fmt(duel.t)})`
+        : d === 0 ? `Empate con ${duel.who}: ${fmt(v)}.` : `${duel.who} te gana por ${(d / 1000).toFixed(2)} s (${fmt(v)} contra ${fmt(duel.t)}).`;
+    toast(duel.result);
+    renderDuel();
+  }
+
   // ================= Competition mode =================
   // Only the clock, full screen, and the whole screen is the button (like a stackmat), the screen kept on.
   // Enter with the button or F; leave with Salir, Esc or the phone's back gesture.
@@ -2374,6 +2773,7 @@
       v: 1,
       times: times.map((r, i) => (i < keep && (r.rc || r.an) ? (({ rc, an, ...x }) => x)(r) : r)),
       deleted: load(K.deleted, []), learn, learnAt, train, crossTr: load(K.crossTr, []).slice(-300), trlog: trlog.slice(-3000),
+      player: load(K.player, null), ligas: ligas(),
     };
   }
   function mergeIn(remote) {
@@ -2422,6 +2822,17 @@
     trlog.sort((a, b) => a.at - b.at);
     if (trlog.length > 5000) trlog = trlog.slice(-5000);
     save(K.trlog, trlog);
+    // The ranking: the same player on every device (the oldest one wins), and every league.
+    const rp = remote.player;
+    if (rp && /^[a-z0-9]{12,32}$/.test(rp.id || '') && /^[a-f0-9]{32,64}$/.test(rp.token || '')) {
+      const lp = load(K.player, null);
+      if (!lp || (lp.id !== rp.id && (rp.at || 0) < (lp.at || Infinity))) { save(K.player, { id: rp.id, token: rp.token, at: rp.at || 0 }); save(K.ligaPub, {}); changedHere = true; }
+    }
+    if (Array.isArray(remote.ligas)) {
+      const mineL = ligas();
+      remote.ligas.forEach((x) => { if (x && /^[a-z0-9]{8}$/.test(x.code) && !mineL.some((y) => y.code === x.code)) { mineL.push({ code: x.code, name: cleanName(x.name), at: x.at || Date.now() }); changedHere = true; } });
+      save(K.ligas, mineL);
+    }
     return changedHere;
   }
   let syncing = null;
@@ -2747,12 +3158,14 @@
     paceFor: (r) => { const pf = settings.pace !== 'off' ? paceFor(r) : null; return pf ? { d: pf.rows.map((x) => Math.round(x.d)), gold: pf.rows.map((x) => x.gold), total: Math.round(pf.total), label: pf.label } : null; },
     recordsOf,
     // For tests.
-    _: { simSolution, caseTarget, tr, settings, celebrate, paceRef, bestsOf, paceTick, follow: () => follow, makeFollow, partialKeys, setScramble, makeTry, ct, vibes, syncNow, mergeIn, offerUpdate, focus: () => focus.on },
+    _: { simSolution, caseTarget, tr, settings, celebrate, paceRef, bestsOf, paceTick, myBests, ligaPublish, player, loadLeague, lg, follow: () => follow, makeFollow, partialKeys, setScramble, makeTry, ct, vibes, syncNow, mergeIn, offerUpdate, focus: () => focus.on },
   };
 
   // ================= Start =================
   const first = location.hash.slice(1);
-  showView(VIEWS.includes(first) ? first : load(K.view, 'crono'));
+  const invite = first.match(/^liga[=/]([a-z0-9]{8})$/i);
+  if (invite) openInvite(invite[1].toLowerCase());
+  else showView(VIEWS.includes(first) ? first : load(K.view, 'crono'));
   renderMode();
   renderStats();
   renderPick();
@@ -2761,6 +3174,7 @@
   if (scramble) setScramble(scramble); else { renderScramble(); newScramble(); }
   // Sync set up on the 3BLD page (or another tab): bring this page up to date.
   if (syncState()) setTimeout(() => syncNow(false), 1500);
+  if (ligas().length) setTimeout(() => ligaPublish(), 2500);
   setTimeout(() => { if (typeof Worker !== 'undefined') M.startScrambler().catch(() => {}); }, 400);
   if ('serviceWorker' in navigator && document.querySelector('link[rel=manifest]')) {
     navigator.serviceWorker.register('sw.js').then(watchUpdates).catch(() => {});

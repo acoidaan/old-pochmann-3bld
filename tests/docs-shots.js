@@ -188,6 +188,33 @@ const save = (p, name, opts) => p.screenshot({ path: path.join(OUT, name), ...op
     await p.evaluate((y) => window.scrollTo(0, y - 80), top);
     await save(p, 'fridrich-plan.png');
     done.push('fridrich-plan.png');
+    // The ranking: a league with three friends, one record opened.
+    await p.evaluate(() => { localStorage.setItem('op3bld:name:v1', JSON.stringify('Aco')); window.Fridrich.showView('ranking'); });
+    await p.clock.runFor(300);
+    await p.fill('#rkLeague', 'Los del piso');
+    await p.click('#rkCreate button');
+    await p.waitForFunction(() => document.querySelector('.rk-table'), null, { timeout: 10000 });
+    await p.evaluate(async () => {
+      const code = JSON.parse(localStorage.getItem('cfop:ligas:v1'))[0].code;
+      const scr = "R2 D' B2 U F2 D2 L2 U' B2 R2 F' L' D2 B' U2 R F' U' R2 B";
+      const s = (t) => ({ t, pen: 0, at: Date.now() - 3 * 3600000, scr });
+      const avg = (ts) => { const xs = ts.slice().sort((a, b) => a - b).slice(1, -1); return { v: Math.round(xs.reduce((a, b) => a + b, 0) / xs.length), solves: ts.map(s) }; };
+      const friends = [['pabloxxxxxxxxxxx', 'Pablo', [36900, 41200, 39800, 44100, 40300]], ['luciaxxxxxxxxxxx', 'Lucía', [33400, 37200, 35100, 38900, 36000]], ['danixxxxxxxxxxxx', 'Dani', [52300, 49800, 55100, 51000, 58700]]];
+      for (const [id, name, ts] of friends) {
+        await fetch(`api/liga?code=${code}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'join', player: { id, token: 'a'.repeat(32), name }, best: { single: s(Math.min(...ts)), ao5: avg(ts) } }) });
+      }
+      window.Fridrich._.lg.data = {};
+    });
+    await p.click('[data-rk="refresh"]');
+    await p.clock.runFor(500);
+    await p.waitForFunction(() => document.querySelectorAll('.rk-table tbody tr').length >= 4, null, { timeout: 10000 });
+    const mine = await p.evaluate(() => [...document.querySelectorAll('.rk-table tbody tr')].findIndex((r) => /\(tú\)/.test(r.innerText)));
+    await p.click(`.rk-table tbody tr:nth-child(${mine + 1}) [data-rk-open]`);
+    await p.clock.runFor(300);
+    await p.evaluate(() => window.scrollTo(0, 0));
+    await p.clock.runFor(2600);   // the heads-up gone
+    await save(p, 'fridrich-ranking.png');
+    done.push('fridrich-ranking.png');
     await ctx.close();
   }
 

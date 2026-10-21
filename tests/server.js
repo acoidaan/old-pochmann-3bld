@@ -1,5 +1,6 @@
 // Local server for the tests: the built site (public/) plus an in-memory fake of the API with the same
-// contract as api/*.js (retos, sync, ping, /r/<id>), the scramble generator's files and a few fixtures.
+// contract as api/*.js (retos, sync, ping, /r/<id>; the leagues run the real api/_liga.js), the scramble
+// generator's files and a few fixtures.
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
@@ -11,6 +12,8 @@ const TYPES = {
 const FIXTURES = path.join(__dirname, 'fixtures');
 const FONT_DIRS = ['unbounded', 'atkinson-hyperlegible', 'martian-mono']
   .map((p) => path.join(__dirname, 'node_modules', '@fontsource', p, 'files'));
+// The leagues run the real logic (api/_liga.js) over an in-memory store shaped like Vercel Blob.
+const { handle: ligaHandle } = require(path.join(__dirname, '..', 'api', '_liga.js'));
 const CUBEJS = [path.join(__dirname, 'node_modules', 'cubejs', 'lib'), path.join(__dirname, '..', 'node_modules', 'cubejs', 'lib')]
   .find((d) => fs.existsSync(path.join(d, 'cube.js')));
 
@@ -18,6 +21,17 @@ const CUBEJS = [path.join(__dirname, 'node_modules', 'cubejs', 'lib'), path.join
 function start({ root, port, cubejs = true }) {
   const blobs = new Map();
   let seq = 0;
+  const files = new Map();   // pathname → { pathname, url, uploadedAt, data }
+  let tick = 0;
+  const ligaStore = {
+    list: async (prefix) => [...files.values()].filter((f) => f.pathname.startsWith(prefix)),
+    read: async (url) => { const f = [...files.values()].find((x) => x.url === url); return f ? JSON.parse(JSON.stringify(f.data)) : null; },
+    write: async (pathname, data) => {
+      const name = `${pathname.replace(/\.json$/, '')}-${(tick++).toString(36)}.json`;
+      files.set(name, { pathname: name, url: `mem://${name}`, uploadedAt: new Date(1e12 + tick * 1000).toISOString(), data: JSON.parse(JSON.stringify(data)) });
+    },
+    del: async (urls) => { urls.forEach((u) => { for (const [k, f] of files) if (f.url === u) files.delete(k); }); },
+  };
   const server = http.createServer(async (req, res) => {
     const u = new URL(req.url, 'http://x');
     const send = (status, obj) => { res.writeHead(status, { 'content-type': 'application/json' }); res.end(JSON.stringify(obj)); };
@@ -56,6 +70,10 @@ function start({ root, port, cubejs = true }) {
       }
       blobs.set(`retos/${id}/r/${seq++}`, { ...body, at: Date.now() });
       return send(200, { ok: true });
+    }
+    if (u.pathname === '/api/liga') {
+      const out = await ligaHandle(ligaStore, { method: req.method, code: u.searchParams.get('code') || '', body });
+      return send(out.status, out.body);
     }
     if (u.pathname === '/api/sync') {
       const k = `sync/${u.searchParams.get('k')}`;

@@ -293,6 +293,55 @@ body.focus .clock-pb b { font-size: 24px; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .fr-pbtag { color: #1C1300; } }
 :root[data-theme="dark"] .fr-pbtag, :root[data-theme="dark"] .clock-pb { color: #1C1300; }
 
+/* ---------- Ranking ---------- */
+#rankBox { display: grid; gap: 14px; }
+.rk-start { display: grid; gap: 14px; }
+.rk-start > p { margin: 0; max-width: 70ch; }
+.rk-name { max-width: 320px; }
+.rk-forms { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.rk-form { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.rk-form .field-title { flex-basis: 100%; }
+.rk-form .text-input { flex: 1 1 180px; min-width: 0; }
+.rk-forms .rk-form { padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--raise); }
+.rk-invite { display: grid; gap: 10px; padding: 14px; border-radius: 12px; background: var(--accent-soft); }
+.rk-invite p { margin: 0; }
+.rk-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.rk-title { margin: 0; font-size: 18px; }
+.rk-head select { max-width: 260px; }
+.rk-cats { justify-self: start; }
+.rk-table { overflow-x: auto; }
+.rk-table table { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+.rk-table th, .rk-table td { text-align: left; padding: 8px 8px; border-bottom: 1px solid var(--line); }
+.rk-table thead th { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.rk-table tbody th { font-weight: 700; }
+.rk-table tr.me > * { background: var(--accent-soft); }
+.rk-table tr.rk-open > td { background: var(--surface); padding: 12px; }
+.rk-pos { width: 2.6em; }
+.rk-medal { display: inline-grid; place-items: center; min-width: 1.9em; height: 1.9em; border-radius: 50%; font-weight: 700; font-size: 13px; color: var(--muted); }
+.rk-medal.m1 { background: #F0C24B; color: #2B1D00; }
+.rk-medal.m2 { background: #CBD3DF; color: #1D2430; }
+.rk-medal.m3 { background: #D99A6C; color: #2B1405; }
+.rk-t b { font-family: var(--font-display); font-size: 16px; }
+.rk-badge { display: inline-block; margin-left: 4px; padding: 0 6px; border-radius: 999px; border: 1px solid var(--line); font-size: 11px; font-weight: 700; color: var(--muted); vertical-align: 2px; white-space: nowrap; }
+.rk-new { display: inline-block; padding: 0 6px; border-radius: 999px; font-size: 11px; font-weight: 700; background: var(--accent); color: var(--on-accent, #fff); vertical-align: 2px; }
+.rk-when { white-space: nowrap; }
+.rk-detail { display: grid; gap: 10px; }
+.rk-scr { margin: 0; display: grid; gap: 4px; }
+.rk-avg { margin: 0; padding-left: 22px; display: grid; gap: 8px; }
+.rk-avg li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.rk-scr-s { flex-basis: 100%; font-size: 13px; }
+.rk-foot { margin: 0; }
+.rk-more { display: grid; gap: 12px; }
+.rk-more[open] > summary { margin-bottom: 10px; }
+.rk-more > summary { cursor: pointer; font-weight: 700; color: var(--muted); font-size: 14px; }
+.rk-more .rk-form { margin-bottom: 10px; max-width: 520px; }
+.fr-duel { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 8px 0 0; padding: 8px 12px; border-radius: 10px; background: var(--accent-soft); font-size: 14px; }
+.fr-duel[hidden] { display: none; }
+@media (max-width: 560px) {
+  .rk-table th, .rk-table td { padding: 7px 5px; }
+  .rk-when, .rk-table thead th:nth-child(4) { display: none; }
+}
+
 /* ---------- What to train today ---------- */
 :root { --fr-h0: #E6EAF0; --fr-h1: #C6D8F5; --fr-h2: #8FB4EC; --fr-h3: #4F86D9; --fr-h4: #2459A8; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --fr-h0: #252C37; --fr-h1: #1F3B66; --fr-h2: #2C5A9C; --fr-h3: #4479CC; --fr-h4: #7FA9EE; } }
@@ -385,7 +434,7 @@ body.focus .clock-pb b { font-size: 24px; }
 /* ---------- Phones ---------- */
 @media (max-width: 860px) {
   .fr .brand { display: grid; }
-  .fr .tabs { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .fr .tabs { grid-template-columns: repeat(6, minmax(0, 1fr)); }
   .fr .tab-ajustes { display: flex; margin-left: 0; }
   .fr-head { align-items: center; }
   .fr-head .brand h1 { font-size: 20px; }

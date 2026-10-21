@@ -256,7 +256,7 @@ const keys = (d) => ({ 'cfop:times:v1': d.times, 'cfop:trlog:v1': d.trlog, 'cfop
   const o2 = await fits();
   await ph.p.screenshot({ path: `${SHOTS}/fridrich-plan-pixel7.png`, fullPage: true });
   const tabs = await ph.p.evaluate(() => [...document.querySelectorAll('#tabs .tab')].filter((t) => t.getBoundingClientRect().width > 40).map((t) => t.innerText.trim()));
-  check('phone: Progreso and Entrenar fit, five tabs at the bottom', o1 <= 0 && o2 <= 0 && tabs.join() === 'Cronómetro,Casos,Entrenar,Progreso,Ajustes', `${o1} ${o2} ${tabs.join()}`);
+  check('phone: Progreso and Entrenar fit, six tabs at the bottom', o1 <= 0 && o2 <= 0 && tabs.join() === 'Cronómetro,Casos,Entrenar,Progreso,Ranking,Ajustes', `${o1} ${o2} ${tabs.join()}`);
   await ph.ctx.close();
 
   results.forEach((r) => console.log(r));

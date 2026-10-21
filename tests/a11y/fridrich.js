@@ -92,6 +92,15 @@ const SOLVE = ["D R' F2 L", "U R U' R'", "U' F' U F", "L' U' L", "U B U' B'", "F
     await p.evaluate(() => window.Fridrich.showView('entrenar'));
     await p.waitForTimeout(200);
     await run('entrenar · qué entrenar hoy');
+    // The ranking: the start, a league, a record's detail.
+    await p.evaluate(() => { localStorage.setItem('op3bld:name:v1', JSON.stringify('Aco')); window.Fridrich.showView('ranking'); });
+    await p.waitForFunction(() => document.getElementById('rkCreate'), null, { timeout: 10000 });
+    await run('ranking · empezar');
+    await p.fill('#rkLeague', 'Los del piso');
+    await p.click('#rkCreate button');
+    await p.waitForFunction(() => document.querySelector('.rk-table'), null, { timeout: 10000 });
+    await p.click('[data-rk-open]');
+    await run('ranking · liga y detalle');
     await ctx.close();
   }
   console.log(`${problems} problems`);

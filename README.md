@@ -132,6 +132,7 @@ En [`/fridrich`](https://old-pochmann-3bld.vercel.app/fridrich), una segunda pá
 | **Después de cada solve** | El **análisis**: cuántos giros hiciste en cada paso (la cruz, cada pareja, cada algoritmo) contra lo más corto posible, la eficiencia total, las pausas de más de 1 s y qué mejorar primero; y la eficiencia media con los tiempos por fase. La **reconstrucción**: tus giros paso a paso como los hiciste (con el blanco abajo), para copiarla. Las dos también en el historial («ver»). |
 | **Casos** | Los 16 casos dibujados como en J Perm, con su algoritmo, cómo reconocerlos y si los estás aprendiendo o te los sabes. **Pruébalo**: con el cubo resuelto, una mezcla que te deja en ese caso (el algoritmo al revés, o una que no lo delata), cómo queda y cómo resolverlo para que vuelva a quedar resuelto. |
 | **Entrenar** | **Qué entrenar hoy:** con tus solves y tus entrenamientos, dónde puedes ganar tiempo (segundos por solve: pararte en el F2L, giros de más, la cruz, reconocer, algoritmos lentos) y un **set recomendado** de casos con su dibujo, su algoritmo y por qué; «Entrenar este set» te pone solo esos, en el modo que mejor les va. **Cubo inteligente:** te dice cómo dejar tu cubo en un caso (desde como esté, con un scramble que no lo delata), lo resuelves y mide reconocer + hacer; si te lías, «Me he perdido» lo cuenta como fallo y te prepara otro desde como esté el cubo. **Cubo normal:** te da una mezcla desde resuelto, adivinas qué caso te ha quedado y te dice cómo resolverlo (también con «Me he perdido»). **Reconocer:** te enseña un caso desde cualquier lado y dices cuál es (teclas `1`–`7`). Salen más los que menos has hecho y los más lentos. **La cruz:** un scramble, 15 s para planearla y hacerla de una vez; te dice cuántos giros te sobraron y la más corta. **Tus casos, en números:** los 16 con lo que tardas en tus solves, lo entrenado, los fallos y lo que te cuesta cada uno por solve. |
+| **Ranking** | Una liga con tus amigos: solo cuenta el tiempo total, como en una competición (mejor single, media de 5 y media de 12, al estilo WCA). La creas, mandas el enlace (`/fridrich#liga=código`) y cada uno entra con su nombre; no hace falta cubo inteligente. Tus récords se publican solos (y se corrigen si pones un +2 o borras un solve), y al batir uno te dice en qué puesto quedas. Si un amigo bate el suyo, te avisa y lo marca «nuevo». En cada récord, «ver»: con cubo inteligente, cada paso, sus casos y la eficiencia; sin él, el scramble para copiarlo o **probarlo** en tu cronómetro, que te dice al acabar si le has ganado. |
 | **Progreso** | Cómo vas, en palabras y en números: mejores single, ao5 y ao12, tu media contra la de antes y la de hace un mes, la semana contra la anterior. Tu media y tu mejor tiempo de cada día, los logros (primera vez por debajo de 40 s…) y el siguiente a por el que ir. Un calendario de lo que practicas y tu racha. Cada paso (cruz, F2L, OLL, PLL) ahora contra antes, la eficiencia de tus solves, la cruz y los casos que más te cuestan. |
 | **Ajustes** | Sonido y vibración, inspección, color de la cruz, la ayuda. **Sincronizar** con el mismo código de la página de 3BLD: tiempos, casos y entrenamientos en todos tus dispositivos. **Instalar** como app y aviso de **versión nueva**. |
 | **Overlay** | El mismo de OBS: cuando usas esta página, enseña el cronómetro con cruz, F2L, OLL y PLL (y debajo de cada uno, cuánto vas por delante o por detrás de tu media, dorado si es tu mejor), el caso que estás haciendo con su algoritmo, tus medias de hoy y cuántos algoritmos te sabes. Con un récord: «¡Nuevo récord! · Single 21.30» y confeti. |
@@ -141,6 +142,8 @@ En [`/fridrich`](https://old-pochmann-3bld.vercel.app/fridrich), una segunda pá
 ![Progreso: cómo vas en palabras, tus mejores marcas, la media y el mejor tiempo de cada día y los logros](docs/img/fridrich-progreso.png)
 
 ![Qué entrenar hoy: dónde puedes ganar tiempo y el set recomendado, con el porqué de cada caso](docs/img/fridrich-plan.png)
+
+![Ranking con amigos: la liga por single, con medallas, y el detalle de un récord hecho con el cubo inteligente](docs/img/fridrich-ranking.png)
 
 ### Los algoritmos
 
@@ -301,7 +304,7 @@ flowchart LR
 | `overlay.html` | El overlay para OBS, una página independiente. |
 | `sw.js` | El service worker: guarda la app para usarla sin conexión. |
 | `build.js` | Genera `public/`: copia los archivos con un hash en la URL, dibuja los iconos PNG y anota el número de versión. |
-| `api/` | Funciones de Vercel: retos, sincronización, imágenes de vista previa y enlaces cortos. |
+| `api/` | Funciones de Vercel: retos, sincronización, ligas de amigos (la lógica, en `_liga.js`, la usan también las pruebas), imágenes de vista previa y enlaces cortos. |
 | `vendor/` | gan-web-bluetooth empaquetado ([cómo se genera](vendor/README.md)). |
 | `tests/` | Pruebas en navegador y auditorías de accesibilidad ([cómo se ejecutan](tests/README.md)). |
 | `docs/img/` | Las capturas de este README (se regeneran con `npm run shots`). |
@@ -339,6 +342,8 @@ Todo se guarda en `localStorage`, en tu dispositivo:
 | `cfop:times:v1` | Fridrich: solves (los últimos 2000) con penalización, scramble y, con el cubo, cada paso `[tiempo, giros, reconocer, caso, salto]`, la reconstrucción y el análisis (de los últimos 500) |
 | `cfop:learn:v1` · `cfop:learn-at:v1` · `cfop:train:v1` · `cfop:pick:v1` | Fridrich: casos que aprendes o te sabes · cuándo cambió cada uno (para sincronizar) · lo entrenado por caso · los casos elegidos |
 | `cfop:crosstr:v1` · `cfop:deleted:v1` · `cfop:synced:v1` | Fridrich: cruces entrenadas · solves borrados (para que no vuelvan al sincronizar) · última sincronización |
+| `cfop:player:v1` · `cfop:ligas:v1` | Ranking: tu identificador y su token (los mismos en todos tus dispositivos) · tus ligas |
+| `cfop:liga-pub:v1` · `cfop:liga-seen:v1` | Ranking: lo último que publicaste en cada liga · lo que viste de los demás (para avisarte de sus récords) |
 | `cfop:trlog:v1` | Fridrich: cada caso entrenado (los últimos 5000): cuándo, cuál, cómo, si salió bien, sus tiempos y si te perdiste |
 | `cfop:settings:v1` · `cfop:scramble:v1` · `cfop:view:v1` | Fridrich: inspección, ayuda, sonido, color de la cruz… · scramble actual · última vista |
 
@@ -357,6 +362,9 @@ Funciones de Vercel (`api/`) con los datos en un almacén privado de [Vercel Blo
 | `/api/reto?id=` | GET | El reto con sus resultados (uno por dispositivo: cuenta el primero). |
 | `/api/reto?id=` | POST | Añade un resultado `{ name, dev, memo, exec, ok }`. Máximo 300 por reto. |
 | `/api/sync?k=` | GET · POST | Lee o guarda los datos sincronizados. Guarda las 3 últimas versiones, hasta 500 KB. |
+| `/api/liga` | POST | Crea una liga `{ action: 'create', name, player, best }` y la devuelve con su código (8 caracteres). |
+| `/api/liga?code=` | GET | La liga y lo mejor de cada uno: single, ao5 y ao12 con sus solves (scramble, y los pasos si fue con cubo inteligente). |
+| `/api/liga?code=` | POST | `join`, `post` (tus mejores, que se comprueban: la media tiene que salir de sus solves) o `leave`. Cada uno escribe solo lo suyo, con un token secreto que el servidor guarda cifrado. Hasta 60 por liga. |
 | `/api/og` | GET | Imagen de vista previa de 1200×630 (`?reto=` para la de un reto). |
 | `/r/:id` | GET | Enlace corto de un reto. Los bots de vista previa reciben una página con título, descripción e imagen; las personas van directas a la app. |
 

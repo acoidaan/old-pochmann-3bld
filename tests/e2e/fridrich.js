@@ -366,14 +366,14 @@ const SOLVE = ["D R' F2 L", "U R U' R'", "U' F' U F", "L' U' L", "U B U' B'", "F
 
   // ================= Phone =================
   const ph = await open({ ...devices['Pixel 7'], colorScheme: 'dark' }, `${SITE}/fridrich?cubo=virtual#crono`);
-  for (const v of ['crono', 'casos', 'entrenar', 'progreso', 'ajustes']) {
+  for (const v of ['crono', 'casos', 'entrenar', 'progreso', 'ranking', 'ajustes']) {
     await ph.p.evaluate((x) => window.Fridrich.showView(x), v);
     await ph.p.waitForTimeout(150);
     const over = await ph.p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     check(`phone: «${v}» fits the screen`, over <= 0, String(over));
     await ph.p.screenshot({ path: `${SHOTS}/fridrich-${v}-pixel7.png`, fullPage: true });
   }
-  check('phone: the menu at the bottom, five tabs', await ph.p.evaluate(() => [...document.querySelectorAll('.tab')].filter((t) => getComputedStyle(t).display !== 'none').length === 5));
+  check('phone: the menu at the bottom, six tabs', await ph.p.evaluate(() => [...document.querySelectorAll('.tab')].filter((t) => getComputedStyle(t).display !== 'none').length === 6));
   await ph.ctx.close();
 
   // ================= From the 3BLD app =================
