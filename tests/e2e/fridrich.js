@@ -332,15 +332,64 @@ const SOLVE = ["D R' F2 L", "U R U' R'", "U' F' U F", "L' U' L", "U B U' B'", "F
     const C = window.Cfop;
     const r = C.readCube(window.Fridrich.cube().state, 'U');
     const k = C.recognize(r.g, r.stage);
-    return { stage: r.stage, id: k && k.case && k.case.id, alg: ['z2', k.view, k.pre, k.case.alg, k.post].filter(Boolean).join(' ') };
+    return { stage: r.stage, id: k && k.case && k.case.id, alg: ['z2', k.view, k.pre, k.case.alg, k.post].filter(Boolean).join(' '), rot: ['z2', k.view].filter(Boolean).join(' ') };
   });
   check('train/cube: the cube really is in that case', read.id === t1.id, JSON.stringify(read));
   await p.evaluate((a) => window.Fridrich.cube().link.play([a], 20), read.alg);
+  // Held as before again (the rotations only change how the virtual cube is held), so the next setup reads right.
+  const unrotate = (rot) => p.evaluate((x) => window.Fridrich.cube().link.turn(window.CubeModel.invertAlg(x)), rot);
+  await unrotate(read.rot);
   await p.waitForFunction(() => /✓/.test(document.getElementById('trBox').innerText), null, { timeout: 4000 }).catch(() => {});
   const res = await p.evaluate(() => ({ text: document.getElementById('trBox').innerText, rec: JSON.parse(localStorage.getItem('cfop:train:v1')) }));
   check('train/cube: solved the step → ✓ with recognition and execution times', /✓/.test(res.text) && /Reconocer [\d.]+ s · hacer [\d.]+ s/.test(res.text) && res.rec[t1.id].n === 1, res.text.slice(0, 200));
   await p.waitForFunction(() => { const t = window.Fridrich._.tr; return t.follow && !t.result && !t.ready; }, null, { timeout: 30000 });
   check('train/cube: then the next case, from where the cube is', true);
+
+  // ================= «Ver el algoritmo» stays until you hide it =================
+  const caseNow = () => p.evaluate(() => ({ id: window.Fridrich._.tr.c.id, setup: window.Fridrich._.tr.setup, n: (JSON.parse(localStorage.getItem('cfop:train:v1'))[window.Fridrich._.tr.c.id] || {}).n || 0 }));
+  const solveNow = async () => {
+    const alg = await p.evaluate(() => {
+      const C = window.Cfop;
+      const r = C.readCube(window.Fridrich.cube().state, 'U');
+      const k = C.recognize(r.g, r.stage);
+      return { alg: ['z2', k.view, k.pre, k.case.alg, k.post].filter(Boolean).join(' '), rot: ['z2', k.view].filter(Boolean).join(' ') };
+    });
+    await p.evaluate((a) => window.Fridrich.cube().link.play([a], 20), alg.alg);
+    await unrotate(alg.rot);
+    const h = await p.waitForFunction(() => { const t = document.getElementById('trBox').innerText; return /✓/.test(t) && t; }, null, { timeout: 4000 }).catch(() => null);
+    return h ? h.jsonValue() : '';
+  };
+  const nextReady = () => p.waitForFunction(() => { const t = window.Fridrich._.tr; return t.follow && !t.result && !t.ready; }, null, { timeout: 30000 });
+  const t2 = await caseNow();
+  await turn(t2.setup);
+  await p.waitForFunction(() => window.Fridrich._.tr.ready && document.getElementById('trPeek'), null, { timeout: 4000 });
+  const closed = await p.evaluate(() => ({ open: document.getElementById('trPeek').open, sum: document.querySelector('#trPeek summary').textContent }));
+  await p.click('#trPeek summary');
+  await p.waitForTimeout(150);
+  const pk1 = await p.evaluate(() => ({ open: document.getElementById('trPeek').open, sum: document.querySelector('#trPeek summary').textContent, on: window.Fridrich._.settings.trPeek, saved: JSON.parse(localStorage.getItem('cfop:settings:v1')).trPeek }));
+  check('train/cube: «Ver el algoritmo» closed at first; opening it pins it («Ocultar el algoritmo»), saved', !closed.open && /Ver el algoritmo/.test(closed.sum) && pk1.open && /Ocultar el algoritmo/.test(pk1.sum) && pk1.on && pk1.saved, `${JSON.stringify(closed)} ${JSON.stringify(pk1)}`);
+  const done2 = await solveNow();
+  const pk2 = await p.evaluate((id) => { const log = JSON.parse(localStorage.getItem('cfop:trlog:v1')); const rec = JSON.parse(localStorage.getItem('cfop:train:v1'))[id]; return { a: log[log.length - 1].a, an: rec.an || 0, n: rec.n || 0 }; }, t2.id);
+  check('train/cube: solved with the algorithm in view → practice, apart from your times', /Con el algoritmo a la vista/.test(done2) && pk2.a === 1 && pk2.an === 1 && pk2.n === t2.n, `${done2.slice(0, 120)} ${JSON.stringify(pk2)}`);
+  await nextReady();
+  const t3 = await caseNow();
+  await turn(t3.setup);
+  await p.waitForFunction(() => window.Fridrich._.tr.ready && document.getElementById('trPeek'), null, { timeout: 4000 });
+  const pk3 = await p.evaluate(() => ({ open: document.getElementById('trPeek').open, sum: document.querySelector('#trPeek summary').textContent }));
+  check('train/cube: the next case starts with the algorithm already in view', pk3.open && /Ocultar el algoritmo/.test(pk3.sum), JSON.stringify(pk3));
+  await p.click('#trPeek summary');
+  await p.waitForTimeout(150);
+  const pk4 = await p.evaluate(() => ({ open: document.getElementById('trPeek').open, sum: document.querySelector('#trPeek summary').textContent, on: window.Fridrich._.settings.trPeek, saved: JSON.parse(localStorage.getItem('cfop:settings:v1')).trPeek }));
+  check('train/cube: «Ocultar el algoritmo» unpins it', !pk4.open && /Ver el algoritmo/.test(pk4.sum) && pk4.on === false && pk4.saved === false, JSON.stringify(pk4));
+  await solveNow();
+  await nextReady();
+  const t4 = await caseNow();
+  await turn(t4.setup);
+  await p.waitForFunction(() => window.Fridrich._.tr.ready && document.getElementById('trPeek'), null, { timeout: 4000 });
+  check('train/cube: and the case after that starts hidden again', await p.evaluate(() => !document.getElementById('trPeek').open));
+  const done4 = await solveNow();
+  check('train/cube: hidden, it counts again with recognition and execution', /Reconocer [\d.]+ s · hacer [\d.]+ s/.test(done4), done4.slice(0, 120));
+  await nextReady();
 
   // ================= The overlay follows this page =================
   const ov = await ctx.newPage();

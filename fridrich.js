@@ -24,7 +24,7 @@
   };
   const load = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; } catch (e) { return d; } };
   const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* this visit only */ } };
-  const settings = { inspect: false, help: true, sound: true, vibrate: true, cross: 'U', timed: true, trMode: 'cube', chart: 50, pace: 'avg', celebrate: true, ...load(K.set, {}) };
+  const settings = { inspect: false, help: true, sound: true, vibrate: true, cross: 'U', timed: true, trMode: 'cube', chart: 50, pace: 'avg', celebrate: true, trPeek: false, ...load(K.set, {}) };
   if (!(settings.cross in C.DOWN)) settings.cross = 'U';
   const saveSettings = () => save(K.set, settings);
   let times = load(K.times, []);
@@ -1329,6 +1329,7 @@
     if (!t) return '';
     const bits = [];
     if (t.n) bits.push(`con el cubo: media ${f1(t.sum / t.n)} s${t.rsum != null ? ` (${f1(t.rsum / t.n)} reconociendo)` : ''} · mejor ${f1(t.best)} s · ${t.n} ${t.n === 1 ? 'vez' : 'veces'}`);
+    if (t.an) bits.push(`con el algoritmo a la vista: ${t.an} ${t.an === 1 ? 'vez' : 'veces'}`);
     if (t.fail || t.mfail) bits.push(`te perdiste ${(t.fail || 0) + (t.mfail || 0)} ${(t.fail || 0) + (t.mfail || 0) === 1 ? 'vez' : 'veces'}`);
     if (t.qn) bits.push(`reconociendo: ${Math.round((t.qok / t.qn) * 100)} % · ${f1(t.qsum / t.qn)} s`);
     if (t.mn) bits.push(`con tu cubo: ${Math.round((t.mok / t.mn) * 100)} % acertados (${t.mn})`);
@@ -1536,6 +1537,7 @@
     locate(tr.follow, cube.state);
     tr.ready = done(tr.follow) ? now() : 0;
     tr.first = 0;
+    tr.peeked = false;
     renderTrain();
   }
   // After a case: another one, prepared from wherever the cube is.
@@ -1584,15 +1586,19 @@
       const total = t - tr.ready;
       const recog = tr.first - tr.ready;
       const rec = train[tr.c.id] || {};
-      rec.n = (rec.n || 0) + 1;
-      rec.sum = (rec.sum || 0) + total;
-      rec.best = rec.best == null ? total : Math.min(rec.best, total);
-      rec.rsum = (rec.rsum || 0) + recog;
-      rec.last = total;
+      // With the algorithm in view it counts as practice, apart: not in your times, nor to master the case.
+      if (tr.peeked) rec.an = (rec.an || 0) + 1;
+      else {
+        rec.n = (rec.n || 0) + 1;
+        rec.sum = (rec.sum || 0) + total;
+        rec.best = rec.best == null ? total : Math.min(rec.best, total);
+        rec.rsum = (rec.rsum || 0) + recog;
+        rec.last = total;
+      }
       train[tr.c.id] = rec;
       save(K.train, train);
-      logTr({ id: tr.c.id, m: 'c', ok: 1, t: Math.round(total), r: Math.round(recog) });
-      tr.result = { total, recog, exec: total - recog };
+      logTr({ id: tr.c.id, m: 'c', ok: 1, t: Math.round(total), r: Math.round(recog), ...(tr.peeked ? { a: 1 } : {}) });
+      tr.result = { total, recog, exec: total - recog, peeked: tr.peeked };
       if (settings.sound) window.SmartCube.chime(true);
       buzz([60]);
       renderTrain();
@@ -1663,27 +1669,35 @@
       else if (F.off.length) html += `<p class="hint bad">Ese giro no toca. Deshaz: <b>${esc(undoText(F, tr.map))}</b></p>`;
       html += '<div class="actions"><button class="btn" type="button" data-tr-lost>Otro caso</button></div>';
     } else if (tr.result) {
-      html += `<p class="fr-big ok">✓ ${esc(c.name)} en ${f1(tr.result.total)} s</p><p class="hint">Reconocer ${f1(tr.result.recog)} s · hacer ${f1(tr.result.exec)} s. Ahora otro…</p>`;
+      html += `<p class="fr-big ok">✓ ${esc(c.name)} en ${f1(tr.result.total)} s</p><p class="hint">${tr.result.peeked ? 'Con el algoritmo a la vista: cuenta como práctica, aparte de tus tiempos.' : `Reconocer ${f1(tr.result.recog)} s · hacer ${f1(tr.result.exec)} s.`} Ahora otro…</p>`;
     } else {
       const read = C.readCube(cube.state, settings.cross);
       const want = C.LL.indexOf(c.step) + 2;
       html += tr.first
         ? `<p class="fr-note">Resuélvelo… ${read.stage < want ? '<span class="bad">se ha deshecho el paso anterior</span>' : ''}</p>`
         : '<p class="fr-big">¡Ya! ¿Qué caso es? Resuélvelo.</p>';
-      html += `<details class="fr-peek"><summary>Ver el algoritmo</summary>${casePicture(c)}<p><b>${esc(c.name)}</b> ${algHtml(c.alg)}</p><p class="hint">${esc(c.look)}</p></details>`;
+      // «Ver el algoritmo» stays open, case after case, until you hide it.
+      if (settings.trPeek) tr.peeked = true;
+      html += `<details class="fr-peek" id="trPeek"${settings.trPeek ? ' open' : ''}><summary>${settings.trPeek ? 'Ocultar el algoritmo' : 'Ver el algoritmo'}</summary>${casePicture(c)}<p><b>${esc(c.name)}</b> ${algHtml(c.alg)}</p><p class="hint">${esc(c.look)}</p><p class="hint">Se queda a la vista en los casos siguientes hasta que lo ocultes. Mientras, cuenta como práctica: no entra en tus tiempos ni sirve para dominar el caso.</p></details>`;
       html += '<div class="actions fr-lost"><button class="btn" type="button" data-tr-lost>Me he perdido · otro caso</button><span class="hint">Cuenta como fallo y te preparo otro desde como esté el cubo.</span></div>';
     }
     html += `</div><p class="hint">${esc(trainLine(c.id))}</p>`;
     html += sessHtml();
     if (box.dataset.h !== html) {
       box.dataset.h = html;
-      const open = box.querySelector('details[open]');
       box.innerHTML = html;
-      if (open && box.querySelector('details')) box.querySelector('details').open = true;
       const retry = $('trRetry');
       if (retry) retry.addEventListener('click', () => trPrepare());
     }
   }
+  // Opening or closing «Ver el algoritmo» is remembered (toggle does not bubble: caught on the way down).
+  $('trBox').addEventListener('toggle', (ev) => {
+    const d = ev.target;
+    if (d.id !== 'trPeek' || settings.trPeek === d.open) return;
+    settings.trPeek = d.open;
+    saveSettings();
+    renderTrain();
+  }, true);
   $('trBox').addEventListener('click', (ev) => {
     const b = ev.target.closest('[data-answer]');
     if (b) { answer(b.dataset.answer); return; }
@@ -2048,7 +2062,7 @@
     try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) { /* no layout */ }
   }
   // Each attempt (from the training log).
-  const qualifies = (x, p) => !x.x && !!x.ok && (x.m === 'c' ? x.t != null && x.t <= p.target : x.m === 'q' ? x.t != null && x.t <= session.look : true);
+  const qualifies = (x, p) => !x.x && !x.a && !!x.ok && (x.m === 'c' ? x.t != null && x.t <= p.target : x.m === 'q' ? x.t != null && x.t <= session.look : true);
   function streakOf(p) {
     let k = 0;
     for (let i = p.last.length - 1; i >= 0 && qualifies(p.last[i], p); i--) k++;
@@ -2067,9 +2081,9 @@
     if (!session.per[e.id]) initPer(e.id, caseNow());
     const p = session.per[e.id];
     if (e.x) { p.lost++; session.lost++; } else { p.n++; session.n++; if (e.ok) { p.ok++; session.ok++; } }
-    if (e.m === 'c' && e.ok && e.t != null) { p.sum += e.t; p.timed++; p.best = p.best == null ? e.t : Math.min(p.best, e.t); }
+    if (e.m === 'c' && e.ok && e.t != null && !e.a) { p.sum += e.t; p.timed++; p.best = p.best == null ? e.t : Math.min(p.best, e.t); }
     if (e.m === 'q') { p.qn++; if (e.t != null) p.qsum += e.t; }
-    p.last.push({ m: e.m, ok: e.ok ? 1 : 0, t: e.t != null ? e.t : null, x: e.x ? 1 : 0 });
+    p.last.push({ m: e.m, ok: e.ok ? 1 : 0, t: e.t != null ? e.t : null, x: e.x ? 1 : 0, a: e.a ? 1 : 0 });
     if (p.last.length > 8) p.last = p.last.slice(-8);
     let won = null;
     if (!p.mastered && session.set.includes(e.id) && streakOf(p) >= NEED[{ c: 'cube', h: 'hand', q: 'look' }[e.m]]) won = e.id;
@@ -2174,7 +2188,7 @@
     const need = NEED[session.mode];
     $('sessClock').textContent = clockText();
     $('sessNums').innerHTML = `<b>${session.n}</b> ${session.n === 1 ? 'caso' : 'casos'} · <b>${pct(session.ok, session.n)} %</b> bien${session.lost ? ` · ${session.lost} perdido${session.lost === 1 ? '' : 's'}` : ''} · <b>${session.done.length}</b> ${session.done.length === 1 ? 'dominado' : 'dominados'}`;
-    $('sessRule').textContent = (session.mode === 'cube' ? `Dominas un caso con ${need} seguidos por debajo de su objetivo (tu buen nivel para ese caso).`
+    $('sessRule').textContent = (session.mode === 'cube' ? `Dominas un caso con ${need} seguidos por debajo de su objetivo (tu buen nivel para ese caso), sin el algoritmo a la vista.`
       : session.mode === 'look' ? `Dominas un caso con ${need} seguidos bien y en menos de ${secs(session.look)}.`
         : `Dominas un caso con ${need} seguidos bien, sin perderte.`)
       + (session.auto !== false ? ' Entonces sale del set y entra el siguiente que más te cuesta.' : ' Se queda en el set hasta que lo quites.');
@@ -3242,7 +3256,7 @@
     });
     save(K.learn, learn);
     save(K.learnAt, learnAt);
-    const total = (x) => (x ? (x.n || 0) + (x.qn || 0) + (x.mn || 0) : 0);
+    const total = (x) => (x ? (x.n || 0) + (x.qn || 0) + (x.mn || 0) + (x.an || 0) : 0);
     Object.entries(remote.train && typeof remote.train === 'object' ? remote.train : {}).forEach(([id, x]) => {
       if (C.caseById(id) && total(x) > total(train[id])) { train[id] = x; changedHere = true; }
     });

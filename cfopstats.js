@@ -248,7 +248,7 @@
         seen.push({ at: r.at, t: s[0], r: s[2], moves: s[1], extra: an ? Math.max(0, an[0] - an[1]) : null });
       });
       const mine = log.filter((e) => e.id === c.id);
-      const cube = mine.filter((e) => e.m === 'c' && e.ok && e.t != null);
+      const cube = mine.filter((e) => e.m === 'c' && e.ok && e.t != null && !e.a);   // not with the algorithm in view
       const quiz = mine.filter((e) => e.m === 'q');
       const hand = mine.filter((e) => e.m === 'h' && !e.x);
       const t = (train && train[c.id]) || {};
@@ -279,11 +279,11 @@
         solveExec: recentSeen.length ? mean(recentSeen.map((x) => x.t - (x.r || 0))) : null,
         cubeAvg: t.n ? t.sum / t.n : null,
         tps: exec ? C.algHtm(c.alg) / (exec / 1000) : null,
-        reps: (t.n || 0) + quizN + handN, cubeN: t.n || 0, best: t.best != null ? t.best : null,
+        reps: (t.n || 0) + (t.an || 0) + quizN + handN, cubeN: t.n || 0, best: t.best != null ? t.best : null,
         quizN, quizAcc, quizTime, handN, handAcc, lost, lostRate: attempts ? lost / attempts : 0,
         extra: extras.length ? mean(extras) : null,
         lastAt: lastAt || null, days: lastAt ? Math.floor((now - lastAt) / DAY) : null, trend,
-        practiced: !!(seen.length || quizN || handN || t.n || lost),
+        practiced: !!(seen.length || quizN || handN || t.n || t.an || lost),
       };
     });
     return out;
