@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script>try{var t=localStorage.getItem('op3bld:theme:v1');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
+<meta name="description" content="Aprende a resolver el cubo de Rubik con el método de principiantes (capa a capa): 7 pasos con dibujos, ayuda en directo con el cubo inteligente, entrenador por pasos y cronómetro.">
+<meta name="op3-build" content="__BUILD__">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Old Pochmann 3BLD">
+<meta property="og:title" content="Aprende a resolver el cubo">
+<meta property="og:description" content="El método de principiantes, paso a paso: dibujos, ayuda en directo con el cubo inteligente, entrenador y cronómetro.">
+<meta property="og:url" content="https://old-pochmann-3bld.vercel.app/principiante">
+<meta property="og:locale" content="es_ES">
+<link rel="manifest" href="principiante.webmanifest">
+<meta name="theme-color" content="#ECEFF3" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0F1319" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Principiante">
+<title>Aprende a resolver el cubo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Martian+Mono:wght@400;600&family=Unbounded:wght@500;700&display=swap">
+<link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="fridrich.css">
+<link rel="stylesheet" href="principiante.css">
+</head>
+<body class="fr pr">
+<div class="fr-app">
+  <header class="fr-head">
+    <div class="brand">
+      <h1>Aprende a resolver el cubo</h1>
+      <p>El método de principiantes: capa a capa, en 7 pasos</p>
+    </div>
+    <button class="btn install" type="button" hidden>Instalar app</button>
+    <nav class="pr-switches" aria-label="Otras páginas">
+      <a class="fr-switch" href="./">Old Pochmann 3BLD<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+      <a class="fr-switch" href="fridrich">Fridrich reducido<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+    </nav>
+  </header>
+
+  <nav class="tabs" id="tabs" aria-label="Secciones">
+    <button type="button" class="tab" data-go="aprender"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/><path d="M8 7.5h8M8 11h6"/></svg><span>Aprender</span></button>
+    <button type="button" class="tab" data-go="resolver"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13.5" r="7.5"/><path d="M12 13.5V9.5M9.5 2.5h5M12 2.5V6M18.3 6.7 19.8 5.2"/></svg><span>Resolver</span></button>
+    <button type="button" class="tab" data-go="entrenar"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/></svg><span>Entrenar</span></button>
+    <button type="button" class="tab" data-go="progreso"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16"/><path d="M5 16l4.5-5 3.5 3 6-7"/><path d="M15 7h4v4"/></svg><span>Progreso</span></button>
+    <button type="button" class="tab tab-ajustes" data-go="ajustes"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2.2"/><circle cx="9" cy="17" r="2.2"/></svg><span>Ajustes</span></button>
+  </nav>
+
+  <!-- The smart cube, on every view -->
+  <section class="pr-cube" aria-label="Cubo inteligente">
+    <div class="cube-bar" id="cubeBar">
+      <div class="cube-who">
+        <svg class="cube-bt" id="cubeDot" data-s="off" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7l10 10-5 5V2l5 5L7 17"/></svg>
+        <div class="cube-text">
+          <b id="cubeName">Cubo inteligente</b>
+          <span class="hint" id="cubeInfo">Conecta un GAN y la app ve tu cubo: te dice qué hacer en cada paso y te avisa si te equivocas.</span>
+        </div>
+      </div>
+      <div class="cube-acts">
+        <button class="btn" type="button" id="cubeConnect">Conectar cubo</button>
+        <button class="btn" type="button" id="cubeSim" hidden>Cubo virtual</button>
+        <button class="btn" type="button" id="cubeSync" hidden title="Si el cubo está resuelto pero la app no lo ve así, púlsalo para sincronizarlos">Está resuelto</button>
+        <button class="btn" type="button" id="cubeOff" hidden>Desconectar</button>
+      </div>
+    </div>
+    <div class="result" id="cubeMsg" role="status"></div>
+    <form class="cube-sim" id="cubeSimBox" hidden>
+      <span class="field-title">Cubo virtual</span>
+      <div class="inrow">
+        <input id="cubeSimMoves" placeholder="Gíralo: R U R' U'" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Movimientos para el cubo virtual">
+        <button class="btn" type="submit">Girar</button>
+      </div>
+      <div class="actions">
+        <button class="btn" type="button" id="cubeSimNext">Hacer lo siguiente</button>
+      </div>
+      <p class="hint">Para probar sin cubo: los giros se escriben como se ven con el blanco arriba y el verde delante, como un cubo recién sacado de la caja.</p>
+    </form>
+  </section>
+
+  <main>
+    <!-- ================= Aprender ================= -->
+    <div class="view" data-view="aprender">
+      <section class="panel pr-intro" aria-labelledby="hIntro">
+        <div class="panel-head"><h2 id="hIntro">El método, en 7 pasos</h2><span class="pr-known" id="knownCount"></span></div>
+        <p>Se resuelve por capas: primero la de abajo (la blanca), luego la del medio y al final la de arriba (la amarilla). Solo hay que aprender <b>7 algoritmos cortos</b>, y en la mayoría de pasos se repite uno hasta que sale.</p>
+        <ol class="pr-path" id="path"></ol>
+        <p class="hint">Marca cada paso con «Ya me lo sé» cuando te salga sin mirar. Con el cubo inteligente conectado, en <b>Resolver</b> te va diciendo qué hacer y en <b>Entrenar</b> practicas un paso suelto.</p>
+      </section>
+
+      <details class="panel pr-basics" id="basics">
+        <summary><h2>Antes de empezar: las piezas y los giros</h2></summary>
+        <div id="basicsBody"></div>
+      </details>
+
+      <div id="steps"></div>
+    </div>
+
+    <!-- ================= Resolver ================= -->
+    <div class="view" data-view="resolver" hidden>
+      <section class="panel" aria-labelledby="hSolve">
+        <div class="panel-head">
+          <h2 id="hSolve">Resolver</h2>
+          <div class="seg small" role="group" aria-label="Con o sin cronómetro">
+            <button type="button" id="modeHelp" aria-pressed="true">Con ayuda</button>
+            <button type="button" id="modeClock" aria-pressed="false">Contra el reloj</button>
+          </div>
+        </div>
+        <div class="fr-scramble">
+          <div class="fr-scr-head">
+            <span class="field-title">Mezcla <span class="muted" id="scrCount"></span></span>
+            <span class="actions"><button class="btn" type="button" id="newScr">Otra mezcla</button></span>
+          </div>
+          <p class="hint pr-hold-note">Mézclalo con el <b>blanco arriba</b> y el <b>verde delante</b>. Para resolverlo, dale la vuelta: amarillo arriba.</p>
+          <p class="fr-scr" id="scr" aria-live="polite"></p>
+          <p class="fr-hint" id="scrHint" hidden></p>
+        </div>
+
+        <button type="button" class="clock" id="clock" data-phase="idle">
+          <span class="clock-phase" id="clockPhase">Listo</span>
+          <span class="clock-time" id="clockTime">0.00</span>
+          <span class="clock-split" id="clockSplit">Mantén pulsado y suelta para empezar</span>
+        </button>
+
+        <section class="fr-live pr-live" id="live" aria-label="Ayuda en directo" hidden>
+          <ol class="fr-steps pr-steps" id="liveSteps"></ol>
+          <div class="pr-now" id="liveNow" aria-live="polite"></div>
+        </section>
+
+        <details class="pr-solution" id="solution">
+          <summary>¿Te has atascado? La solución de esta mezcla, paso a paso</summary>
+          <div id="solutionBody"></div>
+        </details>
+
+        <section class="fr-splits" id="splits" aria-label="Tiempos por paso del último" hidden></section>
+        <div class="stats" id="stats"></div>
+        <div class="history" id="history"></div>
+        <div class="actions"><button class="btn" type="button" id="histMore" hidden>Ver más</button></div>
+      </section>
+    </div>
+
+    <!-- ================= Entrenar ================= -->
+    <div class="view" data-view="entrenar" hidden>
+      <section class="panel" aria-labelledby="hTrain">
+        <div class="panel-head">
+          <h2 id="hTrain">Entrenar un paso</h2>
+          <label class="check pr-help-check"><input type="checkbox" id="trHelp"> Con ayuda</label>
+        </div>
+        <p class="hint">Elige un paso: te dejo el cubo justo al empezarlo, como en una resolución de verdad, y lo haces. Así practicas lo que más te cuesta sin hacer todo lo demás cada vez.</p>
+        <div class="pr-pick" id="trPick" role="group" aria-label="Qué paso"></div>
+        <div class="fr-train pr-train" id="trBox" aria-live="polite"></div>
+      </section>
+    </div>
+
+    <!-- ================= Progreso ================= -->
+    <div class="view" data-view="progreso" hidden>
+      <section class="panel" aria-labelledby="hProg">
+        <div class="panel-head"><h2 id="hProg">Cómo vas</h2></div>
+        <div id="progSummary"></div>
+        <div class="fr-chart-plot" id="chart"></div>
+      </section>
+      <section class="panel" aria-labelledby="hProgSteps">
+        <div class="panel-head"><h2 id="hProgSteps">Paso a paso</h2></div>
+        <div id="progSteps"></div>
+      </section>
+      <section class="panel" aria-labelledby="hGoals">
+        <div class="panel-head"><h2 id="hGoals">Metas</h2></div>
+        <ul class="pr-goals" id="goals"></ul>
+      </section>
+    </div>
+
+    <!-- ================= Ajustes ================= -->
+    <div class="view" data-view="ajustes" hidden>
+      <section class="panel" aria-labelledby="hSettings">
+        <div class="panel-head"><h2 id="hSettings">Ajustes</h2></div>
+        <div class="fr-settings">
+          <label class="check"><input type="checkbox" id="setSound"> Sonido al resolverlo y al acabar cada paso</label>
+          <label class="check" id="setVibrateRow"><input type="checkbox" id="setVibrate"> Vibrar al resolverlo (en el móvil)</label>
+          <div class="field">
+            <span class="field-title">Tema</span>
+            <div class="seg small" role="group" aria-label="Tema">
+              <button type="button" data-theme-set="auto" aria-pressed="true">Automático</button>
+              <button type="button" data-theme-set="light" aria-pressed="false">Claro</button>
+              <button type="button" data-theme-set="dark" aria-pressed="false">Oscuro</button>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section class="panel" aria-labelledby="hSync">
+        <div class="panel-head"><h2 id="hSync">Sincronizar entre dispositivos</h2></div>
+        <div class="sync" id="syncBox"></div>
+      </section>
+      <section class="panel" aria-labelledby="hData">
+        <div class="panel-head"><h2 id="hData">Tus datos</h2></div>
+        <p>Tus tiempos, los pasos que te sabes y lo que has entrenado se guardan en este navegador (y, si activas la sincronización, también en tus otros dispositivos).</p>
+        <div class="actions">
+          <button class="btn" type="button" id="exportData">Descargar copia</button>
+          <button class="btn" type="button" id="clearTimes">Borrar tiempos</button>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<div class="sheet" id="macSheet" hidden role="dialog" aria-modal="true" aria-labelledby="macTitle">
+  <form class="sheet-card" id="macForm">
+    <div class="panel-head"><h2 id="macTitle">Falta la dirección del cubo</h2></div>
+    <p class="mac-p">Para descifrar los giros, la app necesita la dirección MAC de tu cubo y el navegador no me la ha dado. Solo se pide una vez.</p>
+    <ol class="mac-steps">
+      <li id="macAuto"><b>Automática:</b> activa esta opción, reinicia el navegador y vuelve a conectar.
+        <span class="mac-url"><code id="macFlag">chrome://flags/#enable-experimental-web-platform-features</code><button class="btn" type="button" data-copy="macFlag">Copiar</button></span></li>
+      <li><b>A mano:</b> <span id="macHow">abre esta página, pulsa «Start scan», busca tu cubo (empieza por GAN) y copia su dirección.</span>
+        <span class="mac-url"><code id="macScan">chrome://bluetooth-internals/#devices</code><button class="btn" type="button" data-copy="macScan">Copiar</button></span></li>
+    </ol>
+    <div class="field">
+      <label for="macInput">Dirección MAC</label>
+      <input id="macInput" placeholder="AB:12:CD:34:EF:56" autocomplete="off" autocapitalize="characters" spellcheck="false">
+    </div>
+    <p class="hint bad" id="macErr" aria-live="polite"></p>
+    <div class="actions">
+      <button class="btn primary" type="submit">Conectar</button>
+      <button class="btn" type="button" id="macCancel">Cancelar</button>
+    </div>
+  </form>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+<div class="update-bar" id="updateBar" role="status" hidden>
+  <span>Hay una versión nueva de la app.</span>
+  <button class="btn primary" type="button" id="updateGo">Actualizar</button>
+  <button class="x" type="button" id="updateLater" aria-label="Ahora no" title="Ahora no">×</button>
+</div>
+
+<script src="cubemodel.js"></script>
+<script src="cfop.js"></script>
+<script src="lbl.js"></script>
+<script src="smartcube.js"></script>
+<script src="syncplan.js"></script>
+<script src="principiante.js"></script>
+</body>
+</html>

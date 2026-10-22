@@ -1,0 +1,143 @@
+/* «Aprende a resolver el cubo» (the beginner's method): on top of app.css and fridrich.css. Bigger pictures,
+   fewer controls: the seven steps to learn, the live help, a trainer for one step at a time. */
+.pr { --pr-step: var(--accent); }
+.pr-switches { display: flex; gap: 8px; flex-wrap: wrap; }
+.pr-cube { display: grid; gap: 8px; }
+.pr-cube .result:empty { display: none; }
+
+/* ---------- The path: the seven steps ---------- */
+.pr-known { font-size: 13px; font-weight: 700; color: var(--muted); }
+.pr-path { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.pr-path a {
+  display: grid; gap: 2px; justify-items: center; text-align: center; padding: 8px 4px; border-radius: 10px;
+  border: 1px solid var(--line); color: var(--ink); text-decoration: none; font-size: 12.5px; font-weight: 700; min-width: 0;
+}
+.pr-path a:hover { border-color: var(--muted); }
+.pr-path .pr-n { font-family: var(--font-display); font-size: 18px; line-height: 1; }
+.pr-path .known a { border-color: var(--ok); color: var(--ok); }
+.pr-path .next a { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+@media (max-width: 640px) {
+  .pr-path { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+/* ---------- Basics ---------- */
+.pr-basics > summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px; }
+.pr-basics > summary::-webkit-details-marker { display: none; }
+.pr-basics > summary::before { content: '▸'; color: var(--muted); font-size: 14px; }
+.pr-basics[open] > summary::before { content: '▾'; }
+.pr-basics > summary h2 { margin: 0; font-size: 17px; }
+.pr-figs { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 12px; }
+.pr-fig { margin: 0; display: grid; gap: 4px; justify-items: center; text-align: center; }
+.pr-fig figcaption { font-size: 13px; line-height: 1.35; }
+.pr-fig figcaption b { font-family: var(--font-mono); font-size: 15px; }
+.pr-iso { display: block; width: 100%; max-width: 150px; height: auto; }
+.pr-iso.big { max-width: 200px; }
+.pr-iso.small { max-width: 104px; }
+.pr-basics p, .pr-step p { margin: 0; }
+.pr-basics .pr-body { display: grid; gap: 14px; }
+.pr-turns { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; }
+
+/* ---------- A step ---------- */
+.pr-step { gap: 14px; scroll-margin-top: 12px; }
+.pr-step-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.pr-badge {
+  flex: none; width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center;
+  font-family: var(--font-display); font-weight: 700; font-size: 18px; background: var(--ink); color: var(--bg);
+}
+.pr-step.known .pr-badge { background: var(--ok); color: var(--on-accent, #fff); }
+.pr-step-head h2 { margin: 0; font-size: 20px; flex: 1 1 200px; }
+.pr-step-top { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
+.pr-step-top .pr-goal { flex: none; display: grid; gap: 4px; justify-items: center; }
+.pr-step-top .pr-goal span { font-size: 12.5px; color: var(--muted); }
+.pr-step-top .pr-goal .fr-top { width: 176px; }
+.pr-step-text { flex: 1 1 280px; display: grid; gap: 8px; min-width: 0; }
+.pr-howto { margin: 0; padding-left: 22px; display: grid; gap: 6px; }
+.pr-howto li::marker { font-weight: 700; color: var(--muted); }
+.pr-algbox { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--raise); }
+.pr-algbox .fr-alg { font-size: clamp(17px, 3.2vw, 22px); font-weight: 600; }
+.pr-algbox .pr-alg-name { font-weight: 700; font-size: 13px; color: var(--muted); }
+.pr-cases { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.pr-case { margin: 0; display: grid; gap: 6px; justify-items: center; text-align: center; padding: 10px; border: 1px solid var(--line); border-radius: 12px; }
+.pr-case .fr-top { max-width: 112px; }
+.pr-case figcaption { font-size: 13px; line-height: 1.35; display: grid; gap: 2px; }
+.pr-case figcaption b { font-size: 14px; }
+.pr-tip { font-size: 14px; padding: 8px 12px; border-left: 3px solid var(--fr-oll); background: var(--raise); border-radius: 0 8px 8px 0; }
+.pr-step-acts { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.pr-step-acts .check { margin: 0; }
+
+/* ---------- Live help ---------- */
+.pr-steps { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.pr-steps li { font-size: 11.5px; }
+.pr-steps .pr-sn { display: none; }
+.pr-steps .fr-st { white-space: nowrap; }
+@media (max-width: 560px) {
+  .pr-steps { gap: 4px; }
+  .pr-steps li { padding: 5px 2px; }
+  .pr-steps .pr-sn { display: block; font-family: var(--font-display); font-size: 15px; }
+  .pr-steps .pr-sl { display: none; }
+  .pr-plan { flex-wrap: nowrap; gap: 10px; }
+  .pr-plan-pic { width: 92px; }
+  .pr-plan-text { flex-basis: 0; }
+  .pr-plan-title { font-size: 17px; }
+  .pr-do { font-size: 14.5px; padding-left: 18px; }
+}
+.pr-now { display: grid; gap: 10px; min-height: 48px; }
+.pr-plan { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+.pr-plan-pic { flex: none; display: grid; gap: 4px; justify-items: center; width: 150px; }
+.pr-plan-pic span { font-size: 12px; color: var(--muted); text-align: center; }
+.pr-plan-text { flex: 1 1 260px; display: grid; gap: 8px; min-width: 0; }
+.pr-plan-title { font-family: var(--font-display); font-weight: 700; font-size: 19px; line-height: 1.25; }
+.pr-do { margin: 0; padding-left: 22px; display: grid; gap: 6px; font-size: 15.5px; }
+.pr-do b { font-weight: 700; }
+.pr-moves { margin: 0; font-family: var(--font-mono); font-size: clamp(19px, 3.6vw, 26px); line-height: 1.7; word-spacing: .1em; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; }
+.pr-moves .sm { font-family: var(--font-mono); }
+.pr-moves .sm.pre { outline: 1px dashed var(--muted); outline-offset: -1px; }
+.pr-then { color: var(--muted); font-family: var(--font-body); font-size: .8em; }
+.pr-rep { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 0 6px; border-radius: 10px; border: 1px solid var(--line); }
+.pr-times { font-family: var(--font-body); font-size: 14px; font-weight: 700; padding: 2px 9px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+.pr-note { margin: 0; font-size: 13.5px; color: var(--muted); }
+.pr-held { opacity: .7; }
+.pr-done-big { margin: 0; font-family: var(--font-display); font-weight: 700; font-size: clamp(22px, 4.5vw, 30px); color: var(--ok); }
+
+/* ---------- The solution of a scramble ---------- */
+.pr-solution { border: 1px dashed var(--line); border-radius: 12px; padding: 10px 12px; }
+.pr-solution > summary { cursor: pointer; font-weight: 700; font-size: 14.5px; }
+.pr-sol { margin: 12px 0 0; padding: 0; list-style: none; display: grid; gap: 14px; }
+.pr-sol > li { display: grid; gap: 8px; }
+.pr-sol h3 { margin: 0; font-size: 15px; }
+.pr-sol ol { margin: 0; padding-left: 20px; display: grid; gap: 10px; }
+.pr-sol .pr-plan-pic { width: 112px; }
+
+/* ---------- Trainer ---------- */
+.pr-help-check { margin: 0; }
+.pr-pick { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.pr-pick button {
+  display: grid; gap: 2px; justify-items: center; padding: 8px 4px; border-radius: 10px; border: 1px solid var(--line);
+  background: var(--raise); color: var(--ink); font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; min-width: 0; text-align: center;
+}
+.pr-pick button .pr-n { font-family: var(--font-display); font-size: 18px; line-height: 1; }
+.pr-pick button small { font-weight: 400; font-size: 11px; color: var(--muted); }
+.pr-pick button[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+@media (max-width: 640px) { .pr-pick { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.pr-train { display: grid; gap: 12px; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--raise); }
+.pr-train .fr-setup { font-family: var(--font-mono); font-size: clamp(16px, 2.8vw, 20px); line-height: 1.8; word-spacing: .1em; margin: 0; }
+
+/* ---------- Progress ---------- */
+.pr-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
+.pr-tile { padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; display: grid; gap: 2px; }
+.pr-tile span { font-size: 12.5px; color: var(--muted); }
+.pr-tile b { font-family: var(--font-display); font-size: 22px; font-variant-numeric: tabular-nums; }
+.pr-steps-table td, .pr-steps-table th { text-align: left; }
+.pr-goals { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+.pr-goals li { display: flex; gap: 8px; align-items: center; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; font-size: 14px; color: var(--muted); }
+.pr-goals li.on { color: var(--ink); border-color: var(--ok); }
+.pr-goals li i { font-style: normal; font-weight: 700; color: var(--ok); width: 1.2em; }
+.pr-chart-line { fill: none; stroke: var(--fr-a5); stroke-width: 2; }
+.pr-chart-dot { fill: var(--fr-a5); }
+.pr-chart-mean { stroke: var(--muted); stroke-dasharray: 4 4; stroke-width: 1.2; }
+
+.pr-goal-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+/* The seven steps in the bar of a solve: white steps cool, yellow steps warm. */
+.pr-seg-0 { background: #5E6B85; } .pr-seg-1 { background: #4A6FA5; } .pr-seg-2 { background: #2D69BD; }
+.pr-seg-3 { background: #8F6700; } .pr-seg-4 { background: #A3550A; } .pr-seg-5 { background: #B8456E; } .pr-seg-6 { background: #9B3A9A; }
+.fr-bar .fr-seg[class*="pr-seg-"] { color: #FFFFFF; }

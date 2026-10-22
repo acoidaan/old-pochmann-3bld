@@ -11,7 +11,7 @@ cd tests
 npm install
 npx playwright install chromium   # solo la primera vez
 
-npm test                  # las 17 suites (unas 500 comprobaciones, ~7 min)
+npm test                  # las 18 suites (unas 550 comprobaciones, ~8 min)
 npm test -- smart-cube    # solo las que tienen «smart-cube» en el nombre
 npm run audit             # accesibilidad y maquetación
 npm run shots             # vuelve a hacer las capturas de docs/img
@@ -23,7 +23,7 @@ npm run shots             # vuelve a hacer las capturas de docs/img
 ✓ e2e/competition-mode.js · 18 comprobaciones · 6 s
 ✓ e2e/smart-cube.js · 69 comprobaciones · 46 s
 …
-✓ Todo bien: 17 suites, 513 comprobaciones (6.5 min)
+✓ Todo bien: 18 suites, 546 comprobaciones (7.5 min)
 ```
 
 Las capturas que hacen las suites (útiles para revisar a ojo) quedan en `tests/shots/`, que no se sube al repo.
@@ -37,6 +37,7 @@ Las capturas que hacen las suites (útiles para revisar a ojo) quedan en `tests/
 | `e2e/fridrich-session.js` | Aprender frente a cronometrar: los dos modos y su color (cambian solos), la sugerencia que se recalcula sola cada 10 casos, una sesión (su pantalla, el set, el reloj, un fallo que reinicia la racha, dominar un caso y que entre el siguiente), elegir tú los casos (los recomendados de partida, atajos, ninguno no vale, el modo; tus dominados se quedan) y cambiarlos a mitad de sesión, el overlay de OBS pasando solo a la vista de aprendizaje (sin chivar el caso; con el cubo inteligente, los giros y el resultado), irse y volver, recargar a mitad, el resumen y «Tus sesiones», sincronizar y el móvil. |
 | `e2e/fridrich-stats.js` | Los números de Fridrich con un historial inventado (`fixtures/cfop-seed.js`): las cuentas (medias, racha, logros, pasos, el set y por qué), Progreso (resumen, días, calendario, pasos, eficiencia, cruz, casos), «Qué entrenar hoy» y entrenar el set, «Me he perdido» con el cubo inteligente y con uno normal, la tabla de casos, el registro de entrenos al sincronizar, el ritmo en directo contra tu media (verde, rojo, dorado, «Vas para», el retraso en directo, contra tu mejor solve o sin él), los récords (aviso, confeti, PB en el historial) y cómo se ven en el overlay, la página vacía y el móvil. |
 | `e2e/fridrich.js` | Fridrich reducido: cronómetro con Espacio y con el ratón, inspección, +2/DNF y borrar, el cubo (seguir el scramble, empezar al girar, parar al resolver), un solve CFOP entero con sus seis pasos y sus casos (I-Shape, Sune, Headlights, Ua), la ayuda en directo (que no vuelve atrás cuando un algoritmo o una pareja deshacen la cruz un momento, ni si haces el caso desde otro lado), la cruz más corta, sin crono, Casos y «Pruébalo» (los 16 casos con las dos mezclas acaban resueltos), los tres entrenadores («Ver el algoritmo» que se queda abierto caso tras caso hasta que lo ocultas, y cuenta aparte), el overlay, el plan B sin generador y el móvil. |
+| `e2e/principiante.js` | Aprende a resolver el cubo (`/principiante`): el método (300 cubos al azar resueltos con los 7 pasos, sin volver atrás; las reglas de cada paso: 1, 3 o 5 veces R U R' U', la T, la L detrás a la izquierda, como mucho 3 Sunes, los faros y el lado entero detrás), Aprender (los 7 pasos con sus dibujos y algoritmos, antes de empezar, «Ya me lo sé»), la solución de una mezcla paso a paso, el cronómetro, la ayuda en directo con el cubo (la mezcla giro a giro, el primer giro que arranca el reloj, a mitad de «R U R' U' ×3», un giro de más que espera y vuelve, el tiempo de cada paso), «Contra el reloj», Entrenar con el cubo (dejarlo en el paso, con y sin ayuda, «Me he perdido») y con uno normal, Progreso y sus metas, sincronizar, los enlaces desde las otras páginas y el móvil. |
 | `e2e/competition-mode.js` | Modo competición: pantalla completa, toda la pantalla como botón, Espacio/F/Esc, gesto de volver en Android, pantalla encendida. |
 | `e2e/history-theme-retos.js` | Historial con filtros y «Ver más», tema claro/oscuro, atajo del spoiler, quitar retos (también entre dispositivos sincronizados). |
 | `e2e/overlay-obs.js` | La app → obs-websocket (con contraseña) → overlay dentro de «OBS»: vista previa, ventana del overlay, contraseña incorrecta. |
@@ -52,6 +53,7 @@ Las capturas que hacen las suites (útiles para revisar a ojo) quedan en `tests/
 | `a11y/views.js` | axe-core y desbordamiento horizontal en todas las vistas, móvil y escritorio, claro y oscuro. |
 | `a11y/smart-cube.js` | Lo mismo con el cubo conectado: seguimiento, informe de DNF y diálogo de la MAC. |
 | `a11y/trainer-guide.js` | Lo mismo en Entrenar con el cubo, en Practicar siguiendo el cubo y en la ejecución guiada. |
+| `a11y/principiante.js` | Lo mismo en Aprende a resolver el cubo: Aprender con lo básico abierto, la solución de una mezcla, la ayuda en directo a mitad de una resolución, una resolución acabada con sus pasos, Entrenar con el cubo y con uno normal, Progreso y Ajustes. |
 | `a11y/fridrich.js` | Lo mismo en todas las vistas de Fridrich, con el cubo en la última capa, un solve entero con su análisis y su reconstrucción, los entrenadores, y con un historial: un solve récord con su ritmo, Progreso, «Qué entrenar hoy», elegir los casos, una sesión de entrenamiento (y cambiar sus casos) y su resumen, y el ranking (empezar, una liga y un detalle). |
 
 ## Cómo están hechas

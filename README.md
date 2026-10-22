@@ -4,7 +4,7 @@ Aprende a resolver el cubo de Rubik **con los ojos cerrados** (3BLD) con el mét
 
 **[old-pochmann-3bld.vercel.app](https://old-pochmann-3bld.vercel.app)** · [probarla con un cubo virtual](https://old-pochmann-3bld.vercel.app/?cubo=virtual#crono)
 
-Y para speedcubing, en el mismo sitio: **[Fridrich reducido](https://old-pochmann-3bld.vercel.app/fridrich)**, CFOP en 2 pasos con los algoritmos de J Perm, tiempos por fase y los casos reconocidos por el cubo inteligente ([más abajo](#fridrich-reducido)).
+Y para speedcubing, en el mismo sitio: **[Fridrich reducido](https://old-pochmann-3bld.vercel.app/fridrich)**, CFOP en 2 pasos con los algoritmos de J Perm, tiempos por fase y los casos reconocidos por el cubo inteligente ([más abajo](#fridrich-reducido)). Y para quien empieza de cero: **[Aprende a resolver el cubo](https://old-pochmann-3bld.vercel.app/principiante)**, el método de principiantes en 7 pasos, con dibujos y la ayuda en directo del cubo inteligente ([más abajo](#aprende-a-resolver-el-cubo)).
 
 ![Practicar: el scramble, el memo letra a letra y el cubo con el objetivo marcado](docs/img/practicar.png)
 
@@ -25,6 +25,7 @@ Y para speedcubing, en el mismo sitio: **[Fridrich reducido](https://old-pochman
 - [Cubo inteligente](#cubo-inteligente)
 - [Overlay para directos](#overlay-para-directos)
 - [Fridrich reducido](#fridrich-reducido)
+- [Aprende a resolver el cubo](#aprende-a-resolver-el-cubo)
 - [El método](#el-método)
 - [Atajos de teclado](#atajos-de-teclado)
 - [Arquitectura](#arquitectura)
@@ -184,6 +185,40 @@ Los de [J Perm](https://jperm.net/3x3/cfop) ([2-look OLL](https://jperm.net/algs
 - **Qué entrenar.** Cada caso cuesta, por solve: lo que tardas en reconocerlo de más (contra tus casos más rápidos), en hacerlo de más (contra tus mejores giros por segundo), lo que fallas al reconocerlo y las veces que te pierdes, todo por lo a menudo que sale (Ua y Ub, 1 de cada 3 solves; H de PLL, 1 de cada 12). Los que más cuestan forman el set. Los pasos, igual: segundos parado en el F2L, giros de más por tu ritmo, reconocer de más.
 - **El análisis.** Cuenta los giros como los nota el cubo (un giro de cara, también los dobles; las capas del medio cuentan dos; girar el cubo entero no cuenta). Lo más corto de cada paso: la cruz más corta; para cada pareja, la más corta desde cómo estaba el cubo cuando la empezaste (y si había otra pareja más fácil); para OLL y PLL, el algoritmo de J Perm desde el mejor lado, con los giros de U justos. La eficiencia es la suma de lo más corto entre tus giros.
 
+## Aprende a resolver el cubo
+
+En [`/principiante`](https://old-pochmann-3bld.vercel.app/principiante), una tercera página para quien no sabe resolverlo: el **método de principiantes** (capa a capa) en 7 pasos y con 7 algoritmos cortos, todo con dibujos. Más sencilla que las otras (sin ranking ni overlay), pero entera: aprender, resolver con ayuda, entrenar un paso suelto y ver cómo vas. Se instala aparte como app («Principiante») y funciona sin conexión.
+
+![La ayuda en directo: a mitad de una resolución, la esquina que toca, cómo sujetar el cubo y por qué giro vas](docs/img/principiante.png)
+
+| Sección | Para qué |
+|:--|:--|
+| **Aprender** | **Antes de empezar:** las piezas (centros, aristas, esquinas), cómo se sujeta (amarillo arriba todo el método), cómo se leen los giros (con un dibujo del cubo después de cada uno) y cómo se mezcla. **Los 7 pasos**, cada uno con su objetivo dibujado, cómo se hace, su algoritmo, cada caso dibujado y un consejo. «Ya me lo sé» marca el paso (y el camino de arriba enseña el siguiente); «Practicar este paso» lo abre en Entrenar. |
+| **Resolver** | Una mezcla y el cronómetro (`Espacio` o el reloj). **Con el cubo inteligente:** sigue la mezcla giro a giro, empieza con tu primer giro y para al resolverlo; la **ayuda en directo** te dice en cada momento qué hacer, en palabras («gira el cubo entero para tener el rojo delante», «su blanco mira hacia arriba: haz R U R' U' 3 veces»), con un dibujo de cómo tiene que quedar el cubo antes de empezar y los giros, marcando por cuál vas (y cuántas veces llevas de un algoritmo que se repite). Si a mitad de un algoritmo se deshace lo de abajo, espera; si haces otra cosa, se pone al día. **Contra el reloj**, sin ayuda. Al acabar, el tiempo y los giros de cada paso. **Sin cubo inteligente:** «¿Te has atascado?» enseña la solución entera de la mezcla con el método, paso a paso y con dibujos. |
+| **Entrenar** | Un paso suelto, con el cubo justo al empezarlo, como sale en una resolución de verdad. **Con el cubo inteligente:** te dice cómo dejarlo ahí desde como esté, sigue cada giro, mide cuánto tardas y cuántos giros haces (contra los del método) y prepara otro; «Con ayuda» enseña qué hacer y «Me he perdido» cuenta un fallo y trae otro. **Con un cubo normal:** una mezcla desde resuelto, el dibujo de cómo tiene que quedar y cómo se hace el paso desde ahí. |
+| **Progreso** | Resueltos, mejor tiempo, medias de 5 y de 12, tus tiempos en una gráfica, cada paso (si te lo sabes, lo entrenado y cuánto tardas en tus resoluciones: dónde se te va el tiempo, con un botón para entrenarlo) y metas (el primer cubo, uno sin ayuda, bajar de 3, 2 y 1 minuto…). |
+| **Ajustes** | Sonido, vibración y tema. **Sincronizar** con el mismo código que las otras páginas, y tus datos. |
+
+![Un paso de Aprender: el objetivo, cómo se hace, el algoritmo y cada caso dibujado](docs/img/principiante-paso.png)
+
+### Los 7 pasos
+
+Todo con el amarillo arriba y el blanco abajo.
+
+| Paso | Cómo | Algoritmo |
+|:--|:--|:--|
+| 1. La cruz blanca | La margarita (las 4 aristas blancas alrededor del centro amarillo) y bajarlas una a una cuando coinciden con su centro | `F2` |
+| 2. Las esquinas blancas | Cada esquina encima de su sitio, delante a la derecha: 1, 3 o 5 veces según adónde mire el blanco | `R U R' U'` |
+| 3. La segunda capa | La arista forma una T con su centro y va a la derecha o a la izquierda | `U R U' R' U' F' U F` · `U' L' U L U F U' F'` |
+| 4. La cruz amarilla | Punto → L → línea → cruz (la L detrás a la izquierda, la línea de lado) | `F R U R' U' F'` |
+| 5. La cara amarilla | Una esquina amarilla: delante a la izquierda; ninguna: la de delante a la izquierda con el amarillo a la izquierda; dos: con el amarillo hacia ti (como mucho 3 veces) | `R U R' U R U2 R'` |
+| 6. Las esquinas amarillas | Los faros (las dos esquinas de un lado iguales) detrás; si no hay, una vez desde cualquier lado | `R' F R' B2 R F' R' B2 R2` |
+| 7. Las aristas amarillas | El lado entero detrás (una o dos veces); si no hay, una vez desde cualquier lado | `R U' R U R U R U' R' U' R2` |
+
+### Cómo sabe qué toca
+
+`lbl.js` lee el cubo con el blanco abajo (la cruz, las esquinas, las aristas del medio, la cruz y la cara amarillas, las esquinas y las aristas de arriba en su sitio) y, desde cualquier estado, calcula lo siguiente que haría alguien que aprende el método: en la cruz, los giros más cortos que suben otra arista a la margarita sin tirar las que ya hay (búsqueda en profundidad, unos milisegundos) o qué pétalo bajar; en los demás pasos, prueba los 4 lados que puedes poner delante y los giros de arriba, y se queda con el que cumple la regla del método con menos giros, comprobando que no deshace nada. Cada plan lleva sus giros exactos, así que la ayuda sigue tu cubo giro a giro (también las medias vueltas). Las pruebas resuelven 300 cubos al azar así, sin volver nunca atrás un paso, en unos 145 giros de media.
+
 ## El método
 
 - **Orientación:** blanco arriba, verde delante. Letras **Speffz**.
@@ -303,6 +338,8 @@ flowchart LR
 | `social.js` | Retos, compartir como imagen y la sincronización entre dispositivos. |
 | `stream.js` | El overlay: genera el estado y lo manda por obs-websocket y BroadcastChannel. |
 | `cube.js` | El cubo inteligente en la página de 3BLD: conexión, cubo virtual, seguimiento, análisis de DNF, Entrenar y guía con el cubo. |
+| `principiante.html` · `principiante.css` · `principiante.js` | La página del método de principiantes (`/principiante`): Aprender con dibujos, Resolver con ayuda en directo, Entrenar un paso, Progreso y ajustes. |
+| `lbl.js` | El método de principiantes sin pantalla: en qué paso está un cubo y qué hacer después, desde cualquier estado, con sus giros exactos. Expone `window.Lbl`. |
 | `fridrich.html` · `fridrich.css` · `fridrich.js` | La página de Fridrich reducido (`/fridrich`): cronómetro, ayuda en directo, tiempos por fase, Casos, Entrenar y ajustes. |
 | `cfop.js` | El método CFOP sin pantalla: los 16 algoritmos de J Perm, en qué paso está un cubo, qué caso es, la cruz más corta y los tiempos de un solve. Expone `window.Cfop`. |
 | `cfopstats.js` | Los números de Fridrich, sin pantalla: medias, mejores marcas, días, racha, logros, cada paso, eficiencia, cada caso y el set recomendado. Expone `window.CfopStats`. |
@@ -353,10 +390,13 @@ Todo se guarda en `localStorage`, en tu dispositivo:
 | `cfop:session:v1` · `cfop:sessions:v1` | Fridrich: la sesión de entrenamiento en curso (para seguir tras recargar) · las terminadas, con su resumen (las últimas 200) |
 | `cfop:trlog:v1` | Fridrich: cada caso entrenado (los últimos 5000): cuándo, cuál, cómo, si salió bien, sus tiempos y si te perdiste |
 | `cfop:settings:v1` · `cfop:scramble:v1` · `cfop:view:v1` | Fridrich: inspección, ayuda, sonido, color de la cruz… · scramble actual · última vista |
+| `lbl:times:v1` · `lbl:deleted:v1` | Principiante: tiempos (los últimos 2000) con el tiempo y los giros de cada paso, y si fue con ayuda · los borrados |
+| `lbl:known:v1` · `lbl:train:v1` | Principiante: los pasos que te sabes (y cuándo cambió cada uno) · lo entrenado por paso: veces, tiempos sin ayuda, giros y fallos |
+| `lbl:settings:v1` · `lbl:scramble:v1` · `lbl:view:v1` · `lbl:synced:v1` | Principiante: sonido, ayuda, el paso que entrenas… · mezcla actual · última vista · última sincronización |
 
 ### Sin conexión y versiones
 
-`build.js` añade a cada archivo un hash de su contenido (`core.js?v=1a2b3c4d5e`) y calcula un número de versión del conjunto, que escribe en las dos páginas y en el nombre de la caché del service worker (`op3bld-<versión>`). El service worker guarda las dos páginas al instalarse y las sirve aunque no haya red; cada página la pide a la red primero y usa la caché como plan B. `vercel.json` sirve `/fridrich` desde `fridrich.html`. Cuando se despliega una versión nueva, el service worker nuevo borra la caché vieja, la página ve que la suya ya no existe y ofrece recargar, nunca durante un intento.
+`build.js` añade a cada archivo un hash de su contenido (`core.js?v=1a2b3c4d5e`) y calcula un número de versión del conjunto, que escribe en las tres páginas y en el nombre de la caché del service worker (`op3bld-<versión>`). El service worker guarda las tres páginas al instalarse y las sirve aunque no haya red; cada página la pide a la red primero y usa la caché como plan B. `vercel.json` sirve `/fridrich` desde `fridrich.html` y `/principiante` desde `principiante.html`. Cuando se despliega una versión nueva, el service worker nuevo borra la caché vieja, la página ve que la suya ya no existe y ofrece recargar, nunca durante un intento.
 
 ## API
 
@@ -401,14 +441,14 @@ Hace falta Node 18 o superior. No hay que instalar nada para la app en sí.
 node build.js                    # genera public/
 cd tests && npm install
 node server.js                   # sirve public/ con una API falsa en http://localhost:8793
-npm test                         # todas las pruebas (unas 340 comprobaciones)
+npm test                         # todas las pruebas (unas 550 comprobaciones)
 ```
 
 `tests/server.js` usa la lógica de verdad de la API sobre el almacén en memoria, así que retos, sincronización y ligas funcionan en local sin Vercel. Con `vercel dev` se prueba la API de verdad.
 
-**Despliegue.** Cada push a `main` se despliega solo en Vercel: instala `package.json` (`@vercel/blob`, `@vercel/og`, `cubejs`), ejecuta `node build.js` y publica `public/` y `api/`. Hace falta un almacén conectado al proyecto: Redis de Upstash desde el Marketplace (Storage → Upstash for Redis, plan gratis, con el prefijo de variables por defecto, `KV_`) o Vercel Blob; sin ninguno, la app funciona igual pero sin retos, sincronización ni ranking. `vercel.json` sirve `cubejs` desde jsDelivr en el mismo dominio (para el generador sin conexión), traduce `/r/:id` a `/api/r`, sirve `/fridrich` desde `fridrich.html` y fija las cabeceras de caché de `sw.js` y `vendor/`.
+**Despliegue.** Cada push a `main` se despliega solo en Vercel: instala `package.json` (`@vercel/blob`, `@vercel/og`, `cubejs`), ejecuta `node build.js` y publica `public/` y `api/`. Hace falta un almacén conectado al proyecto: Redis de Upstash desde el Marketplace (Storage → Upstash for Redis, plan gratis, con el prefijo de variables por defecto, `KV_`) o Vercel Blob; sin ninguno, la app funciona igual pero sin retos, sincronización ni ranking. `vercel.json` sirve `cubejs` desde jsDelivr en el mismo dominio (para el generador sin conexión), traduce `/r/:id` a `/api/r`, sirve `/fridrich` y `/principiante` desde sus páginas y fija las cabeceras de caché de `sw.js` y `vendor/`.
 
-**Pruebas.** Doce suites en Chromium con Playwright (unas 340 comprobaciones) y cuatro auditorías con axe-core; ver [tests/README.md](tests/README.md).
+**Pruebas.** Dieciocho suites en Chromium con Playwright (unas 550 comprobaciones) y cinco auditorías con axe-core; ver [tests/README.md](tests/README.md).
 
 ## Créditos y licencias
 

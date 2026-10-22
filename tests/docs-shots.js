@@ -282,6 +282,46 @@ const save = (p, name, opts) => p.screenshot({ path: path.join(OUT, name), ...op
     await ctx.close();
   }
 
+  // Aprende a resolver el cubo: a step to learn, and the live help part way through a solve.
+  {
+    const { ctx, p } = await open(browser, { viewport: { width: 1180, height: 900 }, colorScheme: 'light' }, '/principiante?cubo=virtual#aprender');
+    await (await p.$('#paso-2')).screenshot({ path: path.join(OUT, 'principiante-paso.png') });
+    done.push('principiante-paso.png');
+    await p.evaluate(() => window.Principiante.showView('resolver'));
+    await connect(p);
+    await p.evaluate(() => window.Principiante._.setScramble("R2 D' B2 U F2 L2 D2 F' R U2 B' L' D F2 R2 U' B L2 F D2"));
+    await p.evaluate(() => window.Principiante.cube().link.turn(window.Principiante.scramble()));
+    await p.clock.runFor(1500);
+    const next = () => p.evaluate(() => {
+      const c = window.Principiante.cube();
+      const pl = window.Lbl.next(c.state);
+      const back = pl.view ? window.CubeModel.invertAlg(pl.view) : '';
+      c.link.turn(['z2', pl.view, ...pl.hand, back, 'z2'].filter(Boolean).join(' '));
+      return pl.kind;
+    });
+    // Up to the first white corner that takes R U R' U' three or five times, then two times through it.
+    for (let k = 0; k < 40; k++) {
+      const pl = await p.evaluate(() => { const i = window.Principiante._.live.info; return i && i.plan ? { kind: i.plan.kind, reps: i.plan.reps } : null; });
+      if (pl && pl.kind === 'corner' && pl.reps >= 3) break;
+      await next();
+      await p.clock.runFor(4100 + (k % 3) * 900);
+    }
+    await p.evaluate(() => {
+      const x = window.Principiante._.live.info.plan;
+      const k = (x.pre ? x.pre.split(' ').length : 0) + 5;
+      window.Principiante.cube().link.turn(['z2', x.view, ...x.hand.slice(0, k), x.view ? window.CubeModel.invertAlg(x.view) : '', 'z2'].filter(Boolean).join(' '));
+    });
+    await p.clock.runFor(2300);
+    const box = await p.evaluate(() => {
+      const a = document.getElementById('clock').getBoundingClientRect();
+      const b = document.getElementById('live').getBoundingClientRect();
+      return { x: Math.floor(a.left) - 8, y: Math.floor(a.top + window.scrollY) - 8, width: Math.ceil(b.right - a.left) + 16, height: Math.ceil(b.bottom - a.top) + 16 };
+    });
+    await save(p, 'principiante.png', { clip: box, fullPage: true });
+    done.push('principiante.png');
+    await ctx.close();
+  }
+
   await browser.close();
   console.log(`Capturas: ${done.filter((x) => typeof x === 'string').join(', ')}`);
   console.log('0 problems');

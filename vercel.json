@@ -13,6 +13,10 @@
     {
       "source": "/fridrich",
       "destination": "/fridrich.html"
+    },
+    {
+      "source": "/principiante",
+      "destination": "/principiante.html"
     }
   ],
   "headers": [

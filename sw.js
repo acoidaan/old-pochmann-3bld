@@ -1,6 +1,6 @@
 // Offline support. build.js fills in the versioned asset list and cache name.
 const CACHE = 'op3bld-__BUILD__';
-const SHELL = ['./', 'fridrich', 'manifest.webmanifest', 'fridrich.webmanifest', 'icon-192.png', 'icon-512.png', 'cubejs/cube.js', 'cubejs/solve.js', __ASSETS__];
+const SHELL = ['./', 'fridrich', 'principiante', 'manifest.webmanifest', 'fridrich.webmanifest', 'principiante.webmanifest', 'icon-192.png', 'icon-512.png', 'cubejs/cube.js', 'cubejs/solve.js', __ASSETS__];
 const FONT_HOSTS = ['fonts.googleapis.com', 'fonts.gstatic.com'];
 
 self.addEventListener('install', (e) => {
@@ -18,9 +18,10 @@ self.addEventListener('fetch', (e) => {
   if (url.origin === self.location.origin && url.pathname.startsWith('/api/')) return;
   if (url.origin !== self.location.origin && !FONT_HOSTS.includes(url.hostname)) return;
   if (req.mode === 'navigate') {
-    // Only the two pages are kept for offline use; others (the stream overlay) go to the network.
+    // Only the three pages are kept for offline use; others (the stream overlay) go to the network.
     const page = url.origin !== self.location.origin ? null
-      : /\/(index\.html)?$/.test(url.pathname) ? './' : /\/fridrich(\.html)?$/.test(url.pathname) ? 'fridrich' : null;
+      : /\/(index\.html)?$/.test(url.pathname) ? './' : /\/fridrich(\.html)?$/.test(url.pathname) ? 'fridrich'
+        : /\/principiante(\.html)?$/.test(url.pathname) ? 'principiante' : null;
     if (!page) return;
     e.respondWith(fetch(req).then((res) => {
       const copy = res.clone();
