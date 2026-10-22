@@ -314,6 +314,13 @@ body.training #trPanel { position: sticky; top: 124px; border-color: var(--fr-mo
 .fr-sc-top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
 .fr-sc-top .muted { font-size: 12.5px; font-weight: 600; }
 .fr-sc-now { margin-left: auto; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--fr-mode); }
+.fr-sc-eye {
+  margin-left: auto; align-self: center; display: inline-grid; place-items: center; width: 34px; height: 30px; padding: 0;
+  border-radius: 8px; border: 1px solid var(--line); background: transparent; color: var(--muted); cursor: pointer;
+}
+.fr-sc-now:not([hidden]) + .fr-sc-eye { margin-left: 0; }
+.fr-sc-eye:hover { border-color: var(--muted); color: var(--ink); }
+.fr-sc-eye[aria-pressed="true"] { color: var(--fr-mode-ink, var(--fr-mode)); border-color: var(--fr-mode); background: var(--fr-mode-soft, transparent); }
 .fr-pips { display: inline-flex; gap: 4px; }
 .fr-pips i { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--fr-mode); }
 .fr-pips i.on { background: var(--fr-mode); }

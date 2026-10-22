@@ -24,7 +24,10 @@
   };
   const load = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; } catch (e) { return d; } };
   const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* this visit only */ } };
-  const settings = { inspect: false, help: true, sound: true, vibrate: true, cross: 'U', timed: true, trMode: 'cube', chart: 50, pace: 'avg', celebrate: true, trPeek: false, ...load(K.set, {}) };
+  const settings = { inspect: false, help: true, sound: true, vibrate: true, cross: 'U', timed: true, trMode: 'cube', chart: 50, pace: 'avg', celebrate: true, peek: {}, ...load(K.set, {}) };
+  // The algorithm in view is chosen case by case (the eye on each case); the old switch for all of them goes.
+  if (!settings.peek || typeof settings.peek !== 'object' || Array.isArray(settings.peek)) settings.peek = {};
+  delete settings.trPeek;
   if (!(settings.cross in C.DOWN)) settings.cross = 'U';
   const saveSettings = () => save(K.set, settings);
   let times = load(K.times, []);
@@ -1610,6 +1613,14 @@
   }
   function trSync() { if (trActive() && !tr.follow && !tr.busy) trPrepare(); else if (trActive() && tr.follow && !tr.ready) { locate(tr.follow, cube.state); renderTrain(); } }
   // The case on screen in «Reconocer», from the side and top turn it is shown with.
+  // The eye of each case: whether its algorithm is in view when it comes up in the trainer.
+  const peekOn = (id) => !!(id && settings.peek[id]);
+  function setPeek(id, on) {
+    if (on) settings.peek[id] = 1; else delete settings.peek[id];
+    saveSettings();
+    renderTrain();
+    if (session) renderSession();
+  }
   function quizPicture() {
     const c = tr.c;
     const g = C.caseState(c, tr.qAuf);
@@ -1676,9 +1687,10 @@
       html += tr.first
         ? `<p class="fr-note">Resuélvelo… ${read.stage < want ? '<span class="bad">se ha deshecho el paso anterior</span>' : ''}</p>`
         : '<p class="fr-big">¡Ya! ¿Qué caso es? Resuélvelo.</p>';
-      // «Ver el algoritmo» stays open, case after case, until you hide it.
-      if (settings.trPeek) tr.peeked = true;
-      html += `<details class="fr-peek" id="trPeek"${settings.trPeek ? ' open' : ''}><summary>${settings.trPeek ? 'Ocultar el algoritmo' : 'Ver el algoritmo'}</summary>${casePicture(c)}<p><b>${esc(c.name)}</b> ${algHtml(c.alg)}</p><p class="hint">${esc(c.look)}</p><p class="hint">Se queda a la vista en los casos siguientes hasta que lo ocultes. Mientras, cuenta como práctica: no entra en tus tiempos ni sirve para dominar el caso.</p></details>`;
+      // «Ver el algoritmo» is this case's eye: open, it comes in view every time this case comes up.
+      const shown = peekOn(c.id);
+      if (shown) tr.peeked = true;
+      html += `<details class="fr-peek" id="trPeek"${shown ? ' open' : ''}><summary>${shown ? 'Ocultar el algoritmo' : 'Ver el algoritmo'}</summary>${casePicture(c)}<p><b>${esc(c.name)}</b> ${algHtml(c.alg)}</p><p class="hint">${esc(c.look)}</p><p class="hint">Se queda a la vista cada vez que salga este caso, hasta que lo ocultes (también con su ojo, en tu set). Mientras, cuenta como práctica: no entra en tus tiempos ni sirve para dominarlo. Los demás casos no cambian.</p></details>`;
       html += '<div class="actions fr-lost"><button class="btn" type="button" data-tr-lost>Me he perdido · otro caso</button><span class="hint">Cuenta como fallo y te preparo otro desde como esté el cubo.</span></div>';
     }
     html += `</div><p class="hint">${esc(trainLine(c.id))}</p>`;
@@ -1690,14 +1702,11 @@
       if (retry) retry.addEventListener('click', () => trPrepare());
     }
   }
-  // Opening or closing «Ver el algoritmo» is remembered (toggle does not bubble: caught on the way down).
+  // Opening or closing «Ver el algoritmo» is this case's eye (toggle does not bubble: caught on the way down).
   $('trBox').addEventListener('toggle', (ev) => {
     const d = ev.target;
-    if (d.id !== 'trPeek' || settings.trPeek === d.open) return;
-    settings.trPeek = d.open;
-    saveSettings();
-    renderTrain();
-    if (session) renderSession();
+    if (d.id !== 'trPeek' || !tr.c || peekOn(tr.c.id) === d.open) return;
+    setPeek(tr.c.id, d.open);
   }, true);
   $('trBox').addEventListener('click', (ev) => {
     const b = ev.target.closest('[data-answer]');
@@ -2146,6 +2155,10 @@
     }
     saveSession();
   }
+  $('sessSet').addEventListener('click', (ev) => {
+    const b = ev.target.closest('[data-eye]');
+    if (b) setPeek(b.dataset.eye, !peekOn(b.dataset.eye));
+  });
   function markCurrent() {
     if (!session) return;
     document.querySelectorAll('#sessSet .fr-sc').forEach((el) => {
@@ -2163,6 +2176,8 @@
     const m = Math.floor(ms / 60000);
     return `${m}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, '0')}`;
   }
+  const EYE_ON = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+  const EYE_OFF = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.9 5.2A9.7 9.7 0 0 1 12 5c6.4 0 10 7 10 7a17.6 17.6 0 0 1-2.9 3.8M6.3 6.3C3.6 8 2 12 2 12s3.6 7 10 7a9.5 9.5 0 0 0 5.7-1.9"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/><path d="M3 3l18 18"/></svg>';
   function caseCard(id) {
     const c = C.caseById(id);
     const p = session.per[id];
@@ -2183,16 +2198,19 @@
       line = p.n || p.lost ? `<b>${p.ok}</b> de ${p.n} bien${p.lost ? ` · perdido ${p.lost}` : ''}` : 'aún sin hacer';
     }
     // An attempt with the algorithm in view, with an eye: it does not count for the streak.
-    const EYE = '<svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+    const EYE = EYE_ON.replace('width="18" height="18"', 'width="12" height="12"');
     const last = p.last.map((x) => (x.x ? '<span class="ko">perdido</span>'
       : x.a ? `<span class="pk" title="Con el algoritmo a la vista: no cuenta">${EYE}${x.t != null ? ` ${f1(x.t)}` : ''}<span class="sr-only"> (con el algoritmo a la vista, no cuenta)</span></span>`
         : x.ok ? `<span class="ok">✓${x.t != null && x.m !== 'h' ? ` ${f1(x.t)}` : ''}</span>` : '<span class="ko">✗</span>')).join('');
     const cur = !!(tr.c && tr.c.id === id);
     const won = !!p.mastered;
+    const eyeOn = peekOn(id);
+    const eye = session.mode === 'cube'
+      ? `<button class="fr-sc-eye" type="button" data-eye="${id}" aria-pressed="${eyeOn}" aria-label="Ver el algoritmo de ${esc(c.name)} al entrenarlo" title="${eyeOn ? 'Sale con el algoritmo a la vista (práctica). Pulsa para ocultarlo.' : 'Pulsa para que salga con el algoritmo a la vista.'}">${eyeOn ? EYE_ON : EYE_OFF}</button>` : '';
     return `<article class="fr-sc${cur ? ' cur' : ''}${won ? ' mastered' : ''}${lastWon === id ? ' won' : ''}" data-sc="${id}">
       <div class="fr-sc-pic">${casePicture(c)}</div>
       <div class="fr-sc-body">
-        <div class="fr-sc-top"><b>${esc(c.name)}</b><span class="muted">${STEP_NAME[c.step]}</span><span class="fr-pips" role="img" aria-label="${k} de ${need} seguidos para dominarlo">${pips}</span>${won ? '<span class="fr-sc-won">✓ Dominado</span>' : ''}<span class="fr-sc-now"${cur ? '' : ' hidden'}>Ahora</span></div>
+        <div class="fr-sc-top"><b>${esc(c.name)}</b><span class="muted">${STEP_NAME[c.step]}</span><span class="fr-pips" role="img" aria-label="${k} de ${need} seguidos para dominarlo">${pips}</span>${won ? '<span class="fr-sc-won">✓ Dominado</span>' : ''}<span class="fr-sc-now"${cur ? '' : ' hidden'}>Ahora</span>${eye}</div>
         <p class="fr-sc-line">${line}</p>
         ${last ? `<p class="fr-sc-last" aria-label="Últimos intentos">${last}</p>` : ''}
       </div>
@@ -2208,7 +2226,7 @@
         : `Dominas un caso con ${need} seguidos bien, sin perderte.`)
       + (session.auto !== false ? ' Entonces sale del set y entra el siguiente que más te cuesta.' : ' Se queda en el set hasta que lo quites.');
     const peekNote = $('sessPeek');
-    peekNote.hidden = !(session.mode === 'cube' && settings.trPeek);
+    peekNote.hidden = !(session.mode === 'cube' && session.set.some(peekOn));
     // On a phone the set is below the trainer: a line with each case and its progress, in the bar.
     $('sessMini').innerHTML = session.set.map((id) => {
       const k = Math.min(need, streakOf(session.per[id]));
@@ -2216,9 +2234,11 @@
     }).join('');
     const done = session.done.filter((id) => !session.set.includes(id)).map((id) => C.caseById(id));
     const swaps = session.swaps.filter((x) => x.why !== 'dominado');
+    const focusEye = document.activeElement && document.activeElement.dataset ? document.activeElement.dataset.eye : null;
     $('sessSet').innerHTML = session.set.map(caseCard).join('')
       + (done.length ? `<div class="fr-sc-done"><span class="field-title">Dominados en esta sesión</span><ul>${done.map((c) => `<li>✓ <b>${esc(c.name)}</b> <span class="muted">${STEP_NAME[c.step]}</span></li>`).join('')}</ul></div>` : '')
       + (swaps.length ? `<p class="fr-sc-swaps">${swaps.map((x) => `Entró ${esc(C.caseById(x.in).name)} por ${esc(C.caseById(x.out).name)}: te costaba más.`).join(' ')}</p>` : '');
+    if (focusEye) { const b = document.querySelector(`#sessSet [data-eye="${focusEye}"]`); if (b) b.focus(); }
     lastWon = null;
   }
   let sessTick = 0;

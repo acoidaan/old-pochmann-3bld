@@ -22,10 +22,15 @@ function seed(now = Date.UTC(2026, 9, 20, 18, 0, 0)) {
     return list[list.length - 1][0];
   };
   const DAY = 86400000;
+  // Everything is a few hours before `now` on its day; just after midnight those hours shrink, so that each
+  // thing stays on the day it belongs to (and the counts by day do not depend on the time the tests run).
+  const since = now - new Date(now).setHours(0, 0, 0, 0);
+  const f = Math.min(1, Math.max(0, since - 120000) / (5.3 * 3600000));
+  const back = (ms) => Math.round(ms * f);
   const times = [];
   for (let k = 0; k < 90; k++) {
     const day = 44 - Math.floor(k / 2);           // two solves a day, the last two today
-    const at = now - day * DAY - (k % 2 ? 0 : 3600000) - 20 * 60000;
+    const at = now - day * DAY - (k % 2 ? 0 : back(3600000) + 1000) - back(20 * 60000);
     const progress = k / 89;
     const t = Math.round(62000 - progress * 21000 + (rnd() - 0.5) * 6000);
     const r = { t, at, pen: 0, scr: "R U R' U'" };
@@ -70,20 +75,22 @@ function seed(now = Date.UTC(2026, 9, 20, 18, 0, 0)) {
     if (e.m === 'h' && !e.x) { t.mn = (t.mn || 0) + 1; t.mok = (t.mok || 0) + e.ok; }
   };
   for (let d = 9; d >= 0; d--) {
-    const base = now - d * DAY - 2 * 3600000;
+    const gap = Math.max(1000, back(60000));
+    const qGap = Math.max(500, back(20000));
+    const base = now - d * DAY - Math.max(back(2 * 3600000), 6 * gap + qGap + 1000);
     let k = 0;
     ['ua', 'sune', 'head', 'diag', 'z', 'ub', 't'].forEach((id) => {
-      const at = base + (k++) * 60000;
+      const at = base + (k++) * gap;
       if (id === 'diag' && d % 3 === 0) add({ at, id, m: 'c', ok: 0, x: 1 });
       else {
         const [rec, per] = SLOW[id] || [700, 300];
         add({ at, id, m: 'c', ok: 1, t: rec + MOVES[id] * per, r: rec });
       }
-      add({ at: at + 20000, id, m: 'q', ok: id === 'z' && d % 2 === 0 ? 0 : 1, t: id === 'ub' ? 2400 : 900 });
+      add({ at: at + qGap, id, m: 'q', ok: id === 'z' && d % 2 === 0 ? 0 : 1, t: id === 'ub' ? 2400 : 900 });
     });
   }
   const crossTr = [];
-  for (let k = 0; k < 12; k++) crossTr.push({ at: now - (11 - k) * DAY - 5 * 3600000, opt: 6, n: 8 - Math.floor(k / 5), t: 4200 - k * 150 });
+  for (let k = 0; k < 12; k++) crossTr.push({ at: now - (11 - k) * DAY - back(5 * 3600000) - 2000, opt: 6, n: 8 - Math.floor(k / 5), t: 4200 - k * 150 });
   const learn = { l: 'known', i: 'known', dot: 'known', sune: 'known', antisune: 'known', ua: 'known', ub: 'learning', z: 'learning', pi: 'learning' };
   return { times, trlog, train, crossTr, learn, now };
 }

@@ -188,29 +188,32 @@ const keys = (d) => ({ 'cfop:times:v1': d.times, 'cfop:trlog:v1': d.trlog, 'cfop
   check('change: out goes T, in comes Ua (the rest keep their place and count), and only those come up', ed1.set === 'sune,z,ua' && ed1.pick === 'sune,z,ua' && ['sune', 'z', 'ua'].includes(ed1.cur) && /Set cambiado: 3 casos/.test(ed1.toast) && ed1.cards === 3, JSON.stringify(ed1));
   await own.ctx.close();
 
-  // ================= With the algorithm in view =================
-  // Attempts with «Ver el algoritmo» open are practice: marked with an eye, they neither add to the streak nor
-  // break it, and the session says so while it is open.
+  // ================= With the algorithm in view, case by case =================
+  // Each case of the set has an eye: on, that case comes up with its algorithm in view (practice: marked with
+  // an eye, it neither adds to the streak nor breaks it), and the session says so; the others do not change.
   const pk = await open({}, null, 'entrenar');
+  await pk.p.evaluate(() => window.Fridrich._.startSession('cube', ['sune', 'antisune'], false));
+  const eyes = () => pk.p.evaluate(() => ({ sune: document.querySelector('[data-eye="sune"]').getAttribute('aria-pressed'), anti: document.querySelector('[data-eye="antisune"]').getAttribute('aria-pressed'), note: !document.getElementById('sessPeek').hidden, saved: JSON.parse(localStorage.getItem('cfop:settings:v1')).peek }));
+  const e0 = await eyes();
+  await pk.p.click('[data-eye="sune"]');
+  const e1 = await eyes();
+  check('eye: each case of the set has one, off at first; on for Sune only (saved), and the session says it', e0.sune === 'false' && e0.anti === 'false' && !e0.note && e1.sune === 'true' && e1.anti === 'false' && e1.note && e1.saved.sune === 1 && !e1.saved.antisune, JSON.stringify({ e0, e1 }));
   const peek = await pk.p.evaluate(() => {
     const F = window.Fridrich._;
-    F.startSession('cube', ['sune', 'antisune'], false);
-    const card = () => { const c = document.querySelector('#sessSet [data-sc="sune"]'); return { pips: c.querySelector('.fr-pips').getAttribute('aria-label'), line: c.querySelector('.fr-sc-line').innerText, eye: c.querySelectorAll('.fr-sc-last .pk svg').length, ok: c.querySelectorAll('.fr-sc-last .ok').length }; };
-    F.settings.trPeek = true;
+    const card = () => { const c = document.querySelector('#sessSet [data-sc="sune"]'); return { pips: c.querySelector('.fr-pips').getAttribute('aria-label'), eye: c.querySelectorAll('.fr-sc-last .pk svg').length, ok: c.querySelectorAll('.fr-sc-last .ok').length }; };
     F.logTr({ id: 'sune', m: 'c', ok: 1, t: 1000, r: 300 });
     F.logTr({ id: 'sune', m: 'c', ok: 1, t: 900, r: 300, a: 1 });
     const mixed = card();
-    const note = !document.getElementById('sessPeek').hidden;
-    F.settings.trPeek = false;
     F.logTr({ id: 'sune', m: 'c', ok: 1, t: 1100, r: 300 });
     const after = card();
-    const noteAfter = !document.getElementById('sessPeek').hidden;
     F.logTr({ id: 'antisune', m: 'c', ok: 1, t: 800, r: 200, a: 1 });
     const only = document.querySelector('#sessSet [data-sc="antisune"] .fr-sc-line').innerText;
-    return { mixed, note, after, noteAfter, only };
+    return { mixed, after, only };
   });
-  check('algorithm in view: that attempt has an eye and does not break the streak (1, then 2 in a row)', /^1 de 3/.test(peek.mixed.pips) && peek.mixed.eye === 1 && peek.mixed.ok === 1 && /^2 de 3/.test(peek.after.pips), JSON.stringify(peek));
-  check('algorithm in view: the session says it does not count while it is open', peek.note && !peek.noteAfter && /1 con el algoritmo a la vista \(no cuenta\)/.test(peek.only), JSON.stringify({ note: peek.note, noteAfter: peek.noteAfter, only: peek.only }));
+  check('eye: an attempt with it in view has an eye and does not break the streak (1, then 2 in a row)', /^1 de 3/.test(peek.mixed.pips) && peek.mixed.eye === 1 && peek.mixed.ok === 1 && /^2 de 3/.test(peek.after.pips) && /1 con el algoritmo a la vista \(no cuenta\)/.test(peek.only), JSON.stringify(peek));
+  await pk.p.click('[data-eye="sune"]');
+  const e2 = await eyes();
+  check('eye: pressing it again hides it (and the note goes)', e2.sune === 'false' && !e2.note && !e2.saved.sune, JSON.stringify(e2));
   await pk.ctx.close();
 
   // ================= The overlay's demo: with the smart cube =================
