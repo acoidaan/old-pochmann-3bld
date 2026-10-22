@@ -1697,6 +1697,7 @@
     settings.trPeek = d.open;
     saveSettings();
     renderTrain();
+    if (session) renderSession();
   }, true);
   $('trBox').addEventListener('click', (ev) => {
     const b = ev.target.closest('[data-answer]');
@@ -2063,9 +2064,16 @@
   }
   // Each attempt (from the training log).
   const qualifies = (x, p) => !x.x && !x.a && !!x.ok && (x.m === 'c' ? x.t != null && x.t <= p.target : x.m === 'q' ? x.t != null && x.t <= session.look : true);
+  // Attempts in a row that count, from the last one back. One done with the algorithm in view is practice:
+  // it neither adds to the streak nor breaks it.
   function streakOf(p) {
     let k = 0;
-    for (let i = p.last.length - 1; i >= 0 && qualifies(p.last[i], p); i--) k++;
+    for (let i = p.last.length - 1; i >= 0; i--) {
+      const x = p.last[i];
+      if (x.a && !x.x) continue;
+      if (!qualifies(x, p)) break;
+      k++;
+    }
     return k;
   }
   function sessionAttempt(e) {
@@ -2082,6 +2090,7 @@
     const p = session.per[e.id];
     if (e.x) { p.lost++; session.lost++; } else { p.n++; session.n++; if (e.ok) { p.ok++; session.ok++; } }
     if (e.m === 'c' && e.ok && e.t != null && !e.a) { p.sum += e.t; p.timed++; p.best = p.best == null ? e.t : Math.min(p.best, e.t); }
+    if (e.a && !e.x) p.peek = (p.peek || 0) + 1;
     if (e.m === 'q') { p.qn++; if (e.t != null) p.qsum += e.t; }
     p.last.push({ m: e.m, ok: e.ok ? 1 : 0, t: e.t != null ? e.t : null, x: e.x ? 1 : 0, a: e.a ? 1 : 0 });
     if (p.last.length > 8) p.last = p.last.slice(-8);
@@ -2166,12 +2175,18 @@
       line = p.qn ? `<b>${acc} %</b> bien · <b>${secs(p.qsum / p.qn, 2)}</b> de media` : 'aún sin hacer';
       if (p.before.qtime != null) line += ` <span>(antes ${Math.round((p.before.qacc || 0) * 100)} % · ${secs(p.before.qtime, 2)})</span>`;
     } else if (session.mode === 'cube') {
-      line = p.timed ? `media <b>${secs(p.sum / p.timed, 2)}</b>${p.before.cube != null ? ` ${deltaHtml(p.sum / p.timed, p.before.cube)}` : ''} · mejor ${secs(p.best, 2)}` : 'aún sin hacer';
+      const peeked = p.peek || p.last.filter((x) => x.a && !x.x).length;
+      line = p.timed ? `media <b>${secs(p.sum / p.timed, 2)}</b>${p.before.cube != null ? ` ${deltaHtml(p.sum / p.timed, p.before.cube)}` : ''} · mejor ${secs(p.best, 2)}`
+        : peeked ? `${peeked} con el algoritmo a la vista <span>(${peeked === 1 ? 'no cuenta' : 'no cuentan'})</span>` : 'aún sin hacer';
       line += ` · objetivo <b>${secs(p.target)}</b>`;
     } else {
       line = p.n || p.lost ? `<b>${p.ok}</b> de ${p.n} bien${p.lost ? ` · perdido ${p.lost}` : ''}` : 'aún sin hacer';
     }
-    const last = p.last.map((x) => (x.x ? '<span class="ko">perdido</span>' : x.ok ? `<span class="ok">✓${x.t != null && x.m !== 'h' ? ` ${f1(x.t)}` : ''}</span>` : '<span class="ko">✗</span>')).join('');
+    // An attempt with the algorithm in view, with an eye: it does not count for the streak.
+    const EYE = '<svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+    const last = p.last.map((x) => (x.x ? '<span class="ko">perdido</span>'
+      : x.a ? `<span class="pk" title="Con el algoritmo a la vista: no cuenta">${EYE}${x.t != null ? ` ${f1(x.t)}` : ''}<span class="sr-only"> (con el algoritmo a la vista, no cuenta)</span></span>`
+        : x.ok ? `<span class="ok">✓${x.t != null && x.m !== 'h' ? ` ${f1(x.t)}` : ''}</span>` : '<span class="ko">✗</span>')).join('');
     const cur = !!(tr.c && tr.c.id === id);
     const won = !!p.mastered;
     return `<article class="fr-sc${cur ? ' cur' : ''}${won ? ' mastered' : ''}${lastWon === id ? ' won' : ''}" data-sc="${id}">
@@ -2192,6 +2207,8 @@
       : session.mode === 'look' ? `Dominas un caso con ${need} seguidos bien y en menos de ${secs(session.look)}.`
         : `Dominas un caso con ${need} seguidos bien, sin perderte.`)
       + (session.auto !== false ? ' Entonces sale del set y entra el siguiente que más te cuesta.' : ' Se queda en el set hasta que lo quites.');
+    const peekNote = $('sessPeek');
+    peekNote.hidden = !(session.mode === 'cube' && settings.trPeek);
     // On a phone the set is below the trainer: a line with each case and its progress, in the bar.
     $('sessMini').innerHTML = session.set.map((id) => {
       const k = Math.min(need, streakOf(session.per[id]));
@@ -3658,7 +3675,7 @@
     paceFor: (r) => { const pf = settings.pace !== 'off' ? paceFor(r) : null; return pf ? { d: pf.rows.map((x) => Math.round(x.d)), gold: pf.rows.map((x) => x.gold), total: Math.round(pf.total), label: pf.label } : null; },
     recordsOf,
     // For tests.
-    _: { simSolution, caseTarget, tr, settings, celebrate, paceRef, bestsOf, paceTick, myBests, ligaPublish, player, loadLeague, lg, session: () => session, endSession, startSession, openPicker, follow: () => follow, makeFollow, partialKeys, setScramble, makeTry, ct, vibes, syncNow, syncPlan, mergeIn, offerUpdate, focus: () => focus.on },
+    _: { simSolution, caseTarget, tr, settings, logTr, celebrate, paceRef, bestsOf, paceTick, myBests, ligaPublish, player, loadLeague, lg, session: () => session, endSession, startSession, openPicker, follow: () => follow, makeFollow, partialKeys, setScramble, makeTry, ct, vibes, syncNow, syncPlan, mergeIn, offerUpdate, focus: () => focus.on },
   };
 
   // ================= Start =================
