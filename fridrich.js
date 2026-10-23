@@ -21,16 +21,26 @@
     crossTr: 'cfop:crosstr:v1', deleted: 'cfop:deleted:v1', learnAt: 'cfop:learn-at:v1', sync: 'op3bld:sync:v1', synced: 'cfop:synced:v1',
     trlog: 'cfop:trlog:v1', player: 'cfop:player:v1', ligas: 'cfop:ligas:v1', ligaPub: 'cfop:liga-pub:v1', ligaSeen: 'cfop:liga-seen:v1',
     name: 'op3bld:name:v1', session: 'cfop:session:v1', sessions: 'cfop:sessions:v1',
+    ltimes: 'cfop:ltimes:v1', scrMeta: 'cfop:scrmeta:v1',
   };
   const load = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; } catch (e) { return d; } };
   const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* this visit only */ } };
-  const settings = { inspect: false, help: true, sound: true, vibrate: true, cross: 'U', timed: true, trMode: 'cube', chart: 50, pace: 'avg', celebrate: true, peek: {}, ...load(K.set, {}) };
+  const settings = { inspect: false, help: true, sound: true, vibrate: true, cross: 'U', timed: true, trMode: 'cube', chart: 50, pace: 'avg', celebrate: true, peek: {}, scrMode: 'full', scrCases: 'kl', ...load(K.set, {}) };
+  if (!['full', 'll', 'pll'].includes(settings.scrMode)) settings.scrMode = 'full';
+  if (!['known', 'kl', 'all'].includes(settings.scrCases)) settings.scrCases = 'kl';
   // The algorithm in view is chosen case by case (the eye on each case); the old switch for all of them goes.
   if (!settings.peek || typeof settings.peek !== 'object' || Array.isArray(settings.peek)) settings.peek = {};
   delete settings.trPeek;
   if (!(settings.cross in C.DOWN)) settings.cross = 'U';
   const saveSettings = () => save(K.set, settings);
   let times = load(K.times, []);
+  // Solves of one phase only (the scramble leaves the cross and F2L done): kept apart, with their own
+  // averages, out of the records and the ranking. r.m: 'll' (OLL + PLL) or 'pll'.
+  let ltimes = load(K.ltimes, []);
+  const PHASE_NAME = { full: 'Solve completo', ll: 'Última capa', pll: 'Solo PLL' };
+  let listMode = settings.scrMode;   // what the stats and the history show
+  const listOf = (m) => (m === 'full' ? times : ltimes.filter((r) => r.m === m));
+  const findTime = (at) => times.find((r) => r.at === at) || ltimes.find((r) => r.at === at);
   if (!Array.isArray(times)) times = [];
   const learn = load(K.learn, {});
   const learnAt = load(K.learnAt, {});
@@ -286,10 +296,14 @@
   let follow = null;
   let crossOpen = false;
   let scrSeq = 0;
-  function setScramble(scr) {
+  let scrMeta = load(K.scrMeta, { m: 'full' });
+  function setScramble(scr, meta) {
     scrSeq++;
     scramble = scr;
+    scrMeta = meta && meta.m ? meta : { m: 'full' };
     save(K.scr, scr);
+    save(K.scrMeta, scrMeta);
+    $('crossShow').hidden = scrMeta.m !== 'full';   // in a phase on its own the cross is already done
     try { scrState = apply(solved(), scr); } catch (e) { scrState = null; }
     follow = scrState ? makeFollow(solved(), parseAlg(scr).map((m) => m.text)) : null;
     if (cube && cube.on) locate(follow, cube.state) || markLost();
@@ -308,17 +322,59 @@
     btn.textContent = M.scramblerReady() ? 'Generando…' : 'Preparando…';
     const mine = scrSeq;
     let scr;
-    try { scr = M.simplifyAlg(await M.withTimeout(M.requestScramble('full'), 30000)); } catch (e) { scr = M.randomMoveScramble(); }
+    let meta = { m: 'full' };
+    const mode = settings.scrMode;
+    if (mode !== 'full') {
+      try {
+        const x = await llScramble(mode);
+        scr = x.scr;
+        meta = { m: mode, c: x.cases };
+      } catch (e) { scr = null; }
+    }
+    if (!scr) {
+      try { scr = M.simplifyAlg(await M.withTimeout(M.requestScramble('full'), 30000)); } catch (e) { scr = M.randomMoveScramble(); }
+      meta = { m: 'full' };
+      if (mode !== 'full') toast('No he podido generar el scramble de esa fase: te pongo uno completo');
+    }
     btn.disabled = false;
     btn.textContent = 'Nuevo scramble';
     scrBusy = false;
     // Not if another scramble came meanwhile, nor in the middle of a solve.
-    if (mine === scrSeq && timer.phase !== 'run') setScramble(scr);
+    if (mine === scrSeq && timer.phase !== 'run') setScramble(scr, meta);
+  }
+  // A scramble that leaves the cross and the F2L done and, on top, one case of each step of the phase, chosen
+  // among the cases asked for (the ones known, known and learning, or all), with a random top turn between
+  // them. A normal-looking scramble (the solver's), so it does not give the cases away.
+  const PHASE_STEPS = { ll: ['oll1', 'oll2', 'pll1', 'pll2'], pll: ['pll1', 'pll2'] };
+  function phasePool(step) {
+    const ok = (id) => settings.scrCases === 'all' || learn[id] === 'known' || (settings.scrCases === 'kl' && learn[id] === 'learning');
+    return C.CASES.filter((c) => c.step === step && ok(c.id));
+  }
+  async function llScramble(mode) {
+    const rot = C.DOWN[settings.cross];
+    const ref = rot ? apply(solved(), rot) : solved();
+    const seq = [rnd(C.AUF)];
+    const cases = [];
+    // From the solved cube backwards: the last step's case first.
+    PHASE_STEPS[mode].slice().reverse().forEach((step) => {
+      const pool = phasePool(step);
+      if (!pool.length) return;   // nothing to choose from: that step comes skipped
+      const c = rnd(pool);
+      cases.unshift(c.id);
+      seq.push(invertAlg(c.alg), rnd(C.AUF));
+    });
+    if (!cases.length) {
+      toast(settings.scrCases === 'all' ? 'No hay casos para esa fase' : 'No tienes casos de esa fase marcados en «Casos»: te salen todos resueltos');
+    }
+    const target = norm(apply(ref, seq.filter(Boolean).join(' ')));
+    const scr = M.simplifyAlg(await M.withTimeout(M.solveState(toFacelets(target)), 25000));
+    if (key(apply(solved(), scr)) !== key(target)) throw new Error('el scramble no llega');
+    return { scr, cases };
   }
   function renderScramble() {
     renderDuel();
     const moves = scramble ? parseAlg(scramble).map((m) => m.text) : [];
-    $('scrCount').textContent = moves.length ? `· ${moves.length} movimientos` : '';
+    $('scrCount').textContent = moves.length ? `· ${moves.length} movimientos${scrMeta.m !== 'full' ? ` · ${PHASE_NAME[scrMeta.m]}` : ''}` : '';
     const F = follow;
     const on = cube && cube.on && F && !F.lost && timer.phase !== 'run';
     $('scr').innerHTML = moves.map((m, i) => {
@@ -370,6 +426,28 @@
       + `<span class="hint">${x.rotation ? `Desde como lo mezclas (blanco arriba, verde delante), gíralo entero con <b>${esc(x.rotation)}</b>: ${esc(x.colour)} abajo. ` : ''}Hay otras de la misma longitud; esta es una.</span>`;
   }
   $('newScr').addEventListener('click', () => { if (timer.phase !== 'run') newScramble(); });
+  // What to practise: a whole solve, or one phase with the cases asked for.
+  function renderScrMode() {
+    $('scrMode').value = settings.scrMode;
+    $('scrCases').value = settings.scrCases;
+    $('scrCasesBox').hidden = settings.scrMode === 'full';
+  }
+  $('scrMode').addEventListener('change', () => {
+    settings.scrMode = $('scrMode').value;
+    save(K.set, settings);
+    listMode = settings.scrMode;
+    histShown = 25;
+    renderScrMode();
+    renderStats();
+    if (timer.phase !== 'run') { scrSeq++; scrBusy = false; newScramble(); }
+  });
+  $('scrCases').addEventListener('change', () => {
+    settings.scrCases = $('scrCases').value;
+    save(K.set, settings);
+    if (timer.phase !== 'run') { scrSeq++; scrBusy = false; newScramble(); }
+  });
+  document.querySelectorAll('[data-hist]').forEach((b) => b.addEventListener('click', () => { listMode = b.dataset.hist; histShown = 25; noteAt = null; renderStats(); }));
+  renderScrMode();
   $('crossShow').addEventListener('click', () => { crossOpen = !crossOpen; renderCross(); });
 
   // ================= Timer =================
@@ -421,12 +499,14 @@
   function startRun(at, startState) {
     timer.t0 = at || now();
     timer.scr = scramble;
+    timer.mode = scrMeta.m || 'full';
+    timer.llc = scrMeta.c || null;
     timer.pen = penaltyNow();
     timer.line = cube && cube.on ? [{ t: 0, st: startState || cube.state }] : null;
     timer.startState = startState || (cube && cube.state);
     track = null;
     resetProg();
-    pace.ref = paceRef();
+    pace.ref = timer.mode === 'full' ? paceRef() : null;
     pace.at = null;
     hideRecord();
     if (duel && duel.result) { duel = null; renderDuel(); }
@@ -451,6 +531,7 @@
           try { r.an = packAnalysis(C.analyze(line, sp)); } catch (e) { r.an = null; }
           if (!r.an) return;
           save(K.times, times);
+          save(K.ltimes, ltimes);
           if (timer.last === r) renderSplits(r);
           renderPhases();
           renderHistory();
@@ -459,6 +540,31 @@
       }
     }
     timer.insp0 = 0;
+    if (timer.mode && timer.mode !== 'full') {
+      // A phase on its own: its own list, no records, no ranking.
+      r.m = timer.mode;
+      if (timer.llc && timer.llc.length) r.lc = timer.llc;
+      ltimes.push(r);
+      if (ltimes.length > 2000) ltimes = ltimes.slice(-2000);
+      for (let i = 0; i < ltimes.length - 200; i++) { delete ltimes[i].rc; delete ltimes[i].an; }
+      save(K.ltimes, ltimes);
+      changed();
+      timer.last = r;
+      if (follow && cube && cube.on && !locate(follow, cube.state)) markLost();
+      if (follow && follow.pos >= follow.n) { follow.pos = 0; follow.lost = true; }
+      $('clockTime').textContent = fmtRes(r);
+      pace.at = r.at;
+      setPhase('done');
+      if (cube && cube.on && isSolved(cube.state)) {
+        if (settings.sound) window.SmartCube.chime();
+        buzz([80, 60, 180]);
+      }
+      renderSplits(r);
+      renderStats();
+      emit('result', r);
+      newScramble();
+      return;
+    }
     const prevBests = bestsOf(times);
     times.push(r);
     if (times.length > 2000) times = times.slice(-2000);
@@ -911,7 +1017,7 @@
     });
   }
   function paceFor(r) {
-    if (!fullSp(r)) return null;
+    if (!fullSp(r) || r.m) return null;
     const i = times.indexOf(r);
     const ref = paceRef(i < 0 ? times.length : i);
     if (!ref) return null;
@@ -1186,20 +1292,21 @@
   let histShown = 25;
   const openRc = new Set();
   function renderStats() {
-    const ok = times.filter((r) => r.pen !== 'dnf');
+    const list = listOf(listMode);
+    const ok = list.filter((r) => r.pen !== 'dnf');
     const best = ok.length ? Math.min(...ok.map(value)) : null;
     const mean = ok.length ? ok.reduce((a, r) => a + value(r), 0) / ok.length : null;
     const cells = [
-      ['Solves', String(times.length)],
+      ['Solves', String(list.length)],
       ['Mejor', fmt(best)],
-      ['ao5', fmt(avgOf(times, 5))],
-      ['ao12', fmt(avgOf(times, 12))],
-      ['ao100', fmt(avgOf(times, 100))],
+      ['ao5', fmt(avgOf(list, 5))],
+      ['ao12', fmt(avgOf(list, 12))],
+      ['ao100', fmt(avgOf(list, 100))],
       ['Media', fmt(mean)],
     ];
-    $('stats').innerHTML = times.length ? cells.map(([k, v]) => `<div class="stat"><span>${k}</span><b>${v}</b></div>`).join('') : '';
-    renderPhases();
-    renderChart();
+    $('stats').innerHTML = list.length ? cells.map(([k, v]) => `<div class="stat"><span>${k}</span><b>${v}</b></div>`).join('') : '';
+    document.querySelectorAll('[data-hist]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.hist === listMode)));
+    if (listMode === 'full') { renderPhases(); renderChart(); } else { $('phases').hidden = true; $('chartBox').hidden = true; }
     renderHistory();
     renderFocus();
   }
@@ -1220,30 +1327,65 @@
     $('phaseLegend').innerHTML = vals.map(([name, t, rec]) => `<span><b>${name}</b> ${f1(t)} s · ${Math.round((t / total) * 100)} %${rec != null ? ` <span class="muted">(${f1(rec)} s reconociendo)</span>` : ''}</span>`).join('')
       + (effs.length ? `<span><b>Eficiencia media</b> ${Math.round((effs.reduce((a, x) => a + x, 0) / effs.length) * 100)} % <span class="muted">(${effs.length} ${effs.length === 1 ? 'solve' : 'solves'})</span></span>` : '');
   }
+  let noteAt = null;   // the solve whose note is being written
   function renderHistory() {
     const box = $('history');
-    if (!times.length) { box.innerHTML = '<p class="empty-note">Aún no hay tiempos. Mantén pulsado el reloj (o Espacio) y suelta para empezar.</p>'; $('histMore').hidden = true; return; }
+    const all = listOf(listMode);
+    const full = listMode === 'full';
+    if (!all.length) {
+      box.innerHTML = `<p class="empty-note">${full ? 'Aún no hay tiempos. Mantén pulsado el reloj (o Espacio) y suelta para empezar.' : `Aún no hay tiempos de «${PHASE_NAME[listMode]}». Elígelo arriba, en «Qué practicar».`}</p>`;
+      $('histMore').hidden = true;
+      return;
+    }
     // A «PB» tag on each solve that beat every earlier single.
     const isPb = [];
     let best = Infinity;
-    times.forEach((r, i) => { const v = value(r); isPb[i] = i > 0 && Number.isFinite(v) && v < best && Number.isFinite(best); best = Math.min(best, v); });
-    const list = times.map((r, i) => ({ r, i })).reverse().slice(0, histShown);
+    all.forEach((r, i) => { const v = value(r); isPb[i] = i > 0 && Number.isFinite(v) && v < best && Number.isFinite(best); best = Math.min(best, v); });
+    const list = all.map((r, i) => ({ r, i })).reverse().slice(0, histShown);
     const step = (r, idx) => (r.sp && idx.every((i) => r.sp.s[i]) ? f1(idx.reduce((a, i) => a + r.sp.s[i][0], 0)) : '—');
-    const cases = (r) => (r.sp ? [2, 3, 4, 5].map((i) => { const x = r.sp.s[i]; if (!x) return null; if (x[4]) return 'salto'; const c = x[3] && C.caseById(x[3]); return c ? c.name.replace('PLL (', '').replace(')', '') : null; }).filter(Boolean).join(' · ') : '');
-    box.innerHTML = `<table><thead><tr><th scope="col">#</th><th scope="col">Tiempo</th><th scope="col">ao5</th><th scope="col">Cruz</th><th scope="col">F2L</th><th scope="col">OLL</th><th scope="col">PLL</th><th scope="col">Casos</th><th scope="col"><span class="sr-only">Acciones</span></th></tr></thead><tbody>${
+    const short = (c) => c.name.replace('PLL (', '').replace(')', '');
+    const cases = (r) => {
+      if (r.sp) return [2, 3, 4, 5].map((i) => { const x = r.sp.s[i]; if (!x) return null; if (x[4]) return 'salto'; const c = x[3] && C.caseById(x[3]); return c ? short(c) : null; }).filter(Boolean).join(' · ');
+      return (r.lc || []).map((id) => C.caseById(id)).filter(Boolean).map(short).join(' · ');
+    };
+    const cols = full ? 9 : 7;
+    const head = full ? '<th scope="col">Cruz</th><th scope="col">F2L</th><th scope="col">OLL</th><th scope="col">PLL</th>' : '<th scope="col">OLL</th><th scope="col">PLL</th>';
+    box.innerHTML = `<table><thead><tr><th scope="col">#</th><th scope="col">Tiempo</th><th scope="col">ao5</th>${head}<th scope="col">Casos</th><th scope="col"><span class="sr-only">Acciones</span></th></tr></thead><tbody>${
       list.map(({ r, i }) => {
-        const a5 = avgOf(times.slice(0, i + 1), 5);
-        return `<tr><td class="muted">${i + 1}</td><td><b>${fmtRes(r)}</b>${isPb[i] ? ' <span class="fr-pbtag" title="Mejor single hasta entonces">PB</span>' : ''}</td><td class="muted">${a5 == null ? '' : fmt(a5)}</td>`
-          + `<td>${step(r, [0])}</td><td>${step(r, [1])}</td><td>${step(r, [2, 3])}</td><td>${step(r, [4, 5])}</td><td class="fr-cases">${esc(cases(r))}</td>`
-          + `<td class="fr-acts"><button class="x" type="button" data-pen="2" data-i="${i}" aria-label="Poner o quitar +2 al solve ${i + 1}" aria-pressed="${r.pen === 2}">+2</button>`
-          + `<button class="x" type="button" data-pen="dnf" data-i="${i}" aria-label="Marcar o desmarcar DNF el solve ${i + 1}" aria-pressed="${r.pen === 'dnf'}">DNF</button>`
-          + `<button class="x" type="button" data-del="${i}" aria-label="Borrar el solve ${i + 1}">×</button>`
-          + (r.rc ? `<button class="x" type="button" data-rc="${r.at}" aria-expanded="${openRc.has(r.at)}" aria-label="Ver el análisis y los giros del solve ${i + 1}">ver</button>` : '')
+        const a5 = avgOf(all.slice(0, i + 1), 5);
+        const n = i + 1;
+        return `<tr><td class="muted">${n}</td><td><b>${fmtRes(r)}</b>${isPb[i] ? ' <span class="fr-pbtag" title="Mejor single hasta entonces">PB</span>' : ''}</td><td class="muted">${a5 == null ? '' : fmt(a5)}</td>`
+          + (full ? `<td>${step(r, [0])}</td><td>${step(r, [1])}</td>` : '') + `<td>${step(r, [2, 3])}</td><td>${step(r, [4, 5])}</td><td class="fr-cases">${esc(cases(r))}</td>`
+          + `<td class="fr-acts"><button class="x" type="button" data-pen="2" data-i="${i}" aria-label="Poner o quitar +2 al solve ${n}" aria-pressed="${r.pen === 2}">+2</button>`
+          + `<button class="x" type="button" data-pen="dnf" data-i="${i}" aria-label="Marcar o desmarcar DNF el solve ${n}" aria-pressed="${r.pen === 'dnf'}">DNF</button>`
+          + `<button class="x" type="button" data-note="${r.at}" aria-expanded="${noteAt === r.at}" aria-label="${r.no ? 'Cambiar la nota' : 'Añadir una nota'} del solve ${n}" title="Nota">✎</button>`
+          + `<button class="x" type="button" data-del="${i}" aria-label="Borrar el solve ${n}">×</button>`
+          + (r.rc ? `<button class="x" type="button" data-rc="${r.at}" aria-expanded="${openRc.has(r.at)}" aria-label="Ver el análisis y los giros del solve ${n}">ver</button>` : '')
           + '</td></tr>'
-          + (r.rc && openRc.has(r.at) ? `<tr class="fr-recon-row"><td colspan="9">${analysisHtml(r)}${reconHtml(r)}</td></tr>` : '');
+          + (noteAt === r.at
+            ? `<tr class="fr-note-row"><td colspan="${cols}"><form class="fr-note-form" data-note-form="${r.at}"><input class="text-input" name="note" maxlength="200" value="${esc(r.no || '')}" placeholder="Una nota para este solve (p. ej. «me lie en la cruz»)" aria-label="Nota del solve ${n}" autocomplete="off"><button class="btn" type="submit">Guardar</button></form></td></tr>`
+            : r.no ? `<tr class="fr-note-row"><td></td><td colspan="${cols - 1}" class="fr-note-text">${esc(r.no)}</td></tr>` : '')
+          + (r.rc && openRc.has(r.at) ? `<tr class="fr-recon-row"><td colspan="${cols}">${analysisHtml(r)}${reconHtml(r)}</td></tr>` : '');
       }).join('')}</tbody></table>`;
-    $('histMore').hidden = times.length <= histShown;
+    $('histMore').hidden = all.length <= histShown;
+    if (noteAt != null) { const inp = box.querySelector('.fr-note-form input'); if (inp && document.activeElement !== inp) inp.focus(); }
   }
+  $('history').addEventListener('submit', (ev) => {
+    const f = ev.target.closest('[data-note-form]');
+    if (!f) return;
+    ev.preventDefault();
+    const r = findTime(Number(f.dataset.noteForm));
+    noteAt = null;
+    if (r) {
+      const txt = f.note.value.trim().slice(0, 200);
+      if (txt) r.no = txt; else delete r.no;
+      r.ed = Date.now();
+      save(K.times, times);
+      save(K.ltimes, ltimes);
+      changed();
+    }
+    renderHistory();
+  });
   $('history').addEventListener('click', (ev) => {
     const b = ev.target.closest('button');
     if (!b) return;
@@ -1253,22 +1395,33 @@
       renderHistory();
       return;
     }
+    if (b.dataset.note != null) {
+      const at = Number(b.dataset.note);
+      noteAt = noteAt === at ? null : at;
+      renderHistory();
+      return;
+    }
     if (b.dataset.del != null) {
-      const i = Number(b.dataset.del);
+      const r = listOf(listMode)[Number(b.dataset.del)];
+      if (!r) return;
+      const at = r.at;
       if (b.dataset.armed !== '1') { b.dataset.armed = '1'; b.textContent = '¿Borrar?'; b.classList.add('armed'); setTimeout(() => { if (b.isConnected) { b.dataset.armed = ''; b.textContent = '×'; b.classList.remove('armed'); } }, 3000); return; }
-      if (times[i] === timer.last) timer.last = null;
+      if (r === timer.last) timer.last = null;
       const gone = load(K.deleted, []);
-      gone.push(times[i].at);
+      gone.push(at);
       save(K.deleted, gone.slice(-3000));
-      times.splice(i, 1);
+      times = times.filter((x) => x !== r);
+      ltimes = ltimes.filter((x) => x !== r);
     } else if (b.dataset.pen) {
-      const r = times[Number(b.dataset.i)];
+      const r = listOf(listMode)[Number(b.dataset.i)];
+      if (!r) return;
       const p = b.dataset.pen === '2' ? 2 : 'dnf';
       r.pen = r.pen === p ? 0 : p;
       r.ed = Date.now();
     } else if (b.dataset.copyRc != null) return;
     else return;
     save(K.times, times);
+    save(K.ltimes, ltimes);
     renderStats();
     emit('result', null);
     changed();
@@ -3113,7 +3266,7 @@
     $('focusScr').innerHTML = $('scr').innerHTML;
     const from = new Date();
     from.setHours(0, 0, 0, 0);
-    const today = times.filter((t) => t.at >= from.getTime());
+    const today = listOf(listMode).filter((t) => t.at >= from.getTime());
     const ok = today.filter((t) => t.pen !== 'dnf');
     const parts = [];
     if (today.length) {
@@ -3258,9 +3411,11 @@
   const syncState = () => load(K.sync, null);
   function syncData() {
     const keep = times.length - 200;   // the turns and the analysis of the last 200 solves travel; older ones stay here
+    const lkeep = ltimes.length - 50;
     return {
       v: 1,
       times: times.map((r, i) => (i < keep && (r.rc || r.an) ? (({ rc, an, ...x }) => x)(r) : r)),
+      ltimes: ltimes.map((r, i) => (i < lkeep && (r.rc || r.an) ? (({ rc, an, ...x }) => x)(r) : r)),
       deleted: load(K.deleted, []), learn, learnAt, train, crossTr: load(K.crossTr, []).slice(-300), trlog: trlog.slice(-3000),
       player: load(K.player, null), ligas: ligas(), sessions: load(K.sessions, []).slice(-100),
     };
@@ -3270,18 +3425,27 @@
     let changedHere = false;
     const dead = new Set([...load(K.deleted, []), ...(Array.isArray(remote.deleted) ? remote.deleted : [])]);
     save(K.deleted, [...dead].slice(-3000));
-    const byAt = new Map(times.map((r) => [r.at, r]));
-    (Array.isArray(remote.times) ? remote.times : []).forEach((r) => {
-      if (!r || typeof r.at !== 'number' || typeof r.t !== 'number') return;
-      const mine = byAt.get(r.at);
-      if (!mine) { byAt.set(r.at, r); changedHere = true; } else if ((r.ed || 0) > (mine.ed || 0)) { mine.pen = r.pen; mine.ed = r.ed; changedHere = true; }
-      if (mine && !mine.rc && r.rc) { mine.rc = r.rc; changedHere = true; }
-      if (mine && !mine.an && r.an) { mine.an = r.an; changedHere = true; }
-    });
-    const merged = [...byAt.values()].filter((r) => !dead.has(r.at)).sort((a, b) => a.at - b.at).slice(-2000);
-    if (merged.length !== times.length) changedHere = true;
-    times = merged;
+    const mergeList = (local, incoming) => {
+      const byAt = new Map(local.map((r) => [r.at, r]));
+      (Array.isArray(incoming) ? incoming : []).forEach((r) => {
+        if (!r || typeof r.at !== 'number' || typeof r.t !== 'number') return;
+        const mine = byAt.get(r.at);
+        if (!mine) { byAt.set(r.at, r); changedHere = true; } else if ((r.ed || 0) > (mine.ed || 0)) {
+          mine.pen = r.pen; mine.ed = r.ed;
+          if (r.no) mine.no = r.no; else delete mine.no;
+          changedHere = true;
+        }
+        if (mine && !mine.rc && r.rc) { mine.rc = r.rc; changedHere = true; }
+        if (mine && !mine.an && r.an) { mine.an = r.an; changedHere = true; }
+      });
+      const merged = [...byAt.values()].filter((r) => !dead.has(r.at)).sort((a, b) => a.at - b.at).slice(-2000);
+      if (merged.length !== local.length) changedHere = true;
+      return merged;
+    };
+    times = mergeList(times, remote.times);
     save(K.times, times);
+    ltimes = mergeList(ltimes, remote.ltimes).filter((r) => r.m === 'll' || r.m === 'pll');
+    save(K.ltimes, ltimes);
     const rl = remote.learn && typeof remote.learn === 'object' ? remote.learn : {};
     const ra = remote.learnAt && typeof remote.learnAt === 'object' ? remote.learnAt : {};
     Object.keys({ ...rl, ...ra }).forEach((id) => {
@@ -3696,7 +3860,7 @@
     paceFor: (r) => { const pf = settings.pace !== 'off' ? paceFor(r) : null; return pf ? { d: pf.rows.map((x) => Math.round(x.d)), gold: pf.rows.map((x) => x.gold), total: Math.round(pf.total), label: pf.label } : null; },
     recordsOf,
     // For tests.
-    _: { simSolution, caseTarget, tr, settings, logTr, celebrate, paceRef, bestsOf, paceTick, myBests, ligaPublish, player, loadLeague, lg, session: () => session, endSession, startSession, openPicker, follow: () => follow, makeFollow, partialKeys, setScramble, makeTry, ct, vibes, syncNow, syncPlan, mergeIn, offerUpdate, focus: () => focus.on },
+    _: { simSolution, caseTarget, tr, settings, logTr, celebrate, paceRef, bestsOf, paceTick, myBests, ligaPublish, player, loadLeague, lg, session: () => session, endSession, startSession, openPicker, follow: () => follow, makeFollow, partialKeys, setScramble, makeTry, ct, vibes, syncNow, syncPlan, mergeIn, syncData, offerUpdate, focus: () => focus.on },
   };
 
   // ================= Start =================
@@ -3709,7 +3873,7 @@
   renderPick();
   const lastWithSp = times.length ? times[times.length - 1] : null;
   if (lastWithSp && lastWithSp.sp) renderSplits(lastWithSp);
-  if (scramble) setScramble(scramble); else { renderScramble(); newScramble(); }
+  if (scramble && (scrMeta.m || 'full') === settings.scrMode) setScramble(scramble, scrMeta); else { renderScramble(); newScramble(); }
   // Sync set up on the 3BLD page (or another tab): bring this page up to date.
   syncPlan.start(1500);
   if (ligas().length) setTimeout(() => ligaPublish(), 2500);

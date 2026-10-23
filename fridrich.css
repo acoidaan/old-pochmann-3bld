@@ -556,3 +556,16 @@ body.focus .clock-pb b { font-size: 24px; }
   .fr-mode { margin-left: 0; }
   .fr-card { grid-template-columns: 84px minmax(0, 1fr); }
 }
+
+/* What to practise (a whole solve or one phase) and the notes of the solves */
+.fr-scr-mode { display: flex; flex-wrap: wrap; gap: 8px 14px; margin: 4px 0 8px; }
+.fr-scr-mode .fields { display: grid; grid-template-columns: 1fr; gap: 4px; min-width: 0; flex: 1 1 200px; align-content: start; }
+.fr-hist-mode { display: flex; width: fit-content; max-width: 100%; }
+.fr-scr-mode .fields[hidden] { display: none; }
+.fr-scr-mode select { width: 100%; }
+.fr-hist-mode { margin-top: 6px; flex-wrap: wrap; }
+.fr .history tr.fr-note-row > td { white-space: normal; padding-top: 0; }
+.fr-note-text { font-size: 13px; font-style: italic; color: var(--muted); }
+.fr-note-form { display: flex; gap: 8px; align-items: center; }
+.fr-note-form input { flex: 1 1 auto; min-width: 0; }
+body.focus .fr-scr-mode, body.focus .fr-hist-mode { display: none !important; }

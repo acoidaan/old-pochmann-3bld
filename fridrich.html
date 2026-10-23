@@ -94,6 +94,22 @@
               <button class="btn" type="button" id="crossShow" aria-expanded="false">Ver la cruz más corta</button>
             </span>
           </div>
+          <div class="fr-scr-mode">
+            <label class="fields"><span class="field-title">Qué practicar</span>
+              <select id="scrMode">
+                <option value="full">Solve completo</option>
+                <option value="ll">Última capa (OLL + PLL)</option>
+                <option value="pll">Solo PLL</option>
+              </select>
+            </label>
+            <label class="fields" id="scrCasesBox" hidden><span class="field-title">Con qué casos</span>
+              <select id="scrCases">
+                <option value="known">Los que me sé</option>
+                <option value="kl">Me los sé + aprendiendo</option>
+                <option value="all">Todos</option>
+              </select>
+            </label>
+          </div>
           <p class="fr-scr" id="scr" aria-live="polite"></p>
           <p class="fr-duel" id="duel" hidden></p>
           <p class="fr-hint" id="scrHint" hidden></p>
@@ -133,6 +149,11 @@
           <p class="hint">Para probar sin cubo. Se comporta como uno de verdad: los giros anchos y de capa media le llegan a la app como giros de caras.</p>
         </form>
 
+        <div class="seg small fr-hist-mode" role="group" aria-label="Qué tiempos ver">
+          <button type="button" data-hist="full" aria-pressed="true">Solves completos</button>
+          <button type="button" data-hist="ll" aria-pressed="false">Última capa</button>
+          <button type="button" data-hist="pll" aria-pressed="false">Solo PLL</button>
+        </div>
         <div class="stats" id="stats"></div>
         <section class="fr-chart" id="chartBox" aria-labelledby="hChart" hidden>
           <div class="fr-chart-head">

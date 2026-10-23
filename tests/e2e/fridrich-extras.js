@@ -153,6 +153,7 @@ const SOLVE = ["D R' F2 L", "U R U' R'", "U' F' U F", "L' U' L", "U B U' B'", "F
     legend: document.getElementById('chartLegend').innerText,
   }));
   check('chart: the last 50 solves (49 dots: a DNF is left out), ao5 and ao12 labelled at the end', chart.shown && chart.dots === 49 && chart.a5 && chart.a12 && chart.ends.length === 2 && /ao5[\s\S]*ao12/.test(chart.legend), JSON.stringify(chart));
+  await ch.p.locator('#chart svg').scrollIntoViewIfNeeded();
   const box = await ch.p.locator('#chart svg').boundingBox();
   await ch.p.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.5);
   check('chart: hovering shows that solve', /#\d+ [\d.]+/.test(await ch.p.evaluate(() => document.getElementById('chartTip').innerText)));
