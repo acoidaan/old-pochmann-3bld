@@ -866,3 +866,21 @@ body.focus:not([data-timer="idle"]) .focus-bottom { visibility: hidden; }
 html, body { margin: 0; }
 img { max-width: 100%; }
 :root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+
+/* The floating «Conectar cubo» (cubefab.js) */
+.cube-fab {
+  position: fixed; z-index: 40; right: max(16px, env(safe-area-inset-right, 0px));
+  bottom: max(16px, env(safe-area-inset-bottom, 0px));
+  display: inline-flex; align-items: center; gap: 8px; padding: 12px 18px; border-radius: 999px;
+  border: 1px solid var(--accent); background: var(--accent); color: var(--on-accent, #fff);
+  font: inherit; font-weight: 700; font-size: 15px; cursor: pointer; box-shadow: 0 6px 20px rgba(0, 0, 0, .25);
+}
+.cube-fab[hidden] { display: none; }
+.cube-fab:disabled { opacity: .85; cursor: default; }
+@media print { .cube-fab { display: none; } }
+.cube-fab-tip {
+  position: fixed; z-index: 40; right: max(16px, env(safe-area-inset-right, 0px)); max-width: min(360px, calc(100vw - 32px));
+  padding: 10px 14px; border-radius: 12px; background: var(--ink); color: var(--bg); font-size: 14px; line-height: 1.4;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .25);
+}
+.cube-fab-tip[hidden] { display: none; }
