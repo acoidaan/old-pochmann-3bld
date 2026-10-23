@@ -377,6 +377,7 @@
   // the first turn starts it and solving it stops it.
   const HOLD_MS = 300;
   const timer = { phase: 'idle', t0: 0, t: 0, insp0: 0, hold: 0, held: false, inspHold: false, raf: 0, pen: 0, line: null, startState: null, last: null };
+  document.body.dataset.timer = 'idle'; // from the start: the competition mode's «Salir» and scramble show at once
   function setPhase(p) {
     timer.phase = p;
     document.body.dataset.timer = p === 'run' || p === 'inspect' || p === 'ihold' || p === 'iready' ? 'run' : 'idle';
