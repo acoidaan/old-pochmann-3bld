@@ -273,6 +273,10 @@ body.no-net .net { display: none; }
 .setrow b { color: var(--ink); font-weight: 700; }
 .setrow.cur b { color: var(--learn); }
 .setrow .pips { letter-spacing: .18em; color: var(--learn); font-size: 18px; }
+.setrows.many { grid-template-columns: 1fr 1fr; gap: 6px 18px; margin-top: 10px; }
+.setrows.many .setrow { font-size: 15px; gap: 6px; min-width: 0; }
+.setrows.many .setrow b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.setrows.many .setrow .pips { font-size: 13px; letter-spacing: .1em; flex: none; }
 .donechips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
 .donechips span { font-size: 16px; font-weight: 700; padding: 4px 12px; border-radius: 999px; background: rgba(79, 209, 197, .16); color: var(--learn); }
 .banner.won { background: var(--learn); color: #062320; }
@@ -342,6 +346,30 @@ body.no-net .net { display: none; }
   document.body.classList.toggle('no-net', q.get('net') === '0');
   document.body.classList.toggle('no-prog', q.get('prog') === '0');
   document.body.classList.toggle('chroma', q.get('bg') === 'chroma');
+  // Puts the first of `options` (the body of a card, from the fullest to the most compact) that keeps the card
+  // on screen.
+  function fitSet(card, options) {
+    const sb = $('statsBody');
+    const k = options[0] + '|' + innerWidth + 'x' + innerHeight;
+    const fits = () => {
+      const r = card.getBoundingClientRect();
+      return r.bottom <= innerHeight - 8 && r.top >= 8;
+    };
+    // Cards above it can still grow (a picture drawn later), so a kept choice is checked again each time,
+    // and when any card changes size.
+    fitSet.last = [card, options];
+    if (sb.dataset.fk === k && (fits() || sb.dataset.h === options[options.length - 1])) return;
+    sb.dataset.fk = k;
+    for (const html of options) {
+      if (sb.dataset.h !== html) { sb.innerHTML = html; sb.dataset.h = html; }
+      if (!card.getBoundingClientRect().height) { delete sb.dataset.fk; return; } // not laid out yet
+      if (fits()) return;
+    }
+  }
+  if (window.ResizeObserver) {
+    const ro = new ResizeObserver(() => { if (fitSet.last && !$('statsCard').hidden && stage.dataset.learn != null) fitSet(...fitSet.last); });
+    document.querySelectorAll('.card').forEach((c) => ro.observe(c));
+  }
   const DEMO = q.get('demo') === '1';
   const SHOW_MEMO = q.get('memo') !== '0';
   const CACHE_KEY = 'op3bld:overlay:last';
@@ -542,7 +570,7 @@ body.no-net .net { display: none; }
         + ((t.streak || 0) >= 2 ? `<span class=streak>Racha de ${t.streak}</span>` : '') + '</div>';
     }
     const sb = $('statsBody');
-    if (sb.dataset.h !== body) { sb.dataset.h = body; sb.innerHTML = body; }
+    if (sb.dataset.h !== body) { sb.dataset.h = body; sb.innerHTML = body; delete sb.dataset.fk; }
 
     // Timer card (the clock itself is painted every frame)
     $('timerCard').hidden = false;
@@ -618,8 +646,26 @@ body.no-net .net { display: none; }
         + `<div class=stat><span>Bien</span><b>${S2.n ? Math.round((100 * S2.ok) / S2.n) : 0}<small>%</small></b></div>`
         + `<div class=stat><span>Dominados</span><b>${S2.done.length}</b></div>`
         + '</div>';
-      body += '<div class=setrows>' + S2.set.map((x) => `<div class='setrow${x.cur ? ' cur' : ''}'><b>${esc(x.name)}</b><span class=pips>${'●'.repeat(x.k)}${'○'.repeat(S2.need - x.k)}</span></div>`).join('') + '</div>';
-      if (S2.done.length) body += '<div class=donechips>' + S2.done.map((n) => `<span>✓ ${esc(n)}</span>`).join('') + '</div>';
+      // The set of cases, made to fit on screen: one column for a few cases, two for more, and as many rows
+      // as fit (the one being done always among them, "+N más" for the rest); at most 4 mastered ones.
+      const setHtml = (max, two) => {
+        let rows = S2.set;
+        if (rows.length > max) {
+          const cur = rows.findIndex((x) => x.cur);
+          rows = rows.slice(0, max);
+          if (cur >= max && max) rows[max - 1] = S2.set[cur];
+        }
+        const more = S2.set.length - rows.length;
+        return `<div class='setrows${two ? ' many' : ''}'>` + rows.map((x) => `<div class='setrow${x.cur ? ' cur' : ''}'><b>${esc(x.name)}</b><span class=pips>${'●'.repeat(x.k)}${'○'.repeat(S2.need - x.k)}</span></div>`).join('')
+          + (more ? `<div class=setrow><span>+${more} más</span></div>` : '') + '</div>';
+      };
+      const tail = S2.done.length ? '<div class=donechips>' + S2.done.slice(-4).map((n) => `<span>✓ ${esc(n)}</span>`).join('') + (S2.done.length > 4 ? `<span>+${S2.done.length - 4}</span>` : '') + '</div>' : '';
+      const tries = [];
+      if (S2.set.length <= 5) tries.push([S2.set.length, false]);
+      for (const m of [11, 9, 7, 5, 3, 1]) if (m < S2.set.length || !tries.length) tries.push([Math.min(m, S2.set.length), true]);
+      tries.push([0, true]);
+      fitSet(st, tries.map(([m, two]) => body + setHtml(m, two) + tail));
+      body = null;
     } else {
       text($('statsLabel'), 'Entrenando · esta semana');
       const w = L.week || {};
@@ -630,8 +676,10 @@ body.no-net .net { display: none; }
         + `<div class=stat><span>Con el cubo</span><b>${w.cube == null ? '—' : fmtC(w.cube)}</b></div>`
         + '</div>';
     }
-    const sb = $('statsBody');
-    if (sb.dataset.h !== body) { sb.dataset.h = body; sb.innerHTML = body; }
+    if (body != null) {
+      const sb = $('statsBody');
+      if (sb.dataset.h !== body) { sb.dataset.h = body; sb.innerHTML = body; delete sb.dataset.fk; }
+    }
     $('timerCard').hidden = false;
     text($('retoTag'), '');
   }
@@ -1017,7 +1065,7 @@ body.no-net .net { display: none; }
           res: lp === 'answered' ? { ok: 1, t: 920, name: 'Sune', guess: 'Sune' } : lp === 'result' ? { ok: 1, t: 3120, r: 840, name: 'Sune' } : null,
           pic: lp === 'question' || lp === 'answered' || lp === 'result' ? PIC : null, cname: lp === 'question' ? null : 'Sune',
           week: { reps: 98, days: 6, quiz: 93, cube: 4840 },
-          session: { active: 734000, lastAt: now, n: 41, ok: 37, lost: 1, mode: 'look', need: 4, done: ['PLL (Ub)', 'Pi'], set: [{ name: 'Z', k: 2, cur: false }, { name: 'Sune', k: 3, cur: true }, { name: 'Diagonal', k: 0, cur: false }, { name: 'Ua', k: 1, cur: false }, { name: 'T', k: 0, cur: false }] },
+          session: { active: 734000, lastAt: now, n: 41, ok: 37, lost: 1, mode: 'look', need: 4, done: ['PLL (Ub)', 'Pi'], set: [{ name: 'Z', k: 2, cur: false }, { name: 'Sune', k: 3, cur: true }, { name: 'Diagonal', k: 0, cur: false }, { name: 'Ua', k: 1, cur: false }, { name: 'T', k: 0, cur: false }, ...Array.from({ length: Math.max(0, Math.min(60, +q.get('casos') || 0) - 5) }, (_, i) => ({ name: `OLL ${i + 6}`, k: i % 4, cur: false }))] },
         };
         s.timer = { phase: 'idle' };
         s.last = null;

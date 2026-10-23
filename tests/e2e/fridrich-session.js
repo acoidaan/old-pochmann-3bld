@@ -229,6 +229,16 @@ const keys = (d) => ({ 'cfop:times:v1': d.times, 'cfop:trlog:v1': d.trlog, 'cfop
   const dr = await dp.evaluate(() => ({ pill: document.getElementById('phase').textContent, line: document.getElementById('liveLine').innerText, time: document.getElementById('time').textContent }));
   check('overlay (smart cube): solved → the time, recognising + doing', dr.pill === 'Resuelto' && dr.time === '3.12' && /Sune · reconocer 0\.84 \+ hacer 2\.28/.test(dr.line), JSON.stringify(dr));
   await dp.screenshot({ path: `${SHOTS}/overlay-learn.png` });
+  // A big set (many cases ticked) stays on screen in every layout, with the case being done shown.
+  for (const layout of ['esquinas', 'derecha', 'izquierda']) {
+    await dp.goto(`${SITE}/overlay.html?demo=1&modo=cfop&phase=done&learn=solving&casos=30&layout=${layout}`);
+    await dp.waitForTimeout(500);
+    const fit = await dp.evaluate(() => {
+      const r = document.getElementById('statsCard').getBoundingClientRect();
+      return { top: Math.round(r.top), bottom: Math.round(r.bottom), cur: !!document.querySelector('.setrow.cur'), more: (document.querySelector('.setrows').innerText.match(/\+(\d+) más/) || [])[1] };
+    });
+    check(`overlay (${layout}): 30 cases in the set fit on screen, the current one shown and "+N más"`, fit.top >= 0 && fit.bottom <= 1080 && fit.cur && +fit.more > 0, JSON.stringify(fit));
+  }
   await od.close();
 
   // ================= Phone =================
