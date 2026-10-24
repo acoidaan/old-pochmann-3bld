@@ -157,18 +157,24 @@
     walk(0, []);
     return out;
   }
+  const AXIS = { U: 0, D: 0, R: 1, L: 1, F: 2, B: 2 };
   function makeFollow(start, moves) {
     const at = new Map();
     const half = new Map();
     const add = (map, k, i) => { if (!map.has(k)) map.set(k, []); map.get(k).push(i); };
     let s = start;
     add(at, key(norm(s)), 0);
+    let prev = null;
     moves.forEach((m, i) => {
       const before = norm(s);
       s = apply(s, m);
       const after = norm(s);
       partialKeys(before, after).forEach((k) => add(half, k, i));
+      // Two turns on opposite faces (R L', U D2) can come in either order, or at once.
+      const p = moves[i - 1];
+      if (prev && p[0] !== m[0] && AXIS[m[0]] != null && AXIS[m[0]] === AXIS[p[0]]) partialKeys(prev, after).forEach((k) => add(half, k, i - 1));
       add(at, key(after), i + 1);
+      prev = before;
     });
     return { moves, n: moves.length, at, half, pos: 0, halfway: false, off: [], lost: false };
   }
@@ -669,12 +675,15 @@
   cube = window.SmartCube ? window.SmartCube.start({
     info: 'Conecta un GAN: sigue el scramble, empieza y para solo, saca tus tiempos por fase y te dice el caso y el algoritmo.',
     onStatus: () => { renderAll(); },
-    onState: (st) => {
+    onState: (st, at) => {
       prevState = st;
       if (follow && !locate(follow, st)) markLost();
       track = null;
-      if (timer.phase === 'run' && timer.line) timer.line.push({ t: now() - timer.t0, st });
+      if (timer.phase === 'run' && timer.line) timer.line.push({ t: (at > timer.t0 ? at : now()) - timer.t0, st });
+      // A turn the cube lost on the way, found when it is asked: if it was the last one, the solve ends there.
+      if (timer.phase === 'run' && at > timer.t0 && isSolved(st)) stopRun(at);
       trSync();
+      if (at > tr.ready && trActive() && tr.c && tr.ready && !tr.result) trMove(null, st, at);   // and so may a case
       renderAll();
     },
     onMove: (mv, st, t) => {

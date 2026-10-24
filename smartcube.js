@@ -299,6 +299,7 @@
     function attach(link, kind) {
       detach(true);
       cube.link = link; cube.kind = kind; cube.name = link.deviceName || 'Cubo'; cube.hw = ''; cube.battery = null; cube.state = null;
+      cube.serial = null; cube.lastAt = 0;
       cube.sub = link.events$.subscribe(onEvent);
       setStatus('linking');
       request('REQUEST_HARDWARE');
@@ -312,6 +313,7 @@
     function detach(quiet) {
       cube.tries++;
       clearTimeout(cube.wait);
+      clearTimeout(cube.idle);
       clearInterval(cube.poll);
       const link = cube.link;
       if (cube.sub) { try { cube.sub.unsubscribe(); } catch (e) { /* closed */ } }
@@ -327,8 +329,8 @@
     }
     function onEvent(ev) {
       switch (ev && ev.type) {
-        case 'FACELETS': onFacelets(ev.facelets); break;
-        case 'MOVE': onMove(ev.move); break;
+        case 'FACELETS': onFacelets(ev); break;
+        case 'MOVE': onMove(ev); break;
         case 'BATTERY': cube.battery = ev.batteryLevel; renderBar(); break;
         case 'HARDWARE': if (ev.hardwareName) cube.hw = ev.hardwareName; renderBar(); break;
         case 'DISCONNECT':
@@ -340,22 +342,36 @@
         default: break;
       }
     }
-    function onFacelets(f) {
-      const st = fromFacelets(f);
+    function onFacelets(ev) {
+      const st = fromFacelets(ev.facelets);
       if (!st) { if (!cube.state) badData(); return; }
       clearTimeout(cube.wait);
+      // The turns up to this serial are already in this state: one that comes late, recovered from the
+      // cube's history, must not count twice.
+      if (ev.serial != null) cube.serial = ev.serial & 255;
       const changed = !cube.state || key(st) !== key(cube.state);
       cube.state = st;
       if (cube.status !== 'on') { setStatus('on'); say(''); }
       renderBar();
-      if (changed && o.onState) o.onState(st);
+      // With the time of the last turn heard: a lost one may have been what solved the cube.
+      if (changed && o.onState) o.onState(st, cube.lastAt);
     }
-    function onMove(mv) {
+    function onMove(ev) {
       if (!cube.state) return;   // moves only count once the cube has said what it looks like
+      if (ev.serial != null && cube.serial != null) {
+        const d = (ev.serial - cube.serial) & 255;
+        if (d === 0 || d > 240) return;   // already counted
+      }
+      if (ev.serial != null) cube.serial = ev.serial & 255;
       let m;
-      try { m = parseAlg(mv)[0]; } catch (e) { return; }
+      try { m = parseAlg(ev.move)[0]; } catch (e) { return; }
       cube.state = apply(cube.state, m.text);
-      if (o.onMove) o.onMove(m.text, cube.state, performance.now());
+      cube.lastAt = ev.localTimestamp || performance.now();   // recovered from the history: no time of its own
+      // A turn can get lost on the way (often the last one, with nothing after it to bring it back): when
+      // the cube stays still, ask it how it is.
+      clearTimeout(cube.idle);
+      cube.idle = setTimeout(() => request('REQUEST_FACELETS'), 700);
+      if (o.onMove) o.onMove(m.text, cube.state, cube.lastAt);
       renderBar();
     }
 
@@ -365,6 +381,7 @@
     $('cubeSync').addEventListener('click', () => {
       if (!cube.link) return;
       request('REQUEST_RESET');
+      cube.serial = null;
       cube.state = solved();
       renderBar();
       if (o.onState) o.onState(cube.state);

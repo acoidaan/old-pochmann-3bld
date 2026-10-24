@@ -105,6 +105,15 @@ const SOLVE = ["D R' F2 L", "U R U' R'", "U' F' U F", "L' U' L", "U B U' B'", "F
   // ================= The smart cube =================
   await p.click('#cubeSim');
   await p.waitForFunction(() => window.Fridrich.cube().on);
+  // Turns on opposite faces in the other order (or at once) are fine, not a wrong turn.
+  await p.evaluate(() => window.Fridrich._.setScramble("R L' U2 D F B'"));
+  await turn("L'");
+  s = await st();
+  check('cube: the next turn\'s opposite face first → not a wrong turn', !/Deshaz/.test(s.hint), s.hint);
+  await turn('R D U U');
+  s = await st();
+  check('cube: and the scramble goes on (U2 D as D U U)', !/Deshaz/.test(s.hint) && /Giro 5 de 6/.test(s.hint), s.hint);
+  await turn("D' U2 R' L");
   // Our own scramble: the reverse of the solve, as the cube would feel it.
   const scr = await p.evaluate((sol) => {
     const M = window.CubeModel;
@@ -177,12 +186,15 @@ const SOLVE = ["D R' F2 L", "U R U' R'", "U' F' U F", "L' U' L", "U B U' B'", "F
   s = await st();
   check('live: PLL 1 → Headlights', /Headlights/.test(s.live), s.live);
   await p.screenshot({ path: `${SHOTS}/fridrich-live-1280.png` });
-  for (const part of SOLVE.slice(7)) await p.evaluate((a) => window.Fridrich.cube().link.play([a], 20), part);
-  await p.waitForTimeout(300);
+  // The cube loses the last turn on the way: when it stays still it is asked, and it says it is solved.
+  const tail = SOLVE.slice(7).join(' ').split(' ');
+  await p.evaluate((a) => window.Fridrich.cube().link.play([a], 20), tail.slice(0, -1).join(' '));
+  await p.evaluate((m) => window.Fridrich.cube().link.silent(m), tail[tail.length - 1]);
+  await p.waitForTimeout(1100);
   s = await st();
   ts = await times();
   const last = ts[ts.length - 1];
-  check('cube: solved → the clock stops by itself', s.phase === 'done' && ts.length === 2 && last.scr === scr, JSON.stringify(s));
+  check('cube: solved (its last turn lost on the way) → the clock stops by itself', s.phase === 'done' && ts.length === 2 && last.scr === scr, JSON.stringify(s));
   const seen = await p.evaluate(() => window.__steps.filter((x) => x >= 0));
   const backs = seen.filter((x, i) => i && x < seen[i - 1]);
   check('live: through the whole solve the step never goes back (cross and F2L come apart mid-algorithm)', seen.length >= 50 && !backs.length, `${seen.length} turns · ${seen.join('')}`);
@@ -347,14 +359,17 @@ const SOLVE = ["D R' F2 L", "U R U' R'", "U' F' U F", "L' U' L", "U B U' B'", "F
 
   // ================= «Ver el algoritmo», case by case =================
   const caseNow = () => p.evaluate(() => ({ id: window.Fridrich._.tr.c.id, setup: window.Fridrich._.tr.setup, n: (JSON.parse(localStorage.getItem('cfop:train:v1'))[window.Fridrich._.tr.c.id] || {}).n || 0 }));
-  const solveNow = async () => {
+  const solveNow = async (lose) => {
     const alg = await p.evaluate(() => {
       const C = window.Cfop;
       const r = C.readCube(window.Fridrich.cube().state, 'U');
       const k = C.recognize(r.g, r.stage);
       return { alg: ['z2', k.view, k.pre, k.case.alg, k.post].filter(Boolean).join(' '), rot: ['z2', k.view].filter(Boolean).join(' ') };
     });
-    await p.evaluate((a) => window.Fridrich.cube().link.play([a], 20), alg.alg);
+    // `lose`: the cube loses the last turn on the way, and is asked how it is when it stays still.
+    const mv = alg.alg.split(' ');
+    await p.evaluate((a) => window.Fridrich.cube().link.play([a], 20), lose ? mv.slice(0, -1).join(' ') : alg.alg);
+    if (lose) await p.evaluate((m) => window.Fridrich.cube().link.silent(m), mv[mv.length - 1]);
     await unrotate(alg.rot);
     const h = await p.waitForFunction(() => { const t = document.getElementById('trBox').innerText; return /✓/.test(t) && t; }, null, { timeout: 4000 }).catch(() => null);
     return h ? h.jsonValue() : '';
@@ -369,9 +384,9 @@ const SOLVE = ["D R' F2 L", "U R U' R'", "U' F' U F", "L' U' L", "U B U' B'", "F
   await p.waitForTimeout(150);
   const pk1 = await peekState();
   check('train/cube: «Ver el algoritmo» closed at first; opening it turns on this case\'s eye («Ocultar el algoritmo»), saved', !closed.open && /Ver el algoritmo/.test(closed.sum) && pk1.open && /Ocultar el algoritmo/.test(pk1.sum) && pk1.peek[t2.id] === 1 && pk1.saved[t2.id] === 1 && Object.keys(pk1.peek).length === 1, `${JSON.stringify(closed)} ${JSON.stringify(pk1)}`);
-  const done2 = await solveNow();
+  const done2 = await solveNow(true);
   const pk2 = await p.evaluate((id) => { const log = JSON.parse(localStorage.getItem('cfop:trlog:v1')); const rec = JSON.parse(localStorage.getItem('cfop:train:v1'))[id]; return { a: log[log.length - 1].a, an: rec.an || 0, n: rec.n || 0 }; }, t2.id);
-  check('train/cube: solved with the algorithm in view → practice, apart from your times', /Con el algoritmo a la vista/.test(done2) && pk2.a === 1 && pk2.an === 1 && pk2.n === t2.n, `${done2.slice(0, 120)} ${JSON.stringify(pk2)}`);
+  check('train/cube: solved with the algorithm in view (its last turn lost on the way) → practice, apart from your times', /Con el algoritmo a la vista/.test(done2) && pk2.a === 1 && pk2.an === 1 && pk2.n === t2.n, `${done2.slice(0, 120)} ${JSON.stringify(pk2)}`);
   await nextReady();
   const t3 = await caseNow();
   await turn(t3.setup);
