@@ -6,7 +6,7 @@
   const O = window.OP3;
   if (!O || !document.getElementById('cubeBar')) return;
   const $ = (id) => document.getElementById(id);
-  const { apply, parseAlg, invertAlg, solved, isSolved, faceOfSticker, PIECE_OF, MODES, ALGS, esc } = O;
+  const { apply, parseAlg, invertAlg, solved, isSolved, faceOfSticker, MODES, ALGS, esc } = O;
 
   const LIB = 'vendor/gan-web-bluetooth-3.0.2.js';
   const LIB_CDN = 'https://cdn.jsdelivr.net/npm/gan-web-bluetooth@3.0.2/+esm';
@@ -837,7 +837,6 @@
     if (O.trainer.state().phase === 'ask') O.trainer.cubeAnswer({ ok, clean: tr.clean }, secs, html);
     O.trainer.next(true);   // the next letter, from wherever the cube is now
   }
-  function trRestart() { trStart(); renderTrain(); }
   function renderTrain() {
     const connected = cube.status === 'on' && !!cube.state;
     $('trHow').hidden = !connected;

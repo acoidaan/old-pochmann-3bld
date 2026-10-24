@@ -14,6 +14,7 @@ npx playwright install chromium   # solo la primera vez
 npm test                  # las 18 suites (unas 550 comprobaciones, ~8 min)
 npm test -- smart-cube    # solo las que tienen «smart-cube» en el nombre
 npm run audit             # accesibilidad y maquetación
+npm run lint              # ESLint de todo el repo (no se despliega: solo para desarrollo)
 npm run shots             # vuelve a hacer las capturas de docs/img
 ```
 

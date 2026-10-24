@@ -37,8 +37,6 @@
   const ok = (g, i) => face(g, i) === face(g, centreOf(i));
   const done = (g, piece) => piece.every((i) => ok(g, i));
   const colour = (g, i) => COLOR_NAME[face(g, i)];
-  const at = (piece) => STICKERS[piece[0]].pos;
-  const EDGES = M.CUBIES.filter((p) => p.length === 2);
   const CROSS = C.CROSS;                         // the four bottom edges
   const SLOTS = C.SLOTS;                         // [bottom corner, middle edge] by slot
   const TOP_EDGE = [1, 3, 5, 7];                 // back, left, right, front, on the top face

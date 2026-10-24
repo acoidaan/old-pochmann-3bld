@@ -1,4 +1,5 @@
 
+/* global OP3 */   // window.OP3, set at the end of this file
 (() => {
   'use strict';
 

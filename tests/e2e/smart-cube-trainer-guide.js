@@ -153,7 +153,6 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await p.click('#guideSplit');
   const split = await p.evaluate(() => window.OP3.guideApi.steps().filter((x) => !x.end).map((x) => x.move));
   gs = await g();
-  const doneMoves = await p.evaluate((st) => st.slice(0, 0).length, steps);
   check('guide: «movimiento a movimiento» keeps the place', /Siguiendo tu cubo/.test(gs.cube) && split.length > steps.length && gs.i > k, `${gs.i} ${gs.cube}`);
   // Finish.
   await p.evaluate(() => { window.OP3.cube.fxLog.length = 0; });

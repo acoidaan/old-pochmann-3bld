@@ -2133,17 +2133,6 @@
   function startSet(mode) {
     startSession(mode);
   }
-  function startSetOnly(mode) {
-    if (!plan) plan = recommendation();
-    settings.trSet = plan.set.map((x) => x.id);
-    pick = [...settings.trSet];
-    save(K.pick, pick);
-    renderPick();
-    tr.c = null;
-    setTrMode(mode);   // saves the settings and brings the first case
-    renderSetNote();
-    try { $('trPanel').scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) { /* no layout */ }
-  }
   function renderSetNote() {
     const el = $('trSetNote');
     if (!el) return;
@@ -2187,7 +2176,6 @@
   // then it leaves the set and the next case that costs you most comes in. Every dozen attempts the set is
   // weighed again, in case another case now costs clearly more. Ends with a summary, kept in «Tus sesiones».
   const NEED = { cube: 3, hand: 3, look: 4 };
-  const MODE_SHORT = { cube: 'con el cubo inteligente', hand: 'con tu cubo', look: 'reconociendo' };
   let session = load(K.session, null);
   let planEvery = 0;
   const saveSession = () => save(K.session, session);

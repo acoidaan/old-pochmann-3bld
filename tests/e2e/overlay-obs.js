@@ -1,7 +1,6 @@
 // End-to-end: app → fake obs-websocket (password auth) → "OBS" browser context running overlay.html.
 // Also: live preview in Ajustes, overlay window via BroadcastChannel, wrong password, screenshots.
 const { chromium } = require('playwright');
-const fs = require('fs');
 const crypto = require('crypto');
 const { WebSocketServer } = require('ws');
 const { SITE_PLAIN: SITE, SHOTS, FONTS_CSS: css } = require('../env');

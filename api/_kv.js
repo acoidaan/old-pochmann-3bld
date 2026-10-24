@@ -156,7 +156,6 @@ function kv(env = process.env) {
   const kind = kindFor(env);
   if (kind === 'redis') cached = redisKv(redisEnv(env));
   else if (kind === 'blob') {
-    // eslint-disable-next-line global-require
     const { put, get, del } = require('@vercel/blob');
     cached = blobKv({ sdk: { put, get, del }, access: env.BLOB_ACCESS === 'public' ? 'public' : 'private' });
   } else if (kind === 'memory') cached = memoryKv();

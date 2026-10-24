@@ -18,6 +18,7 @@ cd tests && npm install               # la primera vez (+ npx playwright install
 node run.js fridrich                  # solo las suites con «fridrich» en el nombre
 npm test                              # todas (~8 min)
 npm run audit                         # axe-core y desbordamientos
+npm run lint                          # ESLint de todo el repo (config en eslint.config.js)
 ```
 
 - `run.js` levanta su propio servidor en los puertos 8793 (con generador de scrambles) y 8792 (sin él). Si dejaste un `node server.js` en marcha, páralo antes o choca el puerto.

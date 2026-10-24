@@ -115,6 +115,7 @@
   let scrIsReady = false;
   const scrQueue = [];
   // Runs inside the worker (serialised with toString), so it may only use Cube and self.
+  /* global Cube */
   function scramblerMain() {
     Cube.initSolver();
     const shuffle = (a) => {

@@ -46,7 +46,7 @@ function fakeRedis() {
     await tick();
     if (init.headers.authorization !== 'Bearer t0k') return { ok: false, status: 401, json: async () => ({ error: 'Unauthorized' }) };
     if (st.over) return { ok: false, status: 400, json: async () => ({ error: 'ERR max requests limit exceeded. Limit: 500000, Usage: 500000' }) };
-    try { return { ok: true, status: 200, json: async () => ({ result: exec(JSON.parse(init.body)) }) }; } catch (e) { return { ok: false, status: 400, json: async () => ({ error: e.message }) }; }
+    try { const result = exec(JSON.parse(init.body)); return { ok: true, status: 200, json: async () => ({ result }) }; } catch (e) { return { ok: false, status: 400, json: async () => ({ error: e.message }) }; }
   };
   return { st, fetch, data };
 }
