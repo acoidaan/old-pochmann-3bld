@@ -37,7 +37,7 @@ npm run lint                          # ESLint de todo el repo (config en eslint
 
 ## Dónde está cada cosa
 
-- **Seguir una secuencia con el cubo** (scramble, setup del entrenador): `makeFollow`, `locate` y `followMove` en `fridrich.js`, copiados en `principiante.js` (si tocas uno, toca el otro). 3BLD tiene los suyos en `cube.js`.
+- **Seguir una secuencia con el cubo** (scramble, setup del entrenador): `follow.js` (`window.CubeFollow`: `makeFollow`, `locate`, `followMove`, `done`), que usan Fridrich y principiante. 3BLD tiene los suyos en `cube.js`.
 - **Eventos del cubo:** `smartcube.js` (`onEvent`, `onMove`, `onFacelets`) llama a los `onMove` y `onState(st, at)` de `SmartCube.start({...})` en `fridrich.js` y `principiante.js`. Con el cubo 700 ms quieto pide `REQUEST_FACELETS` para recuperar un giro perdido; `at` es la hora del último giro oído.
 - **Final:** solve completo, `stopRun` al quedar `isSolved`; entrenar casos, `trMove`; entrenar cruz, `ctMove` (los dos en `fridrich.js`).
 - **No leas `vendor/gan-web-bluetooth-3.0.2.js`:** está minificado en líneas enormes y una sola búsqueda gasta muchísimo. Lo útil: los giros traen `serial` y `localTimestamp` (null si vienen del historial del cubo), y un giro perdido solo se recupera al llegar el siguiente o, en Gen3/Gen4, al llegar un FACELETS más de 500 ms después del último giro.

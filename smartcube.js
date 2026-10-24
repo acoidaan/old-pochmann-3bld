@@ -7,7 +7,7 @@
 (() => {
   'use strict';
   const M = window.CubeModel;
-  if (!M) return;
+  if (!M || !window.CubeFollow) return;
   const { apply, parseAlg, solved, isSolved, norm, fromFacelets, toFacelets } = M;
   const $ = (id) => document.getElementById(id);
   const key = (st) => st.join(',');
@@ -34,19 +34,7 @@
     return 'Este navegador no tiene Bluetooth web. Abre la app en Chrome o Edge, en el ordenador o en Android.';
   }
 
-  // Face turns (one or two quarter turns each) that take the core from a to b.
-  const FACE_MOVES = ['U', 'R', 'F', 'D', 'L', 'B'].flatMap((f) => [f, `${f}2`, `${f}'`]);
-  const quarters = (m) => (m.endsWith('2') ? [m[0], m[0]] : [m]);
-  function facePath(a, b) {
-    const kb = key(b);
-    if (key(a) === kb) return [];
-    for (const m of FACE_MOVES) if (key(apply(a, m)) === kb) return quarters(m);
-    for (const m1 of FACE_MOVES) {
-      const s = apply(a, m1);
-      for (const m2 of FACE_MOVES) if (key(apply(s, m2)) === kb) return [...quarters(m1), ...quarters(m2)];
-    }
-    return null;
-  }
+  const { facePath } = window.CubeFollow;
 
   // A cube that only exists here, for trying everything without one. Behaves like a GAN.
   function virtualLink() {

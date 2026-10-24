@@ -545,75 +545,8 @@
   });
   onView('aprender', () => { renderPath(); });
 
-  // ================= Following a known sequence of turns =================
-  // The cube's state after each turn (and part way through half turns, whichever face comes first), in the
-  // cube's own frame; the cube is where its state matches.
-  function partialKeys(before, after) {
-    const path = window.SmartCube ? window.SmartCube.facePath(before, after) : null;
-    if (!path || !path.length) return [];
-    const per = {};
-    path.forEach((q) => { const f = q[0]; per[f] = (per[f] || 0) + (q.length > 1 ? 3 : 1); });
-    const faces = Object.keys(per);
-    const options = faces.map((f) => { const t = per[f] % 4; return t === 2 ? ['', f, `${f}'`, `${f}2`] : ['', t === 1 ? f : `${f}'`]; });
-    const out = [];
-    const walk = (i, acc) => {
-      if (i === faces.length) {
-        const full = acc.every((m, k) => m === options[k][options[k].length - 1]);
-        const none = acc.every((m) => !m);
-        if (!full && !none) out.push(key(apply(before, acc.filter(Boolean).join(' '))));
-        return;
-      }
-      for (const m of options[i]) walk(i + 1, [...acc, m]);
-    };
-    walk(0, []);
-    return out;
-  }
-  const AXIS = { U: 0, D: 0, R: 1, L: 1, F: 2, B: 2 };
-  function makeFollow(start, moves) {
-    const at = new Map();
-    const half = new Map();
-    const add = (map, k, i) => { if (!map.has(k)) map.set(k, []); map.get(k).push(i); };
-    let s = start;
-    add(at, key(norm(s)), 0);
-    let prev = null;
-    moves.forEach((m, i) => {
-      const before = norm(s);
-      s = apply(s, m);
-      const after = norm(s);
-      partialKeys(before, after).forEach((k) => add(half, k, i));
-      // Two turns on opposite faces (R L', U D2) can come in either order, or at once.
-      const p = moves[i - 1];
-      if (prev && p[0] !== m[0] && AXIS[m[0]] != null && AXIS[m[0]] === AXIS[p[0]]) partialKeys(prev, after).forEach((k) => add(half, k, i - 1));
-      add(at, key(after), i + 1);
-      prev = before;
-    });
-    return { moves, n: moves.length, at, half, pos: 0, halfway: false, off: [], lost: false };
-  }
-  function simplify(list) {
-    const out = [];
-    for (const t of list) {
-      const m = parseAlg(t)[0];
-      const last = out[out.length - 1];
-      if (last && last.base === m.base) { last.turns = (last.turns + m.turns) % 4; if (!last.turns) out.pop(); } else out.push({ base: m.base, turns: m.turns });
-    }
-    return out;
-  }
-  const moveText = (m) => m.base + (m.turns === 2 ? '2' : m.turns === 3 ? "'" : '');
-  function locate(F, st) {
-    if (!F) return false;
-    const k = key(st);
-    const pick = (list) => list.reduce((b, x) => { const db = Math.abs(b - F.pos); const dx = Math.abs(x - F.pos); return dx < db || (dx === db && x > b) ? x : b; });
-    if (F.at.has(k)) { F.pos = pick(F.at.get(k)); F.halfway = false; F.off = []; F.lost = false; return true; }
-    if (F.half.has(k)) { F.pos = pick(F.half.get(k)); F.halfway = true; F.off = []; F.lost = false; return true; }
-    return false;
-  }
-  function followMove(F, st, mv) {
-    if (!F || locate(F, st) || F.lost) return;
-    F.off = simplify([...F.off.map(moveText), mv]);
-    if (F.off.length > 6) F.lost = true;
-  }
-  const done = (F) => !!F && !F.lost && !F.off.length && !F.halfway && F.pos >= F.n;
-  const undoText = (F) => F.off.slice().reverse().map((m) => moveText({ base: m.base, turns: (4 - m.turns) % 4 })).join(' ');
+  // ================= Following a known sequence of turns (follow.js) =================
+  const { makeFollow, locate, followMove, done, undoText, partialKeys } = window.CubeFollow;
   const setupChips = (F) => F.moves.map((m, i) => `<span class="sm${i < F.pos ? ' done' : i === F.pos && !F.lost ? (F.halfway ? ' next half' : ' next') : ''}">${esc(m)}</span>`).join(' ');
 
   // ================= Live help: what to do next, following each turn =================

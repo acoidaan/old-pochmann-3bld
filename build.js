@@ -17,7 +17,7 @@ for (const f of fs.readdirSync(path.join(__dirname, 'vendor')).filter((x) => !x.
 }
 
 // Static files get a content hash in their URL, so browsers and the service worker never keep stale copies.
-const ASSETS = ['app.css', 'cubemodel.js', 'core.js', 'learn.js', 'syncplan.js', 'social.js', 'stream.js', 'cube.js', 'fridrich.css', 'cfop.js', 'cfopstats.js', 'smartcube.js', 'fridrich.js', 'lbl.js', 'principiante.css', 'principiante.js', 'cubefab.js'];
+const ASSETS = ['app.css', 'cubemodel.js', 'follow.js', 'core.js', 'learn.js', 'syncplan.js', 'social.js', 'stream.js', 'cube.js', 'fridrich.css', 'cfop.js', 'cfopstats.js', 'smartcube.js', 'fridrich.js', 'lbl.js', 'principiante.css', 'principiante.js', 'cubefab.js'];
 const versions = {};
 const all = crypto.createHash('sha1');
 for (const f of ASSETS) {
