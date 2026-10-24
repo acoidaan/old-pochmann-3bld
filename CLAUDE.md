@@ -22,6 +22,7 @@ npm run audit                         # axe-core y desbordamientos
 
 - `run.js` levanta su propio servidor en los puertos 8793 (con generador de scrambles) y 8792 (sin él). Si dejaste un `node server.js` en marcha, páralo antes o choca el puerto.
 - `smart-cube-trainer-guide.js` falla a veces en «reopened mid-solve» y pasa al repetir. Es intermitente, no es una regresión.
+- En las sesiones en la nube, «offline generator» de `e2e/fridrich.js` falla también sin cambios: es el entorno.
 
 ## Cosas fáciles de romper
 
@@ -31,6 +32,19 @@ npm run audit                         # axe-core y desbordamientos
 - **Cubo inteligente:** 3BLD usa `cube.js`; Fridrich y principiante usan `smartcube.js`. `cubefab.js` es el botón flotante «Conectar cubo» de las tres páginas. Web Bluetooth se corta al cambiar de página, porque cada sección es un documento distinto.
 - **Overlay de OBS** (`overlay.html`): tiene datos de ejemplo con `?demo=1&modo=cfop&phase=done&learn=setup|solving|question|answered|result&layout=esquinas|derecha|izquierda&casos=N`. Tiene que caber en 1920×1080.
 - **Almacén del servidor:** Redis de Upstash (`KV_REST_API_URL` / `KV_REST_API_TOKEN`) o, si no hay, Vercel Blob. Lo elige `api/_kv.js`.
+
+## Dónde está cada cosa
+
+- **Seguir una secuencia con el cubo** (scramble, setup del entrenador): `makeFollow`, `locate` y `followMove` en `fridrich.js`, copiados en `principiante.js` (si tocas uno, toca el otro). 3BLD tiene los suyos en `cube.js`.
+- **Eventos del cubo:** `smartcube.js` (`onEvent`, `onMove`, `onFacelets`) llama a los `onMove` y `onState(st, at)` de `SmartCube.start({...})` en `fridrich.js` y `principiante.js`. Con el cubo 700 ms quieto pide `REQUEST_FACELETS` para recuperar un giro perdido; `at` es la hora del último giro oído.
+- **Final:** solve completo, `stopRun` al quedar `isSolved`; entrenar casos, `trMove`; entrenar cruz, `ctMove` (los dos en `fridrich.js`).
+- **No leas `vendor/gan-web-bluetooth-3.0.2.js`:** está minificado en líneas enormes y una sola búsqueda gasta muchísimo. Lo útil: los giros traen `serial` y `localTimestamp` (null si vienen del historial del cubo), y un giro perdido solo se recupera al llegar el siguiente o, en Gen3/Gen4, al llegar un FACELETS más de 500 ms después del último giro.
+
+## Estilos
+
+- `app.css` (las tres páginas) define los tokens en `:root`: fondos `--bg`, `--surface`, `--raise`; texto `--ink`, `--muted`; `--line`; `--accent` (frambuesa, a propósito no es color de pegatina) y `--accent-soft`; `--ok`; pegatinas `--st-U`…`--st-B`; fuentes `--font-display` (Unbounded), `--font-body` (Atkinson Hyperlegible), `--font-mono` (Martian Mono); radio `--r`. Para colores nuevos, usa estas variables.
+- El modo oscuro se redefine dos veces (con `prefers-color-scheme` y con `[data-theme="dark"]`): cambia las dos.
+- `fridrich.css` lo cargan Fridrich y principiante; `principiante.css`, solo principiante. No definen variables propias.
 
 ## Ideas pendientes
 
