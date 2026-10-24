@@ -44,6 +44,8 @@ for (const m of ['fridrich.webmanifest', 'principiante.webmanifest']) fs.copyFil
 const sw = fs.readFileSync(path.join(__dirname, 'sw.js'), 'utf8')
   .replace('__BUILD__', build)
   .replace('__ASSETS__', ASSETS.map((f) => `'${f}?v=${versions[f]}'`).join(', '));
+// One left over (written twice, say in a comment) would leave the service worker broken.
+if (/__(BUILD|ASSETS)__/.test(sw)) throw new Error('sw.js: __BUILD__ y __ASSETS__ deben salir una sola vez');
 fs.writeFileSync(path.join(out, 'sw.js'), sw);
 
 const CRC = Array.from({ length: 256 }, (_, n) => {

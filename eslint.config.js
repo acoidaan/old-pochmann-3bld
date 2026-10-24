@@ -10,7 +10,8 @@ module.exports = [
   js.configs.recommended,
   // The page scripts: plain browser scripts, each one inside its own function.
   { files: ['*.js'], languageOptions: { sourceType: 'script', globals: { ...globals.browser } } },
-  { files: ['sw.js'], languageOptions: { globals: { ...globals.serviceworker } } },
+  // build.js fills in the asset list where __ASSETS__ is (the first time it appears: never in a comment).
+  { files: ['sw.js'], languageOptions: { globals: { ...globals.serviceworker, __ASSETS__: 'readonly' } } },
   {
     files: ['build.js', 'eslint.config.js', 'api/**/*.js', 'tests/**/*.js'],
     languageOptions: { sourceType: 'commonjs', globals: { ...globals.node } },
