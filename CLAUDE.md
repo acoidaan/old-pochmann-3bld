@@ -22,6 +22,7 @@ npm run audit                         # axe-core y desbordamientos
 
 - `run.js` levanta su propio servidor en los puertos 8793 (con generador de scrambles) y 8792 (sin él). Si dejaste un `node server.js` en marcha, páralo antes o choca el puerto.
 - `smart-cube-trainer-guide.js` falla a veces en «reopened mid-solve» y pasa al repetir. Es intermitente, no es una regresión.
+- En las sesiones en la nube, `.claude/hooks/session-start.sh` instala las dependencias de `tests/` y deja `PLAYWRIGHT_BROWSERS_PATH` apuntando a un Chromium que acepta el Playwright fijado: no hace falta `npx playwright install`.
 - En las sesiones en la nube, «offline generator» de `e2e/fridrich.js` falla también sin cambios: es el entorno.
 
 ## Cosas fáciles de romper
