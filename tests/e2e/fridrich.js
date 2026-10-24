@@ -15,6 +15,8 @@ const SOLVE = ["D R' F2 L", "U R U' R'", "U' F' U F", "L' U' L", "U B U' B'", "F
   const open = async (opts, url) => {
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, ...opts });
     await ctx.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
+    // Without the generator means without its CDN copy too, or it loads from there when online.
+    if (url.startsWith(SITE_PLAIN)) await ctx.route(/cdn\.jsdelivr\.net\/npm\/cubejs/, (r) => r.abort());
     const p = await ctx.newPage();
     p.on('pageerror', (e) => errs.push(e.message));
     await p.goto(url);
