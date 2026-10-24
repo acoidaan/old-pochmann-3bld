@@ -18,6 +18,7 @@
   let data = clean(load(KEY, {}));
   let last = 0;
   let dirty = false;
+  let flushT = 0;   // a save on its way, only when there is something new
   const dayKey = (t) => {
     const d = new Date(t);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -31,18 +32,22 @@
       mine[k] = (mine[k] || 0) + (t - last);
       data[dev] = mine;
       dirty = true;
+      if (!flushT) flushT = setTimeout(flush, 15000);
     }
     last = t;
   }
-  // Another tab of this device may have saved meanwhile: keep the larger count of each day.
+  // Another tab may have saved meanwhile: for each device and day, the larger count of the two.
   function flush() {
+    clearTimeout(flushT);
+    flushT = 0;
     if (!dirty) return;
     dirty = false;
     const kept = clean(load(KEY, {}));
-    const mine = clean(data[dev]);
-    const theirs = clean(kept[dev]);
-    Object.keys(theirs).forEach((k) => { if ((theirs[k] || 0) > (mine[k] || 0)) mine[k] = theirs[k]; });
-    kept[dev] = mine;
+    Object.entries(data).forEach(([d, byDay]) => {
+      const out = clean(kept[d]);
+      Object.entries(clean(byDay)).forEach(([k, ms]) => { if (ms > (out[k] || 0)) out[k] = ms; });
+      kept[d] = out;
+    });
     data = kept;
     save(KEY, data);
   }
@@ -70,7 +75,6 @@
   ['keydown', 'pointerdown'].forEach((t) => document.addEventListener(t, bump, { capture: true, passive: true }));
   document.addEventListener('visibilitychange', () => { if (document.hidden) { flush(); last = 0; } });
   window.addEventListener('pagehide', flush);
-  setInterval(flush, 15000);
 
   window.Practice = { bump, days, data: () => { flush(); return data; }, merge, GAP };
 })();

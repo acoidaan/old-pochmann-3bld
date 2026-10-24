@@ -303,10 +303,10 @@ flowchart LR
     learn["learn.js<br/>Aprender"]
     social["social.js<br/>Retos · sincronización"]
     stream["stream.js<br/>overlay"]
-    cube["cube.js<br/>cubo inteligente"]
+    cube["cube.js<br/>cubo en 3BLD"]
     sw["sw.js<br/>sin conexión"]
     fr["fridrich.js + cfop.js<br/>Fridrich reducido"]
-    sc["smartcube.js<br/>cubo inteligente"]
+    sc["smartcube.js + follow.js<br/>cubo inteligente"]
   end
   gan[("Cubo GAN")]
   ov["overlay.html"]
@@ -315,9 +315,9 @@ flowchart LR
   blob[("Redis o<br/>Vercel Blob")]
   model --> core
   model --> fr
-  cube -- "Web Bluetooth" --> gan
   sc -- "Web Bluetooth" --> gan
   fr --> sc
+  cube --> sc
   fr -- "eventos fr:*" --> stream
   core -- "eventos op3:*" --> cube
   core -- "eventos op3:*" --> stream
@@ -337,13 +337,16 @@ flowchart LR
 | `syncplan.js` | Cuándo sincroniza cada página por su cuenta (lo usan las dos). Expone `window.SyncPlan`. |
 | `social.js` | Retos, compartir como imagen y la sincronización entre dispositivos. |
 | `stream.js` | El overlay: genera el estado y lo manda por obs-websocket y BroadcastChannel. |
-| `cube.js` | El cubo inteligente en la página de 3BLD: conexión, cubo virtual, seguimiento, análisis de DNF, Entrenar y guía con el cubo. |
+| `cube.js` | El cubo inteligente en la página de 3BLD, sobre `smartcube.js`: seguimiento, intentos, análisis de DNF, Entrenar y guía con el cubo, y los atajos del cubo virtual. |
 | `principiante.html` · `principiante.css` · `principiante.js` | La página del método de principiantes (`/principiante`): Aprender con dibujos, Resolver con ayuda en directo, Entrenar un paso, Progreso y ajustes. |
 | `lbl.js` | El método de principiantes sin pantalla: en qué paso está un cubo y qué hacer después, desde cualquier estado, con sus giros exactos. Expone `window.Lbl`. |
 | `fridrich.html` · `fridrich.css` · `fridrich.js` | La página de Fridrich reducido (`/fridrich`): cronómetro, ayuda en directo, tiempos por fase, Casos, Entrenar y ajustes. |
+| `fridrich-progreso.js` · `fridrich-cruz.js` · `fridrich-sync.js` | Partes de `fridrich.js` en su propio archivo: Progreso, Entrenar la cruz y la sincronización. Cada una expone `window.Fridrich…(ctx)`, que `fridrich.js` llama con lo que necesita. |
+| `practice.js` | El tiempo real practicando en Fridrich (entre una acción y la siguiente, si no pasan 2 minutos), por día y por dispositivo. Expone `window.Practice`. |
 | `cfop.js` | El método CFOP sin pantalla: los 16 algoritmos de J Perm, en qué paso está un cubo, qué caso es, la cruz más corta y los tiempos de un solve. Expone `window.Cfop`. |
 | `cfopstats.js` | Los números de Fridrich, sin pantalla: medias, mejores marcas, días, racha, logros, cada paso, eficiencia, cada caso y el set recomendado. Expone `window.CfopStats`. |
-| `smartcube.js` | El cubo inteligente para Fridrich: conexión GAN, la MAC, el cubo virtual y el sonido. Expone `window.SmartCube`. |
+| `smartcube.js` | El cubo inteligente de las tres páginas: conexión GAN, la MAC, el cubo virtual, el sonido, los giros perdidos, el reloj del cubo y prestar la conexión a otra sección (un iframe encima) para que no se corte. Expone `window.SmartCube`. |
+| `follow.js` | Seguir una secuencia con el cubo (scramble, setup): dónde va, mitades de giros y giros opuestos en cualquier orden, qué deshacer. Expone `window.CubeFollow`. |
 | `overlay.html` | El overlay para OBS, una página independiente. |
 | `sw.js` | El service worker: guarda la app para usarla sin conexión. |
 | `build.js` | Genera `public/`: copia los archivos con un hash en la URL, dibuja los iconos PNG y anota el número de versión. |

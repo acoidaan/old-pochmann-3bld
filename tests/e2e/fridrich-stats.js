@@ -91,6 +91,13 @@ const keys = (d) => ({ 'cfop:times:v1': d.times, 'cfop:trlog:v1': d.trlog, 'cfop
   });
   check('practice time: today, this week (from Monday), this month and in all, by kind', pt.rows.join('|') === '20000,50000,50000,90000|0,5000,5000,5000|3000,3000,3000,3000|0,0,7000,7000'
     && pt.timed === '23000,58000,65000,105000' && pt.sessions === '600000,600000,600000,600000' && pt.real === '1200000,1200000,1260000,1260000', JSON.stringify(pt));
+  const pm = await p.evaluate(() => {
+    const P = window.Practice;
+    const a = P.merge({ otro: { '2026-10-21': 5000 }, mal: { 'ayer': 9 } });
+    const b = P.merge({ otro: { '2026-10-21': 4000 } });
+    return { a, b, day: P.days()['2026-10-21'], bad: 'ayer' in P.days(), kept: JSON.parse(localStorage.getItem('cfop:practice:v1')).otro['2026-10-21'] };
+  });
+  check('practice time: another device\'s days merge in (the larger count, never twice), and are kept', pm.a && !pm.b && pm.day >= 5000 && !pm.bad && pm.kept === 5000, JSON.stringify(pm));
   const ptab = await p.evaluate(() => [...document.querySelectorAll('#progPractice tr')].map((x) => x.innerText.replace(/\s+/g, ' ').trim()));
   check('practice time: the table on «Progreso», with the timed total and the real time', /Hoy Semana Mes Total/.test(ptab[0]) && ptab.some((r) => /^Solves completos .*\d+ (min|h)/.test(r)) && ptab.some((r) => /^Cronometrado /.test(r)) && ptab.some((r) => /^En la página /.test(r)), JSON.stringify(ptab));
   const chart = async () => p.evaluate(() => ({ mean: document.querySelectorAll('#dayChart .fr-dmean').length, best: document.querySelectorAll('#dayChart .fr-dbest').length, legend: document.getElementById('dayLegend').innerText }));
