@@ -147,6 +147,8 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await p.click('#guideClose');
   await turn(steps.slice(k + 1, k + 3).join(' '));
   await p.click('#guideOpen');
+  // Opening draws in a moment: wait for it rather than reading at once (it failed now and then).
+  await p.waitForFunction((n) => window.OP3.guideApi.index() === n, k + 3, { timeout: 2000 }).catch(() => {});
   gs = await g();
   check('guide: reopened mid-solve → jumps to where the cube is', gs.i === k + 3, `${gs.i} vs ${k + 3}`);
   // Algorithms move by move.

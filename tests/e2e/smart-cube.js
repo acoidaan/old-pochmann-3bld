@@ -67,6 +67,16 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     check('virtual cube connects and reads as solved', /Conectado · batería 87 % · resuelto/.test(await p.textContent('#cubeInfo')), await p.textContent('#cubeInfo'));
 
     // ---- Scramble follower ----
+    // Turns on opposite faces in the other order (or at once) are fine, not a wrong turn.
+    await setScr(p, "R L' U2 D F");
+    await wait(50);
+    await turn(p, "L'");
+    v = await view(p);
+    check('follower: the next turn\'s opposite face first → not a wrong turn', !/Deshaz/.test(v.scr), v.scr);
+    await turn(p, 'R');
+    v = await view(p);
+    check('follower: …and then the first one → both done', v.done === 2 && v.next === 'U2', `${v.done} ${v.next}`);
+    await turn(p, "R' L");
     await setScr(p, "R2 U F' L D2 B R' U2");
     await wait(50);
     v = await view(p);

@@ -400,5 +400,37 @@
     };
   }
 
-  window.CfopStats = { PROB, SUBS, value, avgOf, mean, quantile, dayKey, dayStart, summary, daily, activity, milestones, stepSeries, steps, efficiency, caseStats, recommend, training, GROUPS };
+  // Time practised today, this week (from Monday), this month and in all: the timed time of solves, phases,
+  // case training and cross training (each attempt's own time), the active time of the training sessions
+  // (they hold case training, so they are not added to the timed total) and the real time on the page
+  // (`active`: { 'YYYY-MM-DD': ms }, practice.js). Each row's `v` holds the four periods, in ms.
+  function practiceTime({ times, ltimes, trlog, crossTr, sessions, active }, now = Date.now()) {
+    const d = new Date(now);
+    const starts = [
+      new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(),
+      new Date(d.getFullYear(), d.getMonth(), d.getDate() - ((d.getDay() + 6) % 7)).getTime(),
+      new Date(d.getFullYear(), d.getMonth(), 1).getTime(),
+      -Infinity,
+    ];
+    const sum = (list, val) => starts.map((s) => (Array.isArray(list) ? list : []).reduce((a, r) => {
+      const v = r && r.at >= s ? val(r) : NaN;
+      return a + (Number.isFinite(v) && v > 0 ? v : 0);
+    }, 0));
+    const rows = [
+      { id: 'full', name: 'Solves completos', v: sum(times, (r) => r.t) },
+      { id: 'phase', name: 'Fases (última capa, PLL)', v: sum(ltimes, (r) => r.t) },
+      { id: 'cases', name: 'Entrenar casos', v: sum(trlog, (r) => r.t) },
+      { id: 'cross', name: 'Entrenar la cruz', v: sum(crossTr, (r) => r.t) },
+    ];
+    const timed = starts.map((_, i) => rows.reduce((a, r) => a + r.v[i], 0));
+    const sess = sum(sessions, (r) => r.active);
+    const days = Object.entries(active && typeof active === 'object' ? active : {}).map(([k, ms]) => {
+      const [y, m, dd] = k.split('-').map(Number);
+      return { at: new Date(y, m - 1, dd).getTime(), ms };
+    });
+    const real = sum(days, (r) => r.ms);
+    return { rows, timed, sessions: sess, real };
+  }
+
+  window.CfopStats = { PROB, SUBS, value, avgOf, mean, quantile, dayKey, dayStart, summary, daily, activity, milestones, stepSeries, steps, efficiency, caseStats, recommend, training, practiceTime, GROUPS };
 })();

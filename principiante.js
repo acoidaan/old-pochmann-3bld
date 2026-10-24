@@ -611,16 +611,16 @@
       if (trActive()) trSync();
       renderAll();
     },
-    onMove: (mv, st, t) => {
+    onMove: (mv, st, t, ct) => {
       const before = prevState;
       prevState = st;
       if (trActive()) { trMove(mv, st, t); return; }
       if (timer.phase === 'run') {
-        if (timer.line) timer.line.push({ t: t - timer.t0, st, m: mv });
+        if (timer.line) timer.line.push({ t: t - timer.t0, st, m: mv, c: ct });
         if (isSolved(st)) stopRun(t);
       } else if (view === 'resolver' && done(follow) && (timer.phase === 'idle' || timer.phase === 'done')) {
         startRun(t, before);
-        timer.line.push({ t: 0, st, m: mv });
+        timer.line.push({ t: 0, st, m: mv, c: ct });
       } else if (follow) {
         if (timer.phase === 'done') setPhase('idle');
         followMove(follow, st, mv);
@@ -772,7 +772,9 @@
   }
   function stopRun(at) {
     if (timer.phase !== 'run') return;
-    timer.t = Math.round((at || now()) - timer.t0);
+    // Ended by a turn: timed by the cube's own clock if it gave one.
+    const byCube = window.SmartCube && window.SmartCube.cubeClock(timer.line);
+    timer.t = Math.round(byCube != null ? byCube : (at || now()) - timer.t0);
     cancelAnimationFrame(timer.raf);
     const r = { at: Date.now(), t: timer.t, pen: 0, scr: timer.scr || scramble };
     if (timer.help) r.help = 1;

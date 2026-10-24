@@ -427,6 +427,22 @@ const SOLVE = ["D R' F2 L", "U R U' R'", "U' F' U F", "L' U' L", "U B U' B'", "F
   check('overlay: draws Fridrich solves (Cruz / F2L / OLL / PLL)', /CFOP/.test(o.tag) && /Cruz\s*[\d.]+\s*F2L\s*[\d.]+\s*OLL\s*[\d.]+\s*PLL\s*[\d.]+/.test(o.splits || ''), JSON.stringify(o));
   await ov.close();
 
+  // ================= Timed by the cube's own clock =================
+  const clock = await p.evaluate(() => {
+    const SC = window.SmartCube;
+    const mk = (cs, ts) => [{ t: 0 }, ...cs.map((c, i) => ({ t: ts[i], m: 'R', c }))];
+    const a = mk([5000, 5100, 5200], [0, 130, 260]);   // Bluetooth delayed the last turns
+    const ra = SC.cubeClock(a);
+    return {
+      ra, ts: a.slice(1).map((e) => e.t),
+      gap: SC.cubeClock(mk([5000, null, 5200], [0, 130, 260])),          // a turn without the cube's time
+      off: SC.cubeClock(mk([5000, 5100, 9000], [0, 130, 260])),          // far from the browser's clock
+      byState: SC.cubeClock([...mk([5000, 5100], [0, 100]), { t: 900 }]),   // ended by a reading, not a turn
+    };
+  });
+  check('cube clock: the solve is re-timed with the cube\'s own times', clock.ra === 200 && clock.ts.join() === '0,100,200', JSON.stringify(clock));
+  check('cube clock: a turn without its time, a clock far off or no last turn → left as it was', clock.gap === null && clock.off === null && clock.byState === null, JSON.stringify(clock));
+
   // ================= Without the scramble generator =================
   const plain = await open({}, `${SITE_PLAIN}/fridrich#crono`);
   await plain.p.waitForFunction(() => window.Fridrich && window.Fridrich.scramble().split(' ').length === 25, null, { timeout: 40000 }).catch(() => {});

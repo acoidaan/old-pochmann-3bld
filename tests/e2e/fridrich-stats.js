@@ -76,6 +76,23 @@ const keys = (d) => ({ 'cfop:times:v1': d.times, 'cfop:trlog:v1': d.trlog, 'cfop
   check('progreso: in words (90 solves, the ao12 and how it changed)', /Llevas 90 solves/.test(prog.lead) && /Tu media de 12 es 42\.67: ▼ 3\.2 s mejor/.test(prog.lead) && /Esta semana: 14 solves/.test(prog.lead), prog.lead);
   check('progreso: best single, ao5, ao12, now and the streak', /MEJOR SINGLE 38\.70/i.test(prog.tiles[0]) && /42\.13/.test(prog.tiles[1]) && /42\.67/.test(prog.tiles[2]) && new RegExp(`RACHA ${exp.streak} días`, 'i').test(prog.tiles[4]), JSON.stringify(prog.tiles));
   check('progreso: what to go for next and what you got', /Single por debajo de 35 s · te faltan 3\.7 s/.test(prog.miles) && /Single por debajo de 40 s/.test(prog.miles), prog.miles.slice(0, 200));
+  // Time practised: the engine on a small known history (now: Wednesday 21 October 2026, at noon).
+  const pt = await p.evaluate(() => {
+    const at = (m, d, h) => new Date(2026, m - 1, d, h || 9).getTime();
+    const P = window.CfopStats.practiceTime({
+      times: [{ at: at(10, 21, 10), t: 20000 }, { at: at(10, 19), t: 30000 }, { at: at(9, 30), t: 40000 }],
+      ltimes: [{ at: at(10, 20), t: 5000, m: 'll' }],
+      trlog: [{ at: at(10, 21, 11), t: 3000 }, { at: at(10, 21, 11), x: 1 }],
+      crossTr: [{ at: at(10, 2), t: 7000 }],
+      sessions: [{ at: at(10, 21, 8), active: 600000 }],
+      active: { '2026-10-21': 1200000, '2026-10-18': 60000 },
+    }, at(10, 21, 12));
+    return { rows: P.rows.map((r) => r.v.join()), timed: P.timed.join(), sessions: P.sessions.join(), real: P.real.join() };
+  });
+  check('practice time: today, this week (from Monday), this month and in all, by kind', pt.rows.join('|') === '20000,50000,50000,90000|0,5000,5000,5000|3000,3000,3000,3000|0,0,7000,7000'
+    && pt.timed === '23000,58000,65000,105000' && pt.sessions === '600000,600000,600000,600000' && pt.real === '1200000,1200000,1260000,1260000', JSON.stringify(pt));
+  const ptab = await p.evaluate(() => [...document.querySelectorAll('#progPractice tr')].map((x) => x.innerText.replace(/\s+/g, ' ').trim()));
+  check('practice time: the table on «Progreso», with the timed total and the real time', /Hoy Semana Mes Total/.test(ptab[0]) && ptab.some((r) => /^Solves completos .*\d+ (min|h)/.test(r)) && ptab.some((r) => /^Cronometrado /.test(r)) && ptab.some((r) => /^En la página /.test(r)), JSON.stringify(ptab));
   const chart = async () => p.evaluate(() => ({ mean: document.querySelectorAll('#dayChart .fr-dmean').length, best: document.querySelectorAll('#dayChart .fr-dbest').length, legend: document.getElementById('dayLegend').innerText }));
   const c90 = await chart();
   check('progreso: each day, its mean and its best (90 days)', c90.mean === exp.days90 && c90.best === exp.days90 && /Media del día/.test(c90.legend) && /Mejor del día/.test(c90.legend), JSON.stringify(c90));

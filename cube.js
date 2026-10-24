@@ -1,339 +1,96 @@
-// Smart cube (GAN over Web Bluetooth). Follows the scramble move by move, ends the memo on the first turn,
-// stops the clock when the cube is solved and, after a DNF, works out where the solve went wrong.
-// A virtual cube (?cubo=virtual) behaves the same way, for trying it without one.
+// Smart cube on the 3BLD page (the connection is smartcube.js's). Follows the scramble move by move, ends the
+// memo on the first turn, stops the clock when the cube is solved and, after a DNF, works out where the solve
+// went wrong. A virtual cube (?cubo=virtual) behaves the same way, for trying it without one.
 (() => {
   'use strict';
   const O = window.OP3;
-  if (!O || !document.getElementById('cubeBar')) return;
+  if (!O || !document.getElementById('cubeBar') || !window.SmartCube || !window.CubeFollow) return;
   const $ = (id) => document.getElementById(id);
   const { apply, parseAlg, invertAlg, solved, isSolved, faceOfSticker, MODES, ALGS, esc } = O;
 
-  const LIB = 'vendor/gan-web-bluetooth-3.0.2.js';
-  const LIB_CDN = 'https://cdn.jsdelivr.net/npm/gan-web-bluetooth@3.0.2/+esm';
-  const MAC_KEY = 'op3bld:cube-mac:v1';
   const CHECK_MS = 700;   // after a manual stop, wait this long for the last turn to arrive
   const QUIET_MS = 3000;  // after the cube stops the clock, presses are ignored this long
   const key = (st) => st.join(',');
 
-  // ================= Cube frame (cubemodel.js) =================
+  // ================= Cube frame (cubemodel.js, follow.js) =================
   const { norm, fromFacelets, toFacelets, CUBIES } = window.CubeModel;
+  const CF = window.CubeFollow;
+  const { facePath, partialKeys, opposite, simplify, moveText } = CF;
   const FACE_MOVES = ['U', 'R', 'F', 'D', 'L', 'B'].flatMap((f) => [f, `${f}2`, `${f}'`]);
-  const quarters = (m) => (m.endsWith('2') ? [m[0], m[0]] : [m]);
-  // Quarter face turns (one or two faces) that take a to b, as the cube would report them.
-  function facePath(a, b) {
-    const kb = key(b);
-    if (key(a) === kb) return [];
-    for (const m of FACE_MOVES) if (key(apply(a, m)) === kb) return quarters(m);
-    for (const m1 of FACE_MOVES) {
-      const s = apply(a, m1);
-      for (const m2 of FACE_MOVES) if (key(apply(s, m2)) === kb) return [...quarters(m1), ...quarters(m2)];
-    }
-    return null;
-  }
-  const moveText = (m) => m.base + (m.turns === 2 ? '2' : m.turns === 3 ? "'" : '');
-  function simplify(list) {
-    const out = [];
-    for (const t of list) {
-      const m = parseAlg(t)[0];
-      const last = out[out.length - 1];
-      if (last && last.base === m.base) {
-        last.turns = (last.turns + m.turns) % 4;
-        if (!last.turns) out.pop();
-      } else out.push({ base: m.base, turns: m.turns });
-    }
-    return out;
-  }
 
-  // ================= Connection =================
+  // ================= Connection (smartcube.js) =================
+  // The bar, the MAC address, the virtual cube and the turns are smartcube.js's, as on the other pages.
+  const sc = window.SmartCube.start({
+    info: 'Conecta un GAN por Bluetooth: sigue el scramble, para el crono solo y te dice dónde fallaste.',
+    onStatus: (s) => {
+      if (s !== 'on' && attempt) { attempt = null; setAsk(null); }
+      render();
+    },
+    onMove: (mv, st) => onMove(mv, st),
+    onState: (st) => onState(st),
+    // Stopped by hand: the reading asked for then says whether it is solved.
+    onFacelets: (st) => { if (attempt && attempt.checking) finishCheck(isSolved(st)); },
+  });
   const cube = {
-    link: null, kind: null, status: 'off', name: '', hw: '', battery: null,
-    state: null, sub: null, wait: 0, poll: 0, queue: Promise.resolve(), tries: 0,
+    get state() { return sc.state; },
+    get status() { return sc.status; },
+    get link() { return sc.link; },
+    get kind() { return sc.kind; },
   };
-  const simAllowed = /[?&]cubo=(virtual|sim)\b/.test(location.search);
-  const ua = navigator.userAgent || '';
-  const isEdge = /\bEdg\//.test(ua);
-  const isFirefox = /Firefox\//.test(ua);
-  function noBluetoothText() {
-    if (/iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)) {
-      return 'En iPhone y iPad ningún navegador tiene Bluetooth web, tampoco Safari. Ahí solo funciona con la app Bluefy; si no, usa el ordenador o un Android.';
-    }
-    if (/Firefox\//.test(ua)) {
-      return 'Firefox y los navegadores basados en él (como Zen) no traen Bluetooth web. Se lo añade la extensión '
-        + '<a href="https://addons.mozilla.org/firefox/addon/webbt/" target="_blank" rel="noopener">WebBT</a> junto con su programa '
-        + '<a href="https://github.com/stevennyman/webbt/releases/latest" target="_blank" rel="noopener">WebBT Server</a> '
-        + '(instala los dos y recarga la página). Si da problemas, usa Chrome o Edge.';
-    }
-    return 'Este navegador no tiene Bluetooth web. Abre la app en Chrome o Edge, en el ordenador o en Android.';
-  }
-  function say(html, tone, buttons) {
-    const box = $('cubeMsg');
-    box.className = `result${tone ? ` ${tone}` : ''}`;
-    box.innerHTML = html ? `<p>${html}</p>` : '';
-    (buttons || []).forEach(([label, fn]) => {
-      const b = document.createElement('button');
-      b.type = 'button'; b.className = 'btn'; b.textContent = label;
-      b.addEventListener('click', fn);
-      box.firstElementChild.appendChild(b);
-    });
-  }
-  let libPromise = null;
-  function loadLib() {
-    if (!libPromise) {
-      libPromise = import(new URL(LIB, document.baseURI).href).catch(() => import(LIB_CDN));
-      libPromise.catch(() => { libPromise = null; });
-    }
-    return libPromise;
-  }
-  // The MAC address salts the encryption. Remembered per cube once known.
-  const macs = () => { try { return JSON.parse(localStorage.getItem(MAC_KEY)) || {}; } catch (e) { return {}; } };
-  const macOf = (device) => { const m = macs(); return m[`id:${device.id}`] || m[`name:${device.name}`] || null; };
-  function rememberMac(device, mac) {
-    const m = macs();
-    m[`id:${device.id}`] = mac;
-    if (device.name) m[`name:${device.name}`] = mac;
-    try { localStorage.setItem(MAC_KEY, JSON.stringify(m)); } catch (e) { /* asked again next time */ }
-  }
-  function forgetMac(device) {
-    if (!device) return;
-    const m = macs();
-    delete m[`id:${device.id}`];
-    delete m[`name:${device.name}`];
-    try { localStorage.setItem(MAC_KEY, JSON.stringify(m)); } catch (e) { /* nothing kept */ }
-  }
-  const MAC_RE = /^([0-9A-F]{2}[:-]?){5}[0-9A-F]{2}$/;
-  const cleanMac = (v) => {
-    const hex = v.toUpperCase().replace(/[^0-9A-F]/g, '');
-    return hex.length === 12 ? hex.match(/../g).join(':') : null;
-  };
-  let lastDevice = null;
-  let macWaiting = null;   // closes the MAC dialog if the connection is cancelled
-  function askMac(device) {
-    return new Promise((resolve) => {
-      const sheet = $('macSheet');
-      // Firefox and Zen (with WebBT) have no such page: Edge, which comes with Windows, does.
-      const prefix = isEdge || isFirefox ? 'edge://' : 'chrome://';
-      $('macAuto').hidden = isFirefox;
-      $('macHow').textContent = isFirefox
-        ? 'abre Edge (viene con Windows; en Mac o Linux, Chrome con chrome://), pega esta dirección, pulsa «Start scan», busca tu cubo (empieza por GAN) y copia su dirección.'
-        : 'abre esta página, pulsa «Start scan», busca tu cubo (empieza por GAN) y copia su dirección.';
-      $('macFlag').textContent = `${prefix}flags/#enable-experimental-web-platform-features`;
-      $('macScan').textContent = `${prefix}bluetooth-internals/#devices`;
-      $('macErr').textContent = '';
-      $('macInput').value = '';
-      sheet.hidden = false;
-      $('macInput').focus();
-      let cancelMac = null;
-      let offKey = () => {};
-      const done = (mac) => {
-        sheet.hidden = true;
-        offKey();
-        if (macWaiting === cancelMac) macWaiting = null;
-        $('macForm').removeEventListener('submit', onSubmit);
-        $('macCancel').removeEventListener('click', onCancel);
-        if (mac) rememberMac(device, mac);
-        resolve(mac);
-      };
-      const onSubmit = (ev) => {
-        ev.preventDefault();
-        const mac = cleanMac($('macInput').value);
-        if (!mac || !MAC_RE.test(mac)) { $('macErr').textContent = 'Son 6 parejas de números y letras de la A a la F, como AB:12:CD:34:EF:56.'; return; }
-        done(mac);
-      };
-      const onCancel = () => done(null);
-      const onKey = (ev) => { if (ev.key === 'Escape') { ev.preventDefault(); onCancel(); } };
-      $('macForm').addEventListener('submit', onSubmit);
-      $('macCancel').addEventListener('click', onCancel);
-      sheet.addEventListener('keydown', onKey);
-      cancelMac = onCancel;
-      macWaiting = onCancel;
-      offKey = () => sheet.removeEventListener('keydown', onKey);
-    });
-  }
-  document.querySelectorAll('[data-copy]').forEach((b) => b.addEventListener('click', async () => {
-    const text = $(b.dataset.copy).textContent;
-    try { await navigator.clipboard.writeText(text); b.textContent = 'Copiado'; } catch (e) { b.textContent = 'Cópialo a mano'; }
-    setTimeout(() => { b.textContent = 'Copiar'; }, 2000);
-  }));
-  function macProvider(device, fallback) {
-    lastDevice = device;
-    if (!fallback) {
-      const saved = macOf(device);
-      if (!saved) renderBar('Buscando la dirección del cubo…');
-      return Promise.resolve(saved);
-    }
-    return askMac(device);
-  }
-
-  async function connectGan() {
-    say('');
-    if (!navigator.bluetooth || !navigator.bluetooth.requestDevice) { say(noBluetoothText(), 'ko'); return; }
-    // Only used to explain a failure: some add-ons (WebBT in Firefox) answer it wrongly.
-    let available = null;
-    try { if (navigator.bluetooth.getAvailability) available = await navigator.bluetooth.getAvailability(); } catch (e) { /* unknown */ }
-    let lib;
-    try { lib = await loadLib(); } catch (e) {
-      say('No he podido cargar el código del cubo. Comprueba la conexión a internet y vuelve a probar.', 'ko');
-      return;
-    }
-    setStatus('connecting');
-    const mine = ++cube.tries;
-    try {
-      const conn = await lib.connectGanCube(macProvider);
-      if (mine !== cube.tries) { try { conn.disconnect(); } catch (e) { /* gone */ } return; }   // cancelled meanwhile
-      attach(conn, 'gan');
-    } catch (e) {
-      if (mine !== cube.tries) return;
-      setStatus('off');
-      const msg = String((e && e.message) || e);
-      const name = e && e.name;
-      if (name === 'NotFoundError' && /cancel/i.test(msg)) return;   // closed the chooser
-      if (/adapter/i.test(msg) || (available === false && name === 'NotFoundError')) say('El Bluetooth está apagado (o este equipo no tiene). Enciéndelo y vuelve a probar.', 'ko');
-      else if (name === 'NotFoundError') say('No he encontrado ningún cubo. Gíralo un poco para despertarlo, acércalo y vuelve a probar.', 'ko');
-      else if (name === 'SecurityError' || name === 'NotAllowedError') say('El navegador no deja usar Bluetooth en esta página. Abre la app directamente en old-pochmann-3bld.vercel.app con Chrome o Edge.', 'ko');
-      else if (/MAC address/i.test(msg)) say('Sin la dirección del cubo no puedo conectarlo. Cuando la tengas, vuelve a pulsar «Conectar cubo».', 'ko');
-      else if (/services|unsupported/i.test(msg)) say('Ese cubo no es un GAN compatible (o este modelo todavía no está soportado).', 'ko');
-      else say(`No he podido conectar el cubo: ${esc(msg)}. Gíralo para despertarlo, acércalo y vuelve a probar.`, 'ko');
-    }
-  }
-
-  function request(type) {
-    const link = cube.link;
-    if (!link) return;
-    cube.queue = cube.queue.then(() => link.sendCubeCommand({ type })).catch(() => {});
-  }
-  function attach(link, kind) {
-    detach(true);
-    cube.link = link; cube.kind = kind; cube.name = link.deviceName || 'Cubo'; cube.hw = ''; cube.battery = null; cube.state = null;
-    cube.sub = link.events$.subscribe(onEvent);
-    setStatus('linking');
-    // Moves only count once the cube has said what it looks like.
-    request('REQUEST_HARDWARE');
-    request('REQUEST_FACELETS');
-    request('REQUEST_BATTERY');
-    clearTimeout(cube.wait);
-    cube.wait = setTimeout(() => { if (cube.link === link && !cube.state) badData(); }, 6000);
-    clearInterval(cube.poll);
-    cube.poll = setInterval(() => request('REQUEST_BATTERY'), 5 * 60e3);
-  }
-  function detach(quiet) {
-    cube.tries++;
-    clearTimeout(cube.wait);
-    if (attempt) { attempt = null; setAsk(null); }
-    clearInterval(cube.poll);
-    const link = cube.link;
-    if (cube.sub) { try { cube.sub.unsubscribe(); } catch (e) { /* closed */ } }
-    cube.sub = null; cube.link = null; cube.state = null;
-    if (link) { try { Promise.resolve(link.disconnect()).catch(() => {}); } catch (e) { /* gone */ } }
-    if (!quiet) setStatus('off');
-  }
-  function badData() {
-    const device = lastDevice;
-    detach();
-    say('El cubo se ha conectado, pero no entiendo lo que manda. Casi seguro que la dirección MAC no es la suya.', 'ko',
-      [['Escribir la MAC otra vez', () => { forgetMac(device); connectGan(); }]]);
-  }
-  function onEvent(ev) {
-    switch (ev && ev.type) {
-      case 'FACELETS': onFacelets(ev.facelets); break;
-      case 'MOVE': onMove(ev.move); break;
-      case 'BATTERY': cube.battery = ev.batteryLevel; renderBar(); break;
-      case 'HARDWARE': if (ev.hardwareName) cube.hw = ev.hardwareName; renderBar(); break;
-      case 'DISCONNECT':
-        if (cube.link) {
-          detach();
-          say('Se ha desconectado el cubo. Si se ha dormido, gíralo y vuelve a conectarlo.', 'ko');
-        }
-        break;
-      default: break;
-    }
-  }
-  function onFacelets(f) {
-    const st = fromFacelets(f);
-    if (!st) {
-      if (!cube.state) badData();
-      return;
-    }
-    clearTimeout(cube.wait);
-    const changed = !cube.state || key(st) !== key(cube.state);
-    if (changed) handMoves = isSolved(st) ? [] : null;
-    cube.state = st;
-    if (cube.status !== 'on') { setStatus('on'); say(''); }
-    if (changed && attempt && attempt.running) {
+  const { say, request } = sc;
+  // The state changed, not by a turn: the first reading, «Está resuelto», or a turn the cube had lost.
+  function onState(st) {
+    handMoves = isSolved(st) ? [] : null;
+    if (attempt && attempt.running) {
       // Before the first turn this is just the real starting state; later, the cube had lost track.
       if (!attempt.moves.length) { attempt.start = st; attempt.states = [st]; liveStart(attempt, st); } else { attempt.gap = true; attempt.states.push(st); }
     }
-    if (attempt && attempt.checking) { finishCheck(isSolved(st)); return; }
-    if (changed && !locate()) { follow.lost = true; follow.off = []; }
+    if (!locate()) { follow.lost = true; follow.off = []; }
     render();
   }
 
   // ================= The scramble, move by move =================
   // Every turn since the cube was last solved (null when unknown), for «Leer el cubo».
   let handMoves = null;
-  const follow = { scr: null, moves: [], prefix: new Map(), half: new Map(), prog: 0, halfway: false, off: [], lost: true, target: null };
+  let follow = { ...CF.makeFollow(solved(), []), scr: null, lost: true };
   function setScramble(scr) {
     if (scr === follow.scr) return;
-    follow.scr = scr;
     let mv = [];
-    try { mv = parseAlg(scr); } catch (e) { mv = []; }
-    follow.moves = mv;
-    follow.prefix = new Map();
-    follow.half = new Map();
-    let s = solved();
-    follow.prefix.set(key(s), 0);
-    mv.forEach((m, k) => {
-      // A half turn can be done either way round: both halfway states are fine.
-      if (m.turns === 2) [m.base, `${m.base}'`].forEach((q) => { follow.half.set(key(norm(apply(s, q))), k); });
-      s = norm(apply(s, m.text));
-      follow.prefix.set(key(s), k + 1);
-    });
-    follow.target = s;
-    follow.prog = 0; follow.halfway = false; follow.off = []; follow.lost = true;
+    try { mv = parseAlg(scr).map((m) => m.text); } catch (e) { mv = []; }
+    follow = { ...CF.makeFollow(solved(), mv), scr, lost: true };
     locate();
   }
-  function locate() {
-    if (!cube.state) return false;
-    const k = key(cube.state);
-    if (follow.prefix.has(k)) { follow.prog = follow.prefix.get(k); follow.halfway = false; }
-    else if (follow.half.has(k)) { follow.prog = follow.half.get(k); follow.halfway = true; }
-    else return false;
-    follow.off = []; follow.lost = false;
-    return true;
-  }
-  function followMove(mv) {
-    if (locate() || follow.lost) return;
-    follow.off = simplify([...follow.off.map(moveText), mv]);
-    if (follow.off.length > 8) follow.lost = true;
-  }
-  const undoText = () => follow.off.slice().reverse().map((m) => moveText({ base: m.base, turns: (4 - m.turns) % 4 })).join(' ');
+  const locate = () => !!cube.state && CF.locate(follow, cube.state);
+  const followMove = (mv) => { if (cube.state) CF.followMove(follow, cube.state, mv); };
+  const undoText = () => CF.undoText(follow);
   function followView() {
     const n = follow.moves.length;
     if (!cube.state || !n) return null;
     const chips = follow.moves.map((m, k) => {
       let cls = 'sm';
       if (!follow.lost) {
-        if (k < follow.prog) cls += ' done';
-        else if (k === follow.prog && !follow.off.length) cls += follow.halfway ? ' next half' : ' next';
+        if (k < follow.pos) cls += ' done';
+        else if (k === follow.pos && !follow.off.length) cls += follow.halfway ? ' next half' : ' next';
       }
-      return `<span class="${cls}">${m.text}</span>`;
+      return `<span class="${cls}">${esc(m)}</span>`;
     }).join(' ');
     let hint;
     let tone = '';
     if (follow.lost) {
-      hint = follow.off.length > 8
+      hint = follow.off.length > 6
         ? 'Te has perdido. Resuelve el cubo para volver a empezar el scramble.'
         : 'El cubo no está resuelto: resuélvelo para mezclarlo con este scramble. Si ya lo está, pulsa «Está resuelto».';
       tone = 'bad';
     } else if (follow.off.length) {
       hint = `Ese giro no toca. Deshaz: <b>${undoText()}</b>`;
       tone = 'bad';
-    } else if (follow.prog >= n) {
+    } else if (follow.pos >= n) {
       hint = '✓ Cubo mezclado. Ya puedes empezar el memo.';
       tone = 'ok';
     } else if (follow.halfway) {
-      hint = `Te falta la otra mitad del <b>${follow.moves[follow.prog].text}</b>.`;
+      hint = `Te falta la otra mitad del <b>${esc(follow.moves[follow.pos])}</b>.`;
     } else {
-      hint = `${follow.prog ? 'Siguiente' : 'Primer giro'}: <b>${follow.moves[follow.prog].text}</b>`;
+      hint = `${follow.pos ? 'Siguiente' : 'Primer giro'}: <b>${esc(follow.moves[follow.pos])}</b>`;
     }
     return { chips, hint, tone };
   }
@@ -346,18 +103,13 @@
   // ================= Attempts =================
   let attempt = null;
   let last = null;   // the last finished attempt, for the report
-  function onMove(mv) {
-    if (!cube.state) return;
-    let m;
-    try { m = parseAlg(mv)[0]; } catch (e) { return; }
-    if (!m) return;
-    cube.state = apply(cube.state, m.text);
-    if (isSolved(cube.state)) handMoves = [];
-    else if (handMoves) handMoves.push(m.text);
+  function onMove(mv, st) {
+    if (isSolved(st)) handMoves = [];
+    else if (handMoves) handMoves.push(mv);
     const ph = O.clock.phase();
     if (attempt && attempt.running && (ph === 'memo' || ph === 'exec')) {
       if (ph === 'memo') O.clock.press();   // the first turn ends the memo
-      record(m.text);
+      record(mv);
       if (isSolved(cube.state)) {
         attempt.auto = true;
         attempt.running = false;
@@ -369,16 +121,16 @@
       }
     } else if (attempt && attempt.checking) {
       // Stopped by hand a moment before the last turn arrived.
-      record(m.text);
+      record(mv);
       if (isSolved(cube.state)) finishCheck(true);
     } else if (ph === 'idle') {
-      followMove(m.text);
+      followMove(mv);
     }
     // The trainer and the guided execution follow the cube whatever the clock is doing
     // (a timed solve following the guide, for instance).
-    if (trActive()) trMove(m.text);
-    if (guideActive()) guideMove(m.text);
-    if (practiceActive()) practiceMove(m.text);
+    if (trActive()) trMove(mv);
+    if (guideActive()) guideMove(mv);
+    if (practiceActive()) practiceMove(mv);
     render();
   }
   function record(mv) {
@@ -432,42 +184,14 @@
   })();
   // Desktop Chrome has vibrate() too, but nothing to shake: only offer it on touch screens.
   const canVibrate = typeof navigator.vibrate === 'function' && !!window.matchMedia && matchMedia('(pointer: coarse)').matches;
-  let audio = null;
-  // Browsers only let a page make sound after a tap or a key: start the audio on the press that starts the memo.
-  function unlockAudio() {
-    if (!fx.sound) return;
-    try {
-      const AC = window.AudioContext || window.webkitAudioContext;
-      if (!AC) return;
-      if (!audio) audio = new AC();
-      if (audio.state === 'suspended') audio.resume().catch(() => {});
-    } catch (e) { audio = null; }
-  }
-  // Three rising notes (C6 E6 G6), synthesised: nothing to download, works offline.
-  function chime() {
-    if (!fx.sound || !audio) return;
-    try {
-      const t0 = audio.currentTime + 0.02;
-      [[1047, 0], [1319, 0.1], [1568, 0.2]].forEach(([f, d]) => {
-        const o = audio.createOscillator();
-        const g = audio.createGain();
-        o.type = 'sine';
-        o.frequency.value = f;
-        g.gain.setValueAtTime(0.0001, t0 + d);
-        g.gain.exponentialRampToValueAtTime(0.3, t0 + d + 0.015);
-        g.gain.exponentialRampToValueAtTime(0.0001, t0 + d + (d > 0.15 ? 0.9 : 0.45));
-        o.connect(g).connect(audio.destination);
-        o.start(t0 + d);
-        o.stop(t0 + d + 1);
-      });
-      fxLog.push('chime');
-    } catch (e) { /* no sound */ }
-  }
+  // The sound is smartcube.js's (synthesised, works offline); here, only whether it plays.
+  function unlockAudio() { if (fx.sound) window.SmartCube.unlockAudio(); }
+  function chime() { if (fx.sound) window.SmartCube.chime(); }
   function buzz() {
     if (!fx.vibrate || !canVibrate) return;
     try { navigator.vibrate([80, 60, 180]); fxLog.push('vibrate'); } catch (e) { /* no vibration */ }
   }
-  const fxLog = [];   // what was played, for tests
+  const fxLog = sc.fxLog;   // what was played, for tests
   // Once per solve, even if the clock and the guide both see it.
   let cheeredAt = -1e9;
   function celebrate() {
@@ -734,8 +458,9 @@
   O.onView('crono', () => { if (last && !last.ok && !attempt) showReport(last, last.ok); });
 
   // ================= Following a known sequence of turns =================
-  // From a starting state: the states after each turn of a sequence (and halfway through half turns, either
-  // way round). The setup trainer and the guided execution follow the cube along one of these.
+  // From a starting state: the states after each turn of a sequence (and part way through half turns, slices,
+  // wide turns and two turns on opposite faces, as follow.js). The setup trainer and the guided execution
+  // follow the cube along one of these.
   function makePath(start, algs) {
     const at = new Map();
     const half = new Map();
@@ -746,14 +471,19 @@
     const segEnd = [];
     const moves = [];
     const spat = [s];   // as held in the hands, wide turns included
+    let prev = null;   // the state before the turn before, in the core's frame
     algs.forEach((alg) => {
       for (const m of parseAlg(alg)) {
-        if (m.turns === 2) [m.base, `${m.base}'`].forEach((q) => add(half, key(norm(apply(s, q))), p));
+        const before = norm(s);
         s = apply(s, m.text);
+        const after = norm(s);
+        partialKeys(before, after).forEach((k) => add(half, k, p));
+        if (prev && opposite(moves[p - 1], m.text)) partialKeys(prev, after).forEach((k) => add(half, k, p - 1));
         p++;
         moves.push(m.text);
         spat.push(s);
-        add(at, key(norm(s)), p);
+        add(at, key(after), p);
+        prev = before;
       }
       segEnd.push(p);
     });
@@ -947,10 +677,10 @@
     let tone = '';
     if (!P || P.lost) {
       const v = followView();
-      if (v && !follow.lost && follow.prog < follow.moves.length) {
+      if (v && !follow.lost && follow.pos < follow.moves.length) {
         html = follow.off.length
           ? `Primero mezcla el cubo. Ese giro no toca, deshaz: <b>${undoText()}</b>`
-          : `Primero mezcla el cubo con el scramble: giro ${follow.prog + 1} de ${follow.moves.length}, <b>${follow.moves[follow.prog].text}</b>${follow.halfway ? ' (falta la otra mitad)' : ''}`;
+          : `Primero mezcla el cubo con el scramble: giro ${follow.pos + 1} de ${follow.moves.length}, <b>${follow.moves[follow.pos]}</b>${follow.halfway ? ' (falta la otra mitad)' : ''}`;
         tone = follow.off.length ? 'bad' : '';
       } else {
         html = 'Tu cubo no está en ningún punto de esta resolución. Resuélvelo y mézclalo con el scramble de «Practicar».';
@@ -1046,10 +776,10 @@
     let html;
     let tone = '';
     if (P.lost) {
-      if (!follow.lost && follow.prog < follow.moves.length) {
+      if (!follow.lost && follow.pos < follow.moves.length) {
         html = follow.off.length
           ? `Primero mezcla el cubo. Ese giro no toca, deshaz: <b>${undoText()}</b>`
-          : `Primero mezcla el cubo con el scramble: giro ${follow.prog + 1} de ${follow.moves.length}, <b>${follow.moves[follow.prog].text}</b>`;
+          : `Primero mezcla el cubo con el scramble: giro ${follow.pos + 1} de ${follow.moves.length}, <b>${follow.moves[follow.pos]}</b>`;
         tone = follow.off.length ? 'bad' : '';
       } else {
         html = 'Tu cubo no está en ningún punto de esta resolución: resuélvelo y mézclalo con el scramble de arriba.';
@@ -1096,7 +826,7 @@
         return cube.state.slice(base, base + 9).map(faceOfSticker).join('');
       }).join('');
       out.scr = follow.moves.length
-        ? { n: follow.moves.length, done: follow.prog, half: follow.halfway, undo: follow.off.length ? undoText() : '', lost: follow.lost }
+        ? { n: follow.moves.length, done: follow.pos, half: follow.halfway, undo: follow.off.length ? undoText() : '', lost: follow.lost }
         : null;
     }
     if (a && a.live && a.moves.length) {
@@ -1111,31 +841,6 @@
 
   // ================= Drawing =================
   const netCells = O.buildNet($('cubeNet'));
-  function setStatus(s) { cube.status = s; renderBar(); render(); }
-  function renderBar(note) {
-    const s = cube.status;
-    $('cubeDot').dataset.s = s;
-    const on = s === 'on' || s === 'linking';
-    $('cubeConnect').hidden = s !== 'off';
-    $('cubeConnect').textContent = 'Conectar cubo';
-    $('cubeSim').hidden = s !== 'off' || !simAllowed;
-    $('cubeSync').hidden = s !== 'on';
-    $('cubeOff').hidden = !on && s !== 'connecting';
-    $('cubeOff').textContent = s === 'connecting' ? 'Cancelar' : 'Desconectar';
-    let name = 'Cubo inteligente';
-    let info = 'Conecta un GAN por Bluetooth: sigue el scramble, para el crono solo y te dice dónde fallaste.';
-    if (s === 'connecting') { name = 'Conectando…'; info = note || 'Elige tu cubo en la ventana del navegador.'; }
-    if (s === 'linking') { name = cube.hw || cube.name; info = 'Conectado. Leyendo el cubo…'; }
-    if (s === 'on') {
-      name = cube.hw || cube.name;
-      const bits = [];
-      if (cube.battery != null) bits.push(`batería ${cube.battery} %`);
-      if (cube.state) bits.push(isSolved(cube.state) ? 'resuelto' : 'mezclado');
-      info = `Conectado${bits.length ? ` · ${bits.join(' · ')}` : ''}`;
-    }
-    $('cubeName').textContent = name;
-    $('cubeInfo').textContent = info;
-  }
   function render() {
     const on = cube.status === 'on' && !!cube.state;
     const ph = O.clock.phase();
@@ -1149,7 +854,6 @@
       if (ph !== 'idle') scr.innerHTML = liveHtml(attempt) || '<span class="cube-hint">Memorizando: el primer giro empieza la ejecución.</span>';
       else scr.innerHTML = v ? `<span class="cube-chips">${v.chips}</span><span class="cube-hint ${v.tone}">${v.hint}</span>` : '<span class="cube-hint">No hay scramble: pulsa «Nuevo scramble».</span>';
     }
-    if (cube.status === 'on') renderBar();
     $('readCube').hidden = !on;
     $('cubeUseState').hidden = !(on && ph === 'idle' && follow.lost && !isSolved(cube.state));
     trSync();
@@ -1163,59 +867,6 @@
   document.addEventListener('op3:scramble', () => { if (cube.status === 'on') render(); });
 
   // ================= Virtual cube =================
-  function simLink() {
-    const subs = new Set();
-    let space = solved();   // as held: wide turns and rotations move the centres
-    let core = solved();    // what the core feels: the centres never move
-    let serial = 0;
-    const emit = (ev) => subs.forEach((fn) => fn({ timestamp: performance.now(), ...ev }));
-    const later = (fn) => setTimeout(fn, 15);
-    const link = {
-      deviceName: 'Cubo virtual', deviceMAC: '00:00:00:00:00:00',
-      events$: { subscribe(fn) { subs.add(fn); return { unsubscribe() { subs.delete(fn); } }; } },
-      sendCubeCommand(c) {
-        later(() => {
-          if (c.type === 'REQUEST_FACELETS') emit({ type: 'FACELETS', serial, facelets: toFacelets(core) });
-          else if (c.type === 'REQUEST_BATTERY') emit({ type: 'BATTERY', batteryLevel: 87 });
-          else if (c.type === 'REQUEST_HARDWARE') emit({ type: 'HARDWARE', hardwareName: 'Cubo virtual', softwareVersion: '-', hardwareVersion: '-', gyroSupported: false });
-          else if (c.type === 'REQUEST_RESET') { space = solved(); core = solved(); }
-        });
-        return Promise.resolve();
-      },
-      disconnect() { subs.clear(); return Promise.resolve(); },
-      // One move as the hands do it; the cube reports the face turns its core feels.
-      turn(alg) {
-        for (const m of parseAlg(alg)) {
-          space = apply(space, m.text);
-          const target = norm(space);
-          const path = facePath(core, target) || [];
-          for (const q of path) {
-            core = apply(core, q);
-            serial = (serial + 1) & 255;
-            emit({ type: 'MOVE', move: q, face: 'URFDLB'.indexOf(q[0]), direction: q.length > 1 ? 1 : 0, serial, localTimestamp: performance.now(), cubeTimestamp: null });
-          }
-          core = target;
-        }
-      },
-      // Turned while the app was not looking (the cube lost track): only the facelets tell.
-      silent(alg) { space = apply(space, alg); core = norm(space); },
-      play(algs, tps) {
-        const list = algs.flatMap((a) => parseAlg(a).map((m) => m.text));
-        const gap = 1000 / (tps || 12);
-        return new Promise((resolve) => {
-          let i = 0;
-          const step = () => {
-            if (i >= list.length || !subs.size) { resolve(); return; }
-            link.turn(list[i++]);
-            setTimeout(step, gap);
-          };
-          step();
-        });
-      },
-      state: () => core,
-    };
-    return link;
-  }
   // The memo for the virtual cube as it is now (the same method as the app's optimal memo).
   function simMemo(st) {
     const edges = O.generateFor('edge', st);
@@ -1317,31 +968,11 @@
   $('cubeUseState').addEventListener('click', () => readCube($('cubeUseState'), (msg, tone) => say(tone === 'ok' ? 'Listo: el scramble de la app es ahora el de tu cubo.' : msg, tone)));
 
   // ================= Buttons =================
-  $('cubeConnect').addEventListener('click', () => { unlockAudio(); connectGan(); });
-  $('cubeSim').addEventListener('click', () => { unlockAudio(); say(''); attach(simLink(), 'sim'); });
-  $('cubeOff').addEventListener('click', () => {
-    if (macWaiting) macWaiting();
-    detach();
-    say('');
-  });
-  $('cubeSync').addEventListener('click', () => {
-    if (!cube.link) return;
-    request('REQUEST_RESET');
-    cube.state = solved();
-    handMoves = [];
-    locate();
-    render();
-    setTimeout(() => request('REQUEST_FACELETS'), 300);
-  });
   $('cubeNewScr').addEventListener('click', () => $('newScr').click());
-  // Fetch the library ahead, so «Conectar» opens the chooser while the click still counts as one.
-  O.onView('crono', () => { if (navigator.bluetooth) loadLib().catch(() => {}); });
-  if (O.currentView() === 'crono' && navigator.bluetooth) loadLib().catch(() => {});
-  renderBar();
 
   O.cube = {
     overlay: overlayState,
-    attach, detach, connectGan, simLink, simSolve, simSolution, simMemo, flawed, fromFacelets, toFacelets, norm, facePath,
+    attach: sc.attach, detach: sc.detach, connectGan: sc.connect, simLink: sc.virtualLink, simSolve, simSolution, simMemo, flawed, fromFacelets, toFacelets, norm, facePath,
     get state() { return cube.state; },
     get status() { return cube.status; },
     get link() { return cube.link; },

@@ -1,9 +1,11 @@
-// A GAN smart cube over Web Bluetooth (or a virtual one with ?cubo=virtual), for pages other than the 3BLD
-// one (cube.js has its own, tied to that page). Draws the cube bar (#cubeBar …), asks for the MAC address
-// when the browser hides it (#macSheet) and reports the cube's state and every face turn, in the cube's own
-// frame: the centres never move, a wide or slice turn arrives as face turns.
+// A GAN smart cube over Web Bluetooth (or a virtual one with ?cubo=virtual), for every page. Draws the cube
+// bar (#cubeBar …), asks for the MAC address when the browser hides it (#macSheet) and reports the cube's
+// state and every face turn, in the cube's own frame: the centres never move, a wide or slice turn arrives
+// as face turns.
 //
-//   const cube = SmartCube.start({ info, onState(st), onMove(move, st, t), onStatus(status) });
+//   const cube = SmartCube.start({ info, onState(st, at), onMove(move, st, t), onStatus(status), onFacelets(st) });
+//   onState: the state changed, not by a turn (first reading, «Está resuelto», a turn the cube had lost);
+//   onFacelets: every reading the cube sends, changed or not.
 (() => {
   'use strict';
   const M = window.CubeModel;
@@ -41,6 +43,7 @@
     const subs = new Set();
     let space = solved();   // as held: wide turns and rotations move the centres
     let core = solved();    // what the core feels
+    let serial = 0;
     const emit = (ev) => subs.forEach((fn) => fn({ timestamp: performance.now(), ...ev }));
     const later = (fn) => setTimeout(fn, 15);
     const link = {
@@ -48,7 +51,7 @@
       events$: { subscribe(fn) { subs.add(fn); return { unsubscribe() { subs.delete(fn); } }; } },
       sendCubeCommand(c) {
         later(() => {
-          if (c.type === 'REQUEST_FACELETS') emit({ type: 'FACELETS', facelets: toFacelets(core) });
+          if (c.type === 'REQUEST_FACELETS') emit({ type: 'FACELETS', serial, facelets: toFacelets(core) });
           else if (c.type === 'REQUEST_BATTERY') emit({ type: 'BATTERY', batteryLevel: 87 });
           else if (c.type === 'REQUEST_HARDWARE') emit({ type: 'HARDWARE', hardwareName: 'Cubo virtual' });
           else if (c.type === 'REQUEST_RESET') { space = solved(); core = solved(); }
@@ -56,17 +59,20 @@
         return Promise.resolve();
       },
       disconnect() { subs.clear(); return Promise.resolve(); },
+      // One move as the hands do it; the cube reports the face turns its core feels.
       turn(alg) {
         for (const m of parseAlg(alg)) {
           space = apply(space, m.text);
           const target = norm(space);
           for (const q of facePath(core, target) || []) {
             core = apply(core, q);
-            emit({ type: 'MOVE', move: q, localTimestamp: performance.now() });
+            serial = (serial + 1) & 255;
+            emit({ type: 'MOVE', move: q, serial, localTimestamp: performance.now(), cubeTimestamp: null });
           }
           core = target;
         }
       },
+      // Turned while the app was not looking (the cube lost track): only the facelets tell.
       silent(alg) { space = apply(space, alg); core = norm(space); },
       play(algs, tps) {
         const list = algs.flatMap((a) => parseAlg(a).map((m) => m.text));
@@ -342,6 +348,7 @@
       if (cube.status !== 'on') { setStatus('on'); say(''); }
       renderBar();
       // With the time of the last turn heard: a lost one may have been what solved the cube.
+      if (o.onFacelets) o.onFacelets(st, changed);
       if (changed && o.onState) o.onState(st, cube.lastAt);
     }
     function onMove(ev) {
@@ -359,7 +366,7 @@
       // the cube stays still, ask it how it is.
       clearTimeout(cube.idle);
       cube.idle = setTimeout(() => request('REQUEST_FACELETS'), 700);
-      if (o.onMove) o.onMove(m.text, cube.state, cube.lastAt);
+      if (o.onMove) o.onMove(m.text, cube.state, cube.lastAt, ev.cubeTimestamp == null ? null : ev.cubeTimestamp);
       renderBar();
     }
 
@@ -385,9 +392,33 @@
       get link() { return cube.link; },
       get kind() { return cube.kind; },
       get name() { return cube.hw || cube.name; },
-      connect, attach, detach, say, unlockAudio, chime, fxLog, virtualLink,
+      connect, attach, detach, say, request, unlockAudio, chime, fxLog, virtualLink,
     };
   }
 
-  window.SmartCube = { start, facePath, unlockAudio, chime };
+  // A solve timed by the cube's own clock. `line` holds its turns ({ t, m, c }: ms since the first turn by the
+  // browser's clock, and the cube's timestamp); Bluetooth delays each turn a little, and differently, so when
+  // every turn came with the cube's time the turns are re-timed with it (scaled to the browser's clock when
+  // there are turns enough to tell). Returns the new length, or null if the cube's clock is missing or does
+  // not look right; then nothing changes.
+  function cubeClock(line) {
+    const moves = (line || []).filter((e) => e.m);
+    const last = line && line[line.length - 1];
+    if (moves.length < 2 || !last || !last.m || moves.some((e) => e.c == null)) return null;
+    const c0 = moves[0].c;
+    const n = moves.length;
+    const mc = moves.reduce((s, e) => s + e.c, 0) / n;
+    const mt = moves.reduce((s, e) => s + e.t, 0) / n;
+    let sxx = 0;
+    let sxy = 0;
+    moves.forEach((e) => { sxx += (e.c - mc) ** 2; sxy += (e.c - mc) * (e.t - mt); });
+    let k = sxx > 0 ? sxy / sxx : 1;
+    if (n < 10 || !(k > 0.98 && k < 1.02)) k = 1;
+    const total = (last.c - c0) * k;
+    if (!(total >= 0) || Math.abs(total - last.t) > 500) return null;
+    moves.forEach((e) => { e.t = (e.c - c0) * k; });
+    return total;
+  }
+
+  window.SmartCube = { start, facePath, unlockAudio, chime, cubeClock };
 })();

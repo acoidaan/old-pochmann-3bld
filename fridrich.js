@@ -446,7 +446,9 @@
   }
   function stopRun(at) {
     if (timer.phase !== 'run') return;
-    const end = at || now();
+    // Ended by a turn: timed by the cube's own clock if it gave one.
+    const byCube = window.SmartCube && window.SmartCube.cubeClock(timer.line);
+    const end = byCube != null ? timer.t0 + byCube : at || now();
     timer.t = Math.round(end - timer.t0);
     cancelAnimationFrame(timer.raf);
     const r = { at: Date.now(), t: timer.t, pen: timer.pen || 0, scr: timer.scr || scramble };
@@ -610,17 +612,18 @@
       if (at > tr.ready && trActive() && tr.c && tr.ready && !tr.result) trMove(null, st, at);   // and so may a case
       renderAll();
     },
-    onMove: (mv, st, t) => {
+    onMove: (mv, st, t, ct) => {
       moveCount++;
+      if (window.Practice) window.Practice.bump();
       const before = prevState;
       prevState = st;
       if (timer.phase === 'run') {
-        if (timer.line) timer.line.push({ t: t - timer.t0, st, m: mv });
+        if (timer.line) timer.line.push({ t: t - timer.t0, st, m: mv, c: ct });
         if (isSolved(st)) stopRun(t);
       } else if (settings.timed && view === 'crono' && done(follow) && (timer.phase === 'idle' || timer.phase === 'inspect' || timer.phase === 'done') && !trActive() && !ctActive()) {
         // The first turn after scrambling starts the clock.
         startRun(t, before);
-        timer.line.push({ t: 0, st, m: mv });
+        timer.line.push({ t: 0, st, m: mv, c: ct });
       } else if (follow && !trActive() && !ctActive()) {
         if (timer.phase === 'done') setPhase('idle');
         const was = done(follow);
@@ -2563,6 +2566,22 @@
     const d = sm.map((val, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)} ${y(val).toFixed(1)}`).join(' ');
     return `<svg class="fr-spark" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(label)}"><path d="${d}"/><circle cx="${x(sm.length - 1).toFixed(1)}" cy="${y(sm[sm.length - 1]).toFixed(1)}" r="2.6"/></svg>`;
   }
+  // ---- Time practised: timed, in sessions and real time on the page
+  function renderPractice(crossTr) {
+    const P = S.practiceTime({ times, ltimes, trlog, crossTr, sessions: load(K.sessions, []), active: window.Practice ? window.Practice.days() : {} });
+    const dur = (ms) => {
+      if (!ms) return '—';
+      if (ms < 60000) return `${Math.max(1, Math.round(ms / 1000))} s`;
+      const m = Math.round(ms / 60000);
+      return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')}`;
+    };
+    const row = (name, v, cls) => `<tr${cls ? ` class="${cls}"` : ''}><th scope="row">${name}</th>${v.map((x) => `<td>${dur(x)}</td>`).join('')}</tr>`;
+    $('progPractice').innerHTML = `<table class="fr-practice">
+      <thead><tr><th scope="col"><span class="sr-only">Qué</span></th><th scope="col">Hoy</th><th scope="col">Semana</th><th scope="col">Mes</th><th scope="col">Total</th></tr></thead>
+      <tbody>${P.rows.map((r) => row(r.name, r.v)).join('')}${row('Cronometrado', P.timed, 'sum')}${row('Sesiones de casos', P.sessions, 'aside')}${row('En la página', P.real, 'aside')}</tbody>
+    </table>
+    <p class="hint">Cronometrado: lo que suman tus tiempos. Sesiones: su tiempo activo, con los casos entrenados en ellas. En la página: el tiempo real practicando aquí, con mezclar, inspeccionar y pensar (una pausa de más de 2 minutos no cuenta); se empezó a medir con esta versión.</p>`;
+  }
   function renderProgress() {
     if (!$('progSummary')) return;
     const crossTr = load(K.crossTr, []);
@@ -2570,7 +2589,7 @@
     // The practice counts every solve, the ones of a phase on its own too.
     const act = S.activity([...times, ...ltimes].sort((a, b) => a.at - b.at), trlog, crossTr);
     const empty = !times.length && !ltimes.length && !trlog.length && !crossTr.length;
-    ['progDaysPanel', 'progActPanel', 'progStepsPanel', 'progEffPanel', 'progCrossPanel', 'progCasesPanel'].forEach((id) => { $(id).hidden = empty; });
+    ['progDaysPanel', 'progActPanel', 'progPracticePanel', 'progStepsPanel', 'progEffPanel', 'progCrossPanel', 'progCasesPanel'].forEach((id) => { $(id).hidden = empty; });
     if (empty) {
       $('progSummary').innerHTML = '<p class="empty-note">Aún no hay nada que contar. Haz unos solves en el cronómetro (mejor con el cubo inteligente: así veo cada paso) o entrena unos casos, y aquí verás cómo vas.</p>';
       return;
@@ -2594,6 +2613,7 @@
       tile('Racha', `${act.streak} ${act.streak === 1 ? 'día' : 'días'}`, `la mejor, ${act.bestStreak}`),
     ] : [tile('Racha', `${act.streak} ${act.streak === 1 ? 'día' : 'días'}`, `la mejor, ${act.bestStreak}`)];
     $('progSummary').innerHTML = `<p class="fr-prog-lead">${lead.join(' ')}</p><div class="stats fr-prog-tiles">${tiles.join('')}</div>`;
+    renderPractice(crossTr);
 
     // ---- Day by day, and the milestones
     renderDayChart();
@@ -3340,6 +3360,7 @@
       ltimes: ltimes.map((r, i) => (i < lkeep && (r.rc || r.an) ? (({ rc, an, ...x }) => x)(r) : r)),
       deleted: load(K.deleted, []), learn, learnAt, train, crossTr: load(K.crossTr, []).slice(-300), trlog: trlog.slice(-3000),
       player: load(K.player, null), ligas: ligas(), sessions: load(K.sessions, []).slice(-100),
+      practice: window.Practice ? window.Practice.data() : {},
     };
   }
   function mergeIn(remote) {
@@ -3396,6 +3417,7 @@
     });
     trlog.sort((a, b) => a.at - b.at);
     if (trlog.length > 5000) trlog = trlog.slice(-5000);
+    if (window.Practice && window.Practice.merge(remote.practice)) changedHere = true;
     save(K.trlog, trlog);
     if (Array.isArray(remote.sessions)) {
       const mineS = load(K.sessions, []);
