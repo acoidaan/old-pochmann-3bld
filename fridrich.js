@@ -2646,8 +2646,9 @@
     if (!$('progSummary')) return;
     const crossTr = load(K.crossTr, []);
     const sm = S.summary(times);
-    const act = S.activity(times, trlog, crossTr);
-    const empty = !times.length && !trlog.length && !crossTr.length;
+    // The practice counts every solve, the ones of a phase on its own too.
+    const act = S.activity([...times, ...ltimes].sort((a, b) => a.at - b.at), trlog, crossTr);
+    const empty = !times.length && !ltimes.length && !trlog.length && !crossTr.length;
     ['progDaysPanel', 'progActPanel', 'progStepsPanel', 'progEffPanel', 'progCrossPanel', 'progCasesPanel'].forEach((id) => { $(id).hidden = empty; });
     if (empty) {
       $('progSummary').innerHTML = '<p class="empty-note">Aún no hay nada que contar. Haz unos solves en el cronómetro (mejor con el cubo inteligente: así veo cada paso) o entrena unos casos, y aquí verás cómo vas.</p>';
