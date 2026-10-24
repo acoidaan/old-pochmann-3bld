@@ -1,0 +1,40 @@
+# The checks for every change: ESLint, the browser suites (tests/e2e) and the accessibility audits (tests/a11y).
+# Vercel deploys each push to main by itself; to have it wait for these, turn on «Deployment Checks» in the
+# Vercel project, or work through pull requests with this check required.
+name: Pruebas
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: pruebas-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pruebas:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: tests
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tests/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run lint
+      - run: npm test
+      - run: npm run audit
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: capturas
+          path: tests/shots/
+          if-no-files-found: ignore
