@@ -139,6 +139,33 @@ const fakeWakeLock = () => {
     await ctx.close();
   }
 
+  // ---------- A phone on its side (iPhone 14: 750×340) ----------
+  for (const [label, url] of [['3BLD', `${SITE}/#crono`], ['Fridrich', `${SITE}/fridrich#crono`]]) {
+    const ctx = await browser.newContext({ ...devices['iPhone 14 landscape'] });
+    await ctx.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
+    await ctx.addInitScript(fakeWakeLock);
+    const p = await ctx.newPage();
+    p.on('pageerror', (e) => errs.push('landscape: ' + e.message));
+    await p.goto(url);
+    await p.waitForSelector('#focusOpen');
+    const tabs = await p.evaluate(() => document.getElementById('tabs').getBoundingClientRect().height);
+    await p.tap('#focusOpen');
+    await p.waitForFunction(() => document.getElementById('focusScr').textContent.trim().split(/\s+/).length > 10, null, { timeout: 40000 }).catch(() => {});
+    await wait(200);
+    const L = await p.evaluate(() => {
+      const box = (el) => { const r = el.getBoundingClientRect(); return { top: r.top, bottom: r.bottom }; };
+      const scr = box(document.getElementById('focusScr'));
+      const nw = box(document.getElementById('focusNew'));
+      const time = box(document.querySelector('.clock-time'));
+      const hint = box(document.querySelector('.focus-hint'));
+      return { scr, nw, time, hint, H: innerHeight, sw: document.documentElement.scrollWidth, W: innerWidth };
+    });
+    const apart = Math.max(L.scr.bottom, L.nw.bottom) <= L.time.top && L.time.bottom <= L.hint.top && L.hint.bottom <= L.H && L.sw <= L.W;
+    check(`landscape ${label}: competition mode, the scramble, the time and the hint one under the other; the menu below is slim`, apart && tabs <= 48, JSON.stringify({ ...L, tabs }));
+    await p.screenshot({ path: `${SHOTS}/focus-landscape-${label}.png` });
+    await ctx.close();
+  }
+
   console.log(results.join('\n'));
   console.log('page errors:', errs.length ? errs : 'none');
   console.log(`${results.filter((r) => r.startsWith('FAIL')).length} failed of ${results.length}`);

@@ -8,7 +8,7 @@ const VIEWS = ['practicar', 'crono', 'entrenar', 'aprender', 'tabla', 'retos', '
 (async () => {
   const browser = await chromium.launch();
   const report = { axe: {}, overflow: [], errors: [], console: [] };
-  for (const [w, h, scheme] of [[390, 844, 'light'], [390, 844, 'dark'], [1280, 900, 'light'], [1280, 900, 'dark'], [360, 740, 'dark']]) {
+  for (const [w, h, scheme] of [[390, 844, 'light'], [390, 844, 'dark'], [1280, 900, 'light'], [1280, 900, 'dark'], [360, 740, 'dark'], [750, 340, 'light']]) {
     const ctx = await browser.newContext({ viewport: { width: w, height: h }, colorScheme: scheme });
     const page = await ctx.newPage();
     page.on('pageerror', (e) => report.errors.push(`${w}${scheme}: ${e.message}`));

@@ -11,7 +11,7 @@ cd tests
 npm install
 npx playwright install chromium   # solo la primera vez
 
-npm test                  # las 18 suites (unas 550 comprobaciones, ~8 min)
+npm test                  # las 20 suites (unas 580 comprobaciones, ~7 min)
 npm test -- smart-cube    # solo las que tienen «smart-cube» en el nombre
 npm run audit             # accesibilidad y maquetación
 npm run lint              # ESLint de todo el repo (no se despliega: solo para desarrollo)
@@ -24,7 +24,7 @@ npm run shots             # vuelve a hacer las capturas de docs/img
 ✓ e2e/competition-mode.js · 18 comprobaciones · 6 s
 ✓ e2e/smart-cube.js · 69 comprobaciones · 46 s
 …
-✓ Todo bien: 18 suites, 548 comprobaciones (7.5 min)
+✓ Todo bien: 20 suites, 581 comprobaciones (6.5 min)
 ```
 
 Las capturas que hacen las suites (útiles para revisar a ojo) quedan en `tests/shots/`, que no se sube al repo.
@@ -40,7 +40,7 @@ Las capturas que hacen las suites (útiles para revisar a ojo) quedan en `tests/
 | `e2e/fridrich.js` | Fridrich reducido: cronómetro con Espacio y con el ratón, inspección, +2/DNF y borrar, el cubo (seguir el scramble, empezar al girar, parar al resolver), un solve CFOP entero con sus seis pasos y sus casos (I-Shape, Sune, Headlights, Ua), la ayuda en directo (que no vuelve atrás cuando un algoritmo o una pareja deshacen la cruz un momento, ni si haces el caso desde otro lado), la cruz más corta, sin crono, Casos y «Pruébalo» (los 16 casos con las dos mezclas acaban resueltos), los tres entrenadores («Ver el algoritmo» caso a caso: solo sale a la vista en los casos con el ojo activado, y cuenta aparte), el overlay, el plan B sin generador y el móvil. |
 | `e2e/principiante.js` | Aprende a resolver el cubo (`/principiante`): el método (300 cubos al azar resueltos con los 7 pasos, sin volver atrás; las reglas de cada paso: 1, 3 o 5 veces R U R' U', la T, la L detrás a la izquierda, como mucho 3 Sunes, los faros y el lado entero detrás), Aprender (los 7 pasos con sus dibujos y algoritmos, antes de empezar, «Ya me lo sé»), la solución de una mezcla paso a paso, el cronómetro, la ayuda en directo con el cubo (la mezcla giro a giro, el primer giro que arranca el reloj, a mitad de «R U R' U' ×3», un giro de más que espera y vuelve, el tiempo de cada paso), «Contra el reloj», Entrenar con el cubo (dejarlo en el paso, con y sin ayuda, «Me he perdido») y con uno normal, Progreso y sus metas, sincronizar, los enlaces desde las otras páginas y el móvil. |
 | `e2e/cube-pages.js` | El cubo entre secciones: con él conectado, un enlace a otra sección la abre encima con la misma conexión, los giros llegan a la de la pantalla y no a la dormida, un enlace dentro sigue en el marco, volver despierta la primera donde está el cubo, «atrás», «Desconectar» dentro la hace página, y sin cubo los enlaces navegan como siempre. |
-| `e2e/competition-mode.js` | Modo competición: pantalla completa, toda la pantalla como botón, Espacio/F/Esc, gesto de volver en Android, pantalla encendida. |
+| `e2e/competition-mode.js` | Modo competición: pantalla completa, toda la pantalla como botón, Espacio/F/Esc, gesto de volver en Android, pantalla encendida, y el iPhone 14 en horizontal (el scramble, el tiempo y la ayuda sin pisarse; el menú de abajo, fino). |
 | `e2e/history-theme-retos.js` | Historial con filtros y «Ver más», tema claro/oscuro, atajo del spoiler, quitar retos (también entre dispositivos sincronizados). |
 | `e2e/overlay-obs.js` | La app → obs-websocket (con contraseña) → overlay dentro de «OBS»: vista previa, ventana del overlay, contraseña incorrecta. |
 | `e2e/overlay-memo.js` | El memo en el overlay durante la ejecución: solo si es correcto, oculto con `memo=0`, guardado con el resultado. |

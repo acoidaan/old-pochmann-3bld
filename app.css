@@ -382,6 +382,21 @@ body.focus[data-timer="idle"] .focus-moves { bottom: calc(max(16px, env(safe-are
 /* While timing, nothing but the time. */
 body.focus:not([data-timer="idle"]) .focus-top,
 body.focus:not([data-timer="idle"]) .focus-bottom { visibility: hidden; }
+/* A phone on its side: «Salir», the scramble and «Nuevo scramble» in one row on top, the clock in the space
+   below, and the questions after a solve at the bottom. */
+@media (max-height: 500px) and (orientation: landscape) {
+  body.focus .view[data-view="crono"] > .panel {
+    gap: 6px; padding-top: max(10px, env(safe-area-inset-top, 0px)); padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
+  }
+  body.focus .focus-top { grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; justify-items: stretch; gap: 4px 14px; text-align: left; }
+  body.focus .focus-scr { max-width: none; font-size: 15px; line-height: 1.4; }
+  body.focus .clock { padding: 72px 0 76px; gap: 4px; }
+  body.focus .clock-time { font-size: clamp(48px, 30vh, 140px); }
+  body.focus .verdict { bottom: max(8px, env(safe-area-inset-bottom, 0px)); gap: 6px 10px; font-size: 15px; }
+  body.focus .verdict .btn { font-size: 15px; padding: 8px 14px; }
+  body.focus .focus-bottom { gap: 2px; }
+  body.focus[data-timer="idle"] .focus-moves { bottom: calc(max(8px, env(safe-area-inset-bottom, 0px)) + 44px); }
+}
 /* Smart cube: setup trainer and guided execution */
 .tr-how { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
 .tr-cubeline { display: grid; gap: 8px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--raise); }
@@ -829,6 +844,7 @@ body.focus:not([data-timer="idle"]) .focus-bottom { visibility: hidden; }
 /* ---------- Phones: menu at the bottom ---------- */
 @media (max-width: 860px) {
   body { padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
+  html { scroll-padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }   /* what scrolls into view, above the menu */
   .tabs {
     position: fixed; top: auto; left: 0; right: 0; bottom: 0; z-index: 30;
     display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 0;
@@ -853,6 +869,16 @@ body.focus:not([data-timer="idle"]) .focus-bottom { visibility: hidden; }
   .lesson-item .t { display: none; }
   .lesson-item .num { width: 32px; height: 32px; font-size: 13px; }
   .lesson-text { font-size: 15px; }
+}
+
+/* ---------- Phones on their side (an iPhone 14 leaves 340 px of height): the bottom menu, one slim row ---------- */
+@media (max-width: 860px) and (max-height: 500px) and (orientation: landscape) {
+  body { padding-bottom: calc(52px + env(safe-area-inset-bottom, 0px)); }
+  html { scroll-padding-bottom: calc(52px + env(safe-area-inset-bottom, 0px)); }
+  .tabs, .fr .tabs { padding-top: 3px; padding-bottom: calc(3px + env(safe-area-inset-bottom, 0px)); }
+  .tab { flex-direction: row; justify-content: center; gap: 6px; padding: 7px 4px; font-size: 12px; }
+  .tab svg { width: 18px; height: 18px; flex: none; }
+  .toast, .update-bar { bottom: calc(56px + env(safe-area-inset-bottom, 0px)); }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -884,6 +910,7 @@ img { max-width: 100%; }
   box-shadow: 0 6px 20px rgba(0, 0, 0, .25);
 }
 .cube-fab-tip[hidden] { display: none; }
+@media (max-width: 860px) and (max-height: 500px) and (orientation: landscape) { .cube-fab { padding: 8px 14px; font-size: 14px; } }
 
 /* smartcube.js: another section shown over this page, which lends it the smart cube's connection */
 html.sc-hosting, html.sc-hosting body { overflow: hidden; }

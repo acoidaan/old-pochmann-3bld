@@ -66,14 +66,14 @@ const keys = (d) => ({ 'cfop:times:v1': d.times, 'cfop:trlog:v1': d.trlog, 'cfop
   const exp = await p.evaluate(() => {
     const S = window.CfopStats; const F = window.Fridrich;
     const act = S.activity(F.times(), JSON.parse(localStorage.getItem('cfop:trlog:v1')), JSON.parse(localStorage.getItem('cfop:crosstr:v1')));
-    return { streak: act.streak, days90: S.daily(F.times()).filter((d) => d.ts >= S.dayStart(Date.now()) - 89 * 86400000).length, days30: S.daily(F.times()).filter((d) => d.ts >= S.dayStart(Date.now()) - 29 * 86400000).length, cells: act.cells.length };
+    return { week: S.summary(F.times()).week.n, streak: act.streak, days90: S.daily(F.times()).filter((d) => d.ts >= S.dayStart(Date.now()) - 89 * 86400000).length, days30: S.daily(F.times()).filter((d) => d.ts >= S.dayStart(Date.now()) - 29 * 86400000).length, cells: act.cells.length };
   });
   const prog = await p.evaluate(() => ({
     lead: document.querySelector('.fr-prog-lead').innerText,
     tiles: [...document.querySelectorAll('#progSummary .stat')].map((x) => x.innerText.replace(/\s+/g, ' ')),
     miles: document.getElementById('progMilestones').innerText.replace(/\s+/g, ' '),
   }));
-  check('progreso: in words (90 solves, the ao12 and how it changed)', /Llevas 90 solves/.test(prog.lead) && /Tu media de 12 es 42\.67: ▼ 3\.2 s mejor/.test(prog.lead) && /Esta semana: 14 solves/.test(prog.lead), prog.lead);
+  check('progreso: in words (90 solves, the ao12 and how it changed)', /Llevas 90 solves/.test(prog.lead) && /Tu media de 12 es 42\.67: ▼ 3\.2 s mejor/.test(prog.lead) && new RegExp(`Esta semana: ${exp.week} solves`).test(prog.lead) && exp.week >= 10, prog.lead);   // how many fall in this week depends on the hour the suite runs
   check('progreso: best single, ao5, ao12, now and the streak', /MEJOR SINGLE 38\.70/i.test(prog.tiles[0]) && /42\.13/.test(prog.tiles[1]) && /42\.67/.test(prog.tiles[2]) && new RegExp(`RACHA ${exp.streak} días`, 'i').test(prog.tiles[4]), JSON.stringify(prog.tiles));
   check('progreso: what to go for next and what you got', /Single por debajo de 35 s · te faltan 3\.7 s/.test(prog.miles) && /Single por debajo de 40 s/.test(prog.miles), prog.miles.slice(0, 200));
   // Time practised: the engine on a small known history (now: Wednesday 21 October 2026, at noon).

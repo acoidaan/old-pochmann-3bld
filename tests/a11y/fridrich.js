@@ -9,7 +9,7 @@ let problems = 0;
 const SOLVE = ["D R' F2 L", "U R U' R'", "U' F' U F", "L' U' L", "U B U' B'", "F R U R' U' F'", "R U R' U R U2 R'", "R U R' U' R' F R2 U' R' U' R U R' F'", "R U' R U R U R U' R' U' R2"];
 (async () => {
   const b = await chromium.launch();
-  const sizes = [['pixel7', { ...devices['Pixel 7'] }, 'light'], ['pixel7', { ...devices['Pixel 7'] }, 'dark'], ['1280', { viewport: { width: 1280, height: 900 } }, 'dark'], ['1280', { viewport: { width: 1280, height: 900 } }, 'light']];
+  const sizes = [['pixel7', { ...devices['Pixel 7'] }, 'light'], ['iphone14-landscape', { ...devices['iPhone 14 landscape'] }, 'dark'], ['pixel7', { ...devices['Pixel 7'] }, 'dark'], ['1280', { viewport: { width: 1280, height: 900 } }, 'dark'], ['1280', { viewport: { width: 1280, height: 900 } }, 'light']];
   for (const [label, opts, scheme] of sizes) {
     const ctx = await b.newContext({ ...opts, colorScheme: scheme });
     await ctx.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());

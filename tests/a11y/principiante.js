@@ -9,7 +9,7 @@ const axeSrc = fs.readFileSync(require.resolve('axe-core/axe.min.js'), 'utf8');
 let problems = 0;
 (async () => {
   const b = await chromium.launch();
-  const sizes = [['pixel7', { ...devices['Pixel 7'] }, 'light'], ['pixel7', { ...devices['Pixel 7'] }, 'dark'], ['1280', { viewport: { width: 1280, height: 900 } }, 'dark'], ['1280', { viewport: { width: 1280, height: 900 } }, 'light']];
+  const sizes = [['pixel7', { ...devices['Pixel 7'] }, 'light'], ['iphone14-landscape', { ...devices['iPhone 14 landscape'] }, 'dark'], ['pixel7', { ...devices['Pixel 7'] }, 'dark'], ['1280', { viewport: { width: 1280, height: 900 } }, 'dark'], ['1280', { viewport: { width: 1280, height: 900 } }, 'light']];
   const doNext = (p) => p.evaluate(() => {
     const c = window.Principiante.cube();
     const pl = window.Lbl.next(c.state);
