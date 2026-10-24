@@ -23,22 +23,22 @@ npm run lint                          # ESLint de todo el repo (config en eslint
 
 - `run.js` levanta su propio servidor en los puertos 8793 (con generador de scrambles) y 8792 (sin él). Si dejaste un `node server.js` en marcha, páralo antes o choca el puerto.
 - En las sesiones en la nube, `.claude/hooks/session-start.sh` instala las dependencias de `tests/` y deja `PLAYWRIGHT_BROWSERS_PATH` apuntando a un Chromium que acepta el Playwright fijado: no hace falta `npx playwright install`.
-- En las sesiones en la nube, «offline generator» de `e2e/fridrich.js` falla también sin cambios: es el entorno.
 
 ## Cosas fáciles de romper
 
 - **Archivos nuevos del front:** añádelos a `ASSETS` en `build.js`. Así se versionan y el service worker los guarda para usarlos sin conexión. Una página nueva va además en `PAGES` (`build.js`), en `SHELL` y en la ruta de navegación de `sw.js`, y en `rewrites` de `vercel.json`.
 - **Datos:** todo vive en `localStorage`. Fridrich usa las claves `cfop:*`, 3BLD usa `op3bld:*` y principiante usa las suyas. Lo que se sincroniza entre dispositivos tiene que entrar en `syncData()` y en `mergeIn()`. Se fusiona por `at`, y lo editado lleva `ed` (gana el más nuevo).
 - **Fridrich, tiempos:** los solves completos van en `times` y los de una fase (última capa o solo PLL, `r.m`) en `ltimes`. Los récords, el ranking, la gráfica y el ritmo solo usan `times`. Las notas de cada tiempo van en `r.no`.
-- **Cubo inteligente:** 3BLD usa `cube.js`; Fridrich y principiante usan `smartcube.js`. `cubefab.js` es el botón flotante «Conectar cubo» de las tres páginas. Web Bluetooth se corta al cambiar de página, porque cada sección es un documento distinto.
+- **Cubo inteligente:** la conexión es `smartcube.js` en las tres páginas; `cube.js` es lo de 3BLD encima de ella (intentos, DNF, guía, cubo virtual con atajos). `cubefab.js` es el botón flotante «Conectar cubo» de las tres páginas. Cada sección es un documento distinto y Web Bluetooth se corta con la página, así que con el cubo conectado `smartcube.js` no navega: abre la otra sección en un iframe encima (`.sc-frame`), le presta la conexión y duerme; volver a su sección quita el iframe. Si el cubo se va o se desconecta desde el iframe, esa sección pasa a ser la página.
 - **Overlay de OBS** (`overlay.html`): tiene datos de ejemplo con `?demo=1&modo=cfop&phase=done&learn=setup|solving|question|answered|result&layout=esquinas|derecha|izquierda&casos=N`. Tiene que caber en 1920×1080.
 - **Almacén del servidor:** Redis de Upstash (`KV_REST_API_URL` / `KV_REST_API_TOKEN`) o, si no hay, Vercel Blob. Lo elige `api/_kv.js`.
 
 ## Dónde está cada cosa
 
-- **Seguir una secuencia con el cubo** (scramble, setup del entrenador): `follow.js` (`window.CubeFollow`: `makeFollow`, `locate`, `followMove`, `done`), que usan Fridrich y principiante. 3BLD tiene los suyos en `cube.js`.
-- **Eventos del cubo:** `smartcube.js` (`onEvent`, `onMove`, `onFacelets`) llama a los `onMove` y `onState(st, at)` de `SmartCube.start({...})` en `fridrich.js` y `principiante.js`. Con el cubo 700 ms quieto pide `REQUEST_FACELETS` para recuperar un giro perdido; `at` es la hora del último giro oído.
-- **Final:** solve completo, `stopRun` al quedar `isSolved`; entrenar casos, `trMove`; entrenar cruz, `ctMove` (los dos en `fridrich.js`).
+- **Seguir una secuencia con el cubo** (scramble, setup del entrenador): `follow.js` (`window.CubeFollow`: `makeFollow`, `locate`, `followMove`, `done`), que usan las tres páginas; las rutas del entrenador y la guía de 3BLD (`makePath` en `cube.js`) usan sus `partialKeys` y `opposite`.
+- **Eventos del cubo:** `smartcube.js` (`onEvent`, `onMove`, `onFacelets`) llama a los `onMove(mv, st, t, ct)`, `onState(st, at)` y `onFacelets(st)` de `SmartCube.start({...})` en `fridrich.js`, `principiante.js` y `cube.js`. Con el cubo 700 ms quieto pide `REQUEST_FACELETS` para recuperar un giro perdido; `at` es la hora del último giro oído.
+- **Final:** solve completo, `stopRun` al quedar `isSolved` (con `SmartCube.cubeClock` si el cubo da su hora, `ct`); entrenar casos, `trMove`; entrenar cruz, `ctMove` (los dos en `fridrich.js`).
+- **Tiempo practicado:** `S.practiceTime` en `cfopstats.js` (las cuentas) y `practice.js` (el tiempo real en la página, `cfop:practice:v1`, por dispositivo).
 - **No leas `vendor/gan-web-bluetooth-3.0.2.js`:** está minificado en líneas enormes y una sola búsqueda gasta muchísimo. Lo útil: los giros traen `serial` y `localTimestamp` (null si vienen del historial del cubo), y un giro perdido solo se recupera al llegar el siguiente o, en Gen3/Gen4, al llegar un FACELETS más de 500 ms después del último giro.
 
 ## Estilos
@@ -49,5 +49,4 @@ npm run lint                          # ESLint de todo el repo (config en eslint
 
 ## Ideas pendientes
 
-- Un apartado «Tiempo practicado»: hoy, la semana, el mes y en total, separado por solves completos, fases, entrenar casos y sesiones, y contando el tiempo real de práctica además del cronometrado.
-- Que el Bluetooth no se corte al pasar entre 3BLD, Fridrich y principiante: una página contenedora que mantenga la conexión y cargue cada sección dentro.
+- Ninguna apuntada ahora mismo.

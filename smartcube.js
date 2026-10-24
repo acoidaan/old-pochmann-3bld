@@ -290,8 +290,10 @@
       if (!link) return;
       cube.queue = cube.queue.then(() => link.sendCubeCommand({ type })).catch(() => {});
     }
-    function attach(link, kind) {
+    // borrowed: the connection is another page's (see «Keeping the cube between sections»): never closed here.
+    function attach(link, kind, borrowed) {
       detach(true);
+      cube.borrowed = !!borrowed;
       cube.link = link; cube.kind = kind; cube.name = link.deviceName || 'Cubo'; cube.hw = ''; cube.battery = null; cube.state = null;
       cube.serial = null; cube.lastAt = 0;
       cube.sub = link.events$.subscribe(onEvent);
@@ -312,7 +314,8 @@
       const link = cube.link;
       if (cube.sub) { try { cube.sub.unsubscribe(); } catch (e) { /* closed */ } }
       cube.sub = null; cube.link = null; cube.state = null;
-      if (link) { try { Promise.resolve(link.disconnect()).catch(() => {}); } catch (e) { /* gone */ } }
+      if (link && !cube.borrowed) { try { Promise.resolve(link.disconnect()).catch(() => {}); } catch (e) { /* gone */ } }
+      cube.borrowed = false;
       if (!quiet) setStatus('off');
     }
     function badData() {
@@ -331,6 +334,7 @@
           if (cube.link) {
             detach();
             say('Se ha desconectado el cubo. Si se ha dormido, gíralo y vuelve a conectarlo.', 'ko');
+            if (frame) leave();   // nothing left to lend: the section on screen becomes the page
           }
           break;
         default: break;
@@ -348,6 +352,7 @@
       if (cube.status !== 'on') { setStatus('on'); say(''); }
       renderBar();
       // With the time of the last turn heard: a lost one may have been what solved the cube.
+      if (frame) return;   // lent to the section on screen: this page sleeps
       if (o.onFacelets) o.onFacelets(st, changed);
       if (changed && o.onState) o.onState(st, cube.lastAt);
     }
@@ -366,13 +371,109 @@
       // the cube stays still, ask it how it is.
       clearTimeout(cube.idle);
       cube.idle = setTimeout(() => request('REQUEST_FACELETS'), 700);
-      if (o.onMove) o.onMove(m.text, cube.state, cube.lastAt, ev.cubeTimestamp == null ? null : ev.cubeTimestamp);
+      if (o.onMove && !frame) o.onMove(m.text, cube.state, cube.lastAt, ev.cubeTimestamp == null ? null : ev.cubeTimestamp);
       renderBar();
+    }
+
+    // ================= Keeping the cube between sections =================
+    // Each section (3BLD, Fridrich, principiante) is its own document, and a Bluetooth connection ends with
+    // its page. So with the cube connected, a link to another section does not leave: this page opens it in
+    // a frame over itself and lends it the connection (it sleeps meanwhile), and coming back to this section
+    // takes the frame away. If the cube goes, or is disconnected, the section on screen becomes the page.
+    const SECTIONS = { '/': /^\/(index\.html)?$/, '/fridrich': /^\/fridrich(\.html)?$/, '/principiante': /^\/principiante(\.html)?$/ };
+    const sectionOf = (href) => {
+      let u;
+      try { u = new URL(href, location.href); } catch (e) { return null; }
+      if (u.origin !== location.origin) return null;
+      return Object.keys(SECTIONS).find((k) => SECTIONS[k].test(u.pathname)) || null;
+    };
+    const home = sectionOf(location.href);
+    const ownTitle = document.title;
+    let frame = null;
+    // The page that lends this one its cube, if this page is in its frame.
+    const lender = (() => {
+      try {
+        const h = window.parent !== window && window.parent.SmartCube && window.parent.SmartCube.host;
+        return h && h.link() ? h : null;
+      } catch (e) { return null; }
+    })();
+    const frameUrl = () => { try { return frame.contentWindow.location.href; } catch (e) { return location.href; } };
+    function show(url) {
+      if (sectionOf(url) === home) {
+        if (!frame) return;
+        frame.remove();
+        frame = null;
+        document.documentElement.classList.remove('sc-hosting');
+        document.title = ownTitle;
+        // Awake again: where the cube is now (turned in the other section).
+        if (cube.link) request('REQUEST_FACELETS');
+        if (cube.state && o.onState) o.onState(cube.state);
+        return;
+      }
+      if (!frame) {
+        frame = document.createElement('iframe');
+        frame.className = 'sc-frame';
+        frame.title = 'Sección';
+        // What the sections use: competition mode (full screen, screen on), copying, and the cube itself.
+        frame.allow = 'fullscreen; screen-wake-lock; clipboard-write; bluetooth';
+        frame.allowFullscreen = true;
+        frame.addEventListener('load', () => { try { frame.contentWindow.focus(); } catch (e) { /* elsewhere */ } });
+        frame.src = url;
+        document.body.appendChild(frame);
+        document.documentElement.classList.add('sc-hosting');
+      } else {
+        try { frame.contentWindow.location.replace(url); } catch (e) { frame.src = url; }
+      }
+      try { frame.focus(); } catch (e) { /* not yet */ }
+    }
+    function go(url) {
+      history.pushState({ sc: 1 }, '', url);
+      show(url);
+    }
+    function leave() {
+      const url = frame ? frameUrl() : location.href;
+      if (cube.link) detach(true);
+      // The address bar may already say that section (it follows the frame): load it for real.
+      history.replaceState(null, '', url);
+      location.reload();
+    }
+    window.addEventListener('popstate', () => { if (frame || sectionOf(location.href) !== home) show(location.href); });
+    document.addEventListener('click', (ev) => {
+      if (ev.defaultPrevented || ev.button !== 0 || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey) return;
+      const a = ev.target.closest && ev.target.closest('a[href]');
+      if (!a || (a.target && a.target !== '_self') || a.hasAttribute('download')) return;
+      const to = sectionOf(a.href);
+      if (!to || to === home) return;
+      if (lender) { ev.preventDefault(); lender.go(a.href); return; }
+      if (cube.status !== 'on' || !cube.link || cube.borrowed) return;
+      ev.preventDefault();
+      go(a.href);
+    });
+    if (window.SmartCube) {
+      window.SmartCube.host = {
+        link: () => (frame && cube.status === 'on' ? cube.link : null),
+        kind: () => cube.kind,
+        go,
+        // The section in the frame moved (its own views, #crono…): the address bar and the title follow it.
+        sync: (url, title) => { if (frame) { history.replaceState(history.state, '', url); if (title) document.title = title; } },
+        leave,
+      };
+    }
+    if (lender) {
+      const tell = () => lender.sync(location.href, document.title);
+      window.addEventListener('hashchange', tell);
+      window.addEventListener('pagehide', () => { if (cube.borrowed) detach(true); });
+      setTimeout(tell, 0);
     }
 
     $('cubeConnect').addEventListener('click', () => { unlockAudio(); connect(); });
     $('cubeSim').addEventListener('click', () => { unlockAudio(); say(''); attach(virtualLink(), 'sim'); });
-    $('cubeOff').addEventListener('click', () => { if (macWaiting) macWaiting(); detach(); say(''); });
+    $('cubeOff').addEventListener('click', () => {
+      if (macWaiting) macWaiting();
+      if (cube.borrowed && lender) { lender.leave(); return; }   // the lender's connection: it ends there
+      detach();
+      say('');
+    });
     $('cubeSync').addEventListener('click', () => {
       if (!cube.link) return;
       request('REQUEST_RESET');
@@ -384,6 +485,9 @@
     });
     if (navigator.bluetooth) setTimeout(() => loadLib().catch(() => {}), 1200);
     renderBar();
+    // Once the page has finished starting (its scripts run after this one).
+    const borrow = () => { if (lender.link()) attach(lender.link(), lender.kind(), true); };
+    if (lender) { if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', borrow); else setTimeout(borrow, 0); }
 
     return {
       get state() { return cube.state; },
