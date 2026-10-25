@@ -142,7 +142,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await turn(`${wrongG}'`);
   await turn(algMoves.slice(5).join(' '));
   gs = await g();
-  check('guide: algorithm done → next step', gs.i === k + 1, String(gs.i));
+  check('guide: algorithm done → next step', gs.i === k + 1, `${gs.i} k=${k} steps=${JSON.stringify(steps.slice(0, k + 4))} :: ${gs.cube}`);
   // Close, do two more steps by hand, reopen: it finds where the cube is.
   await p.click('#guideClose');
   await turn(steps.slice(k + 1, k + 3).join(' '));
