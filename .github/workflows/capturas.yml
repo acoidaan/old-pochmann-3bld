@@ -1,0 +1,42 @@
+# The screenshots in docs/img (tests/docs-shots.js), taken again on demand: Actions → Capturas → Run workflow.
+# They change from one run to the next (other scrambles), so this never runs on its own: only when the look of
+# the app has changed. It commits them to the branch it runs on if they differ.
+name: Capturas
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: capturas-${{ github.ref }}
+
+jobs:
+  capturas:
+    name: Capturas del README
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: tests
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tests/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run shots
+      - name: Subirlas
+        working-directory: .
+        run: |
+          git add docs/img
+          if git diff --cached --quiet; then echo "Las capturas no han cambiado."; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Capturas del README al día" -m "Hechas otra vez con npm run shots desde la Action «Capturas»."
+          git pull --rebase origin "${{ github.ref_name }}"
+          git push origin "HEAD:${{ github.ref_name }}"

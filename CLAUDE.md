@@ -5,7 +5,7 @@ App web de cubo de Rubik de Aco: 3BLD con Old Pochmann (`/`), Fridrich reducido 
 ## Forma de trabajar
 
 - Habla con Aco en español. Los textos de la app, en español de España; los comentarios del código, en inglés.
-- Cada push a `main` despliega solo en Vercel. Antes de subir, pasa las suites que toque (ver abajo). Después, comprueba que el despliegue queda `READY` y que la GitHub Action «Pruebas» (`.github/workflows/pruebas.yml`: lint, todas las suites y la auditoría) sale en verde.
+- Cada push a `main` despliega solo en Vercel. Antes de subir, pasa las suites que toque (ver abajo). Después, comprueba que el despliegue queda `READY` y que la GitHub Action «Pruebas» (`.github/workflows/pruebas.yml`: lint y suites + auditoría en 4 partes a la vez) sale en verde: su último trabajo, «Todo bien», resume todo.
 - Commits en español: un título corto y un cuerpo que explique el qué y el porqué.
 - Un cambio visible lleva su comprobación en una suite de `tests/e2e/` (y una línea en la tabla de `tests/README.md` si es una suite nueva). Mira también el móvil (Pixel 7) y el iPhone 14 en horizontal (750×340, poca altura): nada de scroll horizontal ni cosas que se pisen.
 - Sin frameworks ni empaquetador. HTML, CSS y JS a mano.
@@ -22,6 +22,8 @@ npm run lint                          # ESLint de todo el repo (config en eslint
 ```
 
 - `run.js` levanta su propio servidor en los puertos 8793 (con generador de scrambles) y 8792 (sin él). Si dejaste un `node server.js` en marcha, páralo antes o choca el puerto.
+- La Action reparte las suites con `--shard` según `tests/durations.json`; una suite nueva que tarde más de ~20 s, apúntala ahí con lo que tarda en la Action.
+- Las capturas del README (`docs/img`) no se rehacen solas: si cambias el aspecto de algo que sale en ellas, lanza la Action «Capturas» (o `npm run shots` y súbelas).
 - En las sesiones en la nube, `.claude/hooks/session-start.sh` instala las dependencias de `tests/` y deja `PLAYWRIGHT_BROWSERS_PATH` apuntando a un Chromium que acepta el Playwright fijado: no hace falta `npx playwright install`.
 
 ## Cosas fáciles de romper

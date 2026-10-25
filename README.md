@@ -353,7 +353,7 @@ flowchart LR
 | `api/` | Funciones de Vercel: retos, sincronización, ligas de amigos (la lógica, en `_reto.js`, `_sync.js` y `_liga.js` sobre el almacén de `_kv.js`, la usan también las pruebas), imágenes de vista previa y enlaces cortos. |
 | `vendor/` | gan-web-bluetooth empaquetado ([cómo se genera](vendor/README.md)). |
 | `tests/` | Pruebas en navegador y auditorías de accesibilidad ([cómo se ejecutan](tests/README.md)). |
-| `docs/img/` | Las capturas de este README (se regeneran con `npm run shots`). |
+| `docs/img/` | Las capturas de este README (se regeneran con `npm run shots` o con la Action «Capturas»). |
 
 ### Módulos y eventos
 
@@ -444,14 +444,14 @@ Hace falta Node 18 o superior. No hay que instalar nada para la app en sí.
 node build.js                    # genera public/
 cd tests && npm install
 node server.js                   # sirve public/ con una API falsa en http://localhost:8793
-npm test                         # todas las pruebas (unas 550 comprobaciones)
+npm test                         # todas las pruebas (unas 580 comprobaciones)
 ```
 
 `tests/server.js` usa la lógica de verdad de la API sobre el almacén en memoria, así que retos, sincronización y ligas funcionan en local sin Vercel. Con `vercel dev` se prueba la API de verdad.
 
 **Despliegue.** Cada push a `main` se despliega solo en Vercel: instala `package.json` (`@vercel/blob`, `@vercel/og`, `cubejs`), ejecuta `node build.js` y publica `public/` y `api/`. Hace falta un almacén conectado al proyecto: Redis de Upstash desde el Marketplace (Storage → Upstash for Redis, plan gratis, con el prefijo de variables por defecto, `KV_`) o Vercel Blob; sin ninguno, la app funciona igual pero sin retos, sincronización ni ranking. `vercel.json` sirve `cubejs` desde jsDelivr en el mismo dominio (para el generador sin conexión), traduce `/r/:id` a `/api/r`, sirve `/fridrich` y `/principiante` desde sus páginas y fija las cabeceras de caché de `sw.js` y `vendor/`.
 
-**Pruebas.** Dieciocho suites en Chromium con Playwright (unas 550 comprobaciones) y cinco auditorías con axe-core; ver [tests/README.md](tests/README.md).
+**Pruebas.** Veinte suites en Chromium con Playwright (unas 580 comprobaciones) y cinco auditorías con axe-core. La GitHub Action «Pruebas» las pasa en cada push, repartidas en 4 partes a la vez, y «Capturas» rehace las de este README cuando se lanza a mano; ver [tests/README.md](tests/README.md).
 
 ## Créditos y licencias
 

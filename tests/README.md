@@ -16,6 +16,7 @@ npm test -- smart-cube    # solo las que tienen «smart-cube» en el nombre
 npm run audit             # accesibilidad y maquetación
 npm run lint              # ESLint de todo el repo (no se despliega: solo para desarrollo)
 npm run shots             # vuelve a hacer las capturas de docs/img
+node run.js --all --shard=2/4   # la parte 2 de 4 de suites + auditorías, como en la GitHub Action
 ```
 
 `run.js` construye la web en `../public` con `build.js`, la sirve con una API falsa en dos puertos y lanza cada suite en su propio proceso. Al final dice cuántas comprobaciones han pasado; si algo falla, enseña qué y sale con código 1.
@@ -28,6 +29,11 @@ npm run shots             # vuelve a hacer las capturas de docs/img
 ```
 
 Las capturas que hacen las suites (útiles para revisar a ojo) quedan en `tests/shots/`, que no se sube al repo.
+
+## En GitHub
+
+- **«Pruebas»** (`.github/workflows/pruebas.yml`), en cada push a `main` y en cada pull request: ESLint por un lado y las suites con las auditorías repartidas en 4 partes que corren a la vez (unos 3 min en vez de 10). `--shard` reparte con los segundos de `durations.json`, medidos en la Action, para que las partes tarden lo mismo; una suite nueva cuenta 20 s hasta que la apuntes ahí. El último trabajo, **«Todo bien»**, solo pasa si ha pasado todo: es el check que hay que exigir (en los «Deployment Checks» de Vercel o en una rama protegida). Si algo falla, las capturas de esa parte quedan en la ejecución como `capturas-N`.
+- **«Capturas»** (`.github/workflows/capturas.yml`), solo a mano (Actions → Capturas → Run workflow): hace `npm run shots` y sube las capturas de `docs/img` a la rama. No va sola porque cada vez salen scrambles distintos y habría un commit de imágenes en cada push: lánzala cuando cambie el aspecto de lo que sale en ellas.
 
 ## Qué comprueba cada suite
 
