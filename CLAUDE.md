@@ -5,7 +5,7 @@ App web de cubo de Rubik de Aco: 3BLD con Old Pochmann (`/`), Fridrich reducido 
 ## Forma de trabajar
 
 - Habla con Aco en español. Los textos de la app, en español de España; los comentarios del código, en inglés.
-- Cada push a `main` despliega solo en Vercel. Antes de subir, pasa las suites que toque (ver abajo). Después, comprueba que el despliegue queda `READY` y que la GitHub Action «Pruebas» (`.github/workflows/pruebas.yml`: lint y suites + auditoría en 4 partes a la vez) sale en verde: su último trabajo, «Todo bien», resume todo.
+- Cada push a `main` se construye solo en Vercel, pero no llega a producción hasta que la GitHub Action «Pruebas» (`.github/workflows/pruebas.yml`: lint y suites + auditoría en 4 partes a la vez) sale en verde: su último trabajo, «Todo bien», es el Deployment Check del proyecto. Antes de subir, pasa las suites que toque (ver abajo). Después, comprueba que «Todo bien» pasa y que el despliegue queda `READY` y publicado. Si cambias el nombre de ese trabajo, hay que cambiarlo también en Vercel (Settings → Build and Deployment → Deployment Checks).
 - Commits en español: un título corto y un cuerpo que explique el qué y el porqué.
 - Un cambio visible lleva su comprobación en una suite de `tests/e2e/` (y una línea en la tabla de `tests/README.md` si es una suite nueva). Mira también el móvil (Pixel 7) y el iPhone 14 en horizontal (750×340, poca altura): nada de scroll horizontal ni cosas que se pisen.
 - Sin frameworks ni empaquetador. HTML, CSS y JS a mano.

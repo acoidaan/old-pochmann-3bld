@@ -1,7 +1,7 @@
 # The checks for every change: ESLint, and the browser suites (tests/e2e) with the accessibility audits
 # (tests/a11y) split into 4 parts that run at the same time (run.js --shard, balanced with tests/durations.json).
-# «Todo bien» passes only when all of them did: it is the one check to require, in Vercel's «Deployment Checks»
-# (so production waits for it) or on a protected branch.
+# «Todo bien» passes only when all of them did: it is the project's Deployment Check in Vercel, so production
+# waits for it. Renaming that job means changing it there too.
 name: Pruebas
 
 on:
