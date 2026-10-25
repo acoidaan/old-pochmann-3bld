@@ -251,8 +251,23 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     // ---- Stopped a moment before the last turn arrived ----
     await setMemo(p, '', '');
     for (const variant of ['move', 'facelets']) {
-      await fresh(p, 18);
-      const pl5 = await plan(p);
+      // Only a solution that solves the cube with its very last turn: some pass through solved a couple of
+      // turns earlier (an algorithm ending in R, then the last setup R undone), and there the cube itself
+      // stops the clock, as it should, and the press that follows is ignored.
+      let pl5;
+      for (let k = 0; k < 8; k++) {
+        await fresh(p, 18);
+        pl5 = await plan(p);
+        const once = await p.evaluate((toks) => {
+          const O = window.OP3;
+          const M = window.CubeModel;
+          const mv = O.parseAlg(toks.map((t) => O.tokenAlg(t)).join(' ')).map((m) => m.text);
+          const home = M.solved().join(',');
+          let held = O.cube.link.state();   // as held: the wide turns of the setups move the centres
+          return mv.slice(0, -1).every((m) => M.norm(held = M.apply(held, m)).join(',') !== home);
+        }, pl5.toks);
+        if (once) break;
+      }
       const n0 = (await view(p)).n;
       await space(p);
       await wait(100);
