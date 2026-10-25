@@ -27,9 +27,9 @@ function start({ root, port, cubejs = true }) {
   const server = http.createServer(async (req, res) => {
     const u = new URL(req.url, 'http://x');
     const send = (status, obj) => { res.writeHead(status, { 'content-type': 'application/json' }); res.end(JSON.stringify(obj)); };
-    const file = (f) => {
+    const file = (f, headers) => {
       if (!f || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { res.writeHead(404); res.end('no'); return; }
-      res.writeHead(200, { 'content-type': TYPES[path.extname(f)] || 'application/octet-stream' });
+      res.writeHead(200, { 'content-type': TYPES[path.extname(f)] || 'application/octet-stream', ...headers });
       fs.createReadStream(f).pipe(res);
     };
     let body = null;
@@ -63,8 +63,9 @@ function start({ root, port, cubejs = true }) {
     }
     if (u.pathname.startsWith('/cubejs/')) return file(cubejs && CUBEJS ? path.join(CUBEJS, path.basename(u.pathname)) : null);
     if (u.pathname.startsWith('/fonts/')) {
+      // Asked for from the other port too (env.js FONTS_CSS): a font from another origin needs CORS.
       const name = path.basename(u.pathname);
-      return file(FONT_DIRS.map((d) => path.join(d, name)).find((f) => fs.existsSync(f)));
+      return file(FONT_DIRS.map((d) => path.join(d, name)).find((f) => fs.existsSync(f)), { 'access-control-allow-origin': '*' });
     }
     if (u.pathname === '/wrap.html') return file(path.join(FIXTURES, 'wrap.html'));
     if (u.pathname === '/fridrich') return file(path.join(root, 'fridrich.html'));   // like the rewrite in vercel.json
