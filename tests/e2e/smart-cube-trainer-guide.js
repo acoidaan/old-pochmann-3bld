@@ -104,11 +104,32 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await p.click('#cubeSync');
   await wait(100);
   await p.evaluate(() => window.OP3.showView('practicar'));
-  const scr = await p.evaluate(() => window.OP3.randomMoveScramble(16));
-  await p.evaluate((x) => { const el = document.getElementById('scr'); el.value = x; el.dispatchEvent(new Event('input')); }, scr);
-  const memo = await p.evaluate(() => { const m = window.OP3.optimalMemo(); return { e: window.OP3.pairs(m.edges.letters), c: window.OP3.pairs(m.corners.letters) }; });
-  await p.evaluate(([e, c]) => { for (const [id, v] of [['memoE', e], ['memoC', c]]) { const el = document.getElementById(id); el.value = v; el.dispatchEvent(new Event('input')); } }, [memo.e, memo.c]);
-  await p.click('#guideOpen');
+  // A scramble whose guided solution doesn't pass the same state twice in the steps checked below: where it
+  // does (one letter's undo and the next one's setup cancelling out), the guide rightly takes the furthest of
+  // the two spots, which is not the step counted here.
+  let scr;
+  for (let t = 0; t < 10; t++) {
+    if (t) await p.click('#guideClose');
+    scr = await p.evaluate(() => window.OP3.randomMoveScramble(16));
+    await p.evaluate((x) => { const el = document.getElementById('scr'); el.value = x; el.dispatchEvent(new Event('input')); }, scr);
+    const memo = await p.evaluate(() => { const m = window.OP3.optimalMemo(); return { e: window.OP3.pairs(m.edges.letters), c: window.OP3.pairs(m.corners.letters) }; });
+    await p.evaluate(([e, c]) => { for (const [id, v] of [['memoE', e], ['memoC', c]]) { const el = document.getElementById(id); el.value = v; el.dispatchEvent(new Event('input')); } }, [memo.e, memo.c]);
+    await p.click('#guideOpen');
+    const once = await p.evaluate((s) => {
+      const O = window.OP3;
+      const M = window.CubeModel;
+      const st = O.guideApi.steps().filter((x) => !x.end).map((x) => (x.isAlg ? x.seq : x.move));
+      let a = 1;
+      while (a < st.length && st[a].split(' ').length < 3) a++;
+      let held = M.apply(M.solved(), s);   // as held: the wide turns of the setups move the centres
+      const seen = new Set([M.norm(held).join(',')]);
+      return O.parseAlg(st.slice(0, a + 5).join(' ')).every((m) => {
+        const key = M.norm(held = M.apply(held, m.text)).join(',');
+        return !seen.has(key) && seen.add(key);
+      });
+    }, scr);
+    if (once) break;
+  }
   const g = () => p.evaluate(() => ({
     i: window.OP3.guideApi.index(), n: window.OP3.guideApi.steps().length,
     cube: document.getElementById('guideCube').hidden ? null : document.getElementById('guideCube').textContent,
