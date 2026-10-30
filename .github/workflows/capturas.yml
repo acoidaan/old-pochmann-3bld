@@ -15,7 +15,7 @@ concurrency:
 jobs:
   capturas:
     name: Capturas del README
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # as in pruebas.yml: the pinned Playwright can't install Chromium on 26.04
     timeout-minutes: 15
     defaults:
       run:

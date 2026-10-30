@@ -34,7 +34,8 @@ jobs:
 
   pruebas:
     name: Parte ${{ matrix.parte }} de 4
-    runs-on: ubuntu-latest
+    # Not ubuntu-latest: since it became 26.04, the pinned Playwright (1.56.1) can't install Chromium there.
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     strategy:
       fail-fast: false
