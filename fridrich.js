@@ -109,6 +109,7 @@
     // Learning (Casos, Entrenar) looks different from the timer; a training session takes over Entrenar.
     document.body.dataset.mode = name === 'entrenar' || name === 'casos' ? 'learn' : 'time';
     if (typeof renderMode2 === 'function') renderMode2();
+    holdScreen(screenWanted());
     emit('view', name);
     try { history.replaceState(null, '', `${location.pathname}${location.search}#${name}`); } catch (e) { /* sandboxed */ }
     if (changed) { try { window.scrollTo(0, 0); } catch (e) { /* no layout */ } }
@@ -389,7 +390,7 @@
   function setPhase(p) {
     timer.phase = p;
     document.body.dataset.timer = p === 'run' || p === 'inspect' || p === 'ihold' || p === 'iready' ? 'run' : 'idle';
-    if (typeof holdScreen === 'function') holdScreen(focus.on || p === 'run' || p === 'inspect');
+    holdScreen(screenWanted());
     renderClock();
     emit('timer', timerState());
   }
@@ -2323,6 +2324,7 @@
   function applySession() {
     const on = !!session;
     document.body.classList.toggle('training', on && view === 'entrenar');
+    holdScreen(screenWanted());
     $('sessBar').hidden = !on;
     $('sessPanel').hidden = !on;
     clearInterval(sessTick);
@@ -2982,6 +2984,11 @@
       }).catch(() => { screenLock.asking = false; });
     } catch (e) { screenLock.asking = false; }
   }
+  // Kept on while the clock runs, in competition mode and in a training session on screen (case after case
+  // without touching the phone); not with the session left waiting in another tab.
+  function screenWanted() {
+    return focus.on || timer.phase === 'run' || timer.phase === 'inspect' || (!!session && view === 'entrenar');
+  }
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && screenLock.want) holdScreen(true); });
   function renderFocus() {
     if (!focus.on) return;
@@ -3015,7 +3022,7 @@
     if (focus.on === on) return;
     focus.on = on;
     document.body.classList.toggle('focus', on);
-    holdScreen(on || timer.phase === 'run');
+    holdScreen(screenWanted());
     if (on) {
       if (view !== 'crono') showView('crono');
       renderFocus();

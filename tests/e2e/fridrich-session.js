@@ -17,6 +17,15 @@ const keys = (d) => ({ 'cfop:times:v1': d.times, 'cfop:trlog:v1': d.trlog, 'cfop
   const open = async (opts, data, hash) => {
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, ...opts });
     await ctx.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
+    // The screen wake lock, by hand: what the page asked for and let go of.
+    await ctx.addInitScript(() => {
+      window.__wake = [];
+      const lock = () => {
+        const fns = [];
+        return { addEventListener: (t, f) => fns.push(f), release() { window.__wake.push('release'); fns.forEach((f) => f()); return Promise.resolve(); } };
+      };
+      Object.defineProperty(navigator, 'wakeLock', { configurable: true, value: { request: () => { window.__wake.push('request'); return Promise.resolve(lock()); } } });
+    });
     if (data) {
       await ctx.addInitScript((x) => {
         if (sessionStorage.getItem('seeded')) return;
@@ -132,11 +141,24 @@ const keys = (d) => ({ 'cfop:times:v1': d.times, 'cfop:trlog:v1': d.trlog, 'cfop
   const back = await p.evaluate(() => ({ n: window.Fridrich._.session() && window.Fridrich._.session().n, bar: !document.getElementById('sessBar').hidden, cards: document.querySelectorAll('#sessSet .fr-sc').length }));
   check('reload: the session goes on where it was', back.n === n1 && back.bar && back.cards === 5, JSON.stringify(back));
 
+  // ================= The screen stays on =================
+  const awake = async () => {
+    await p.waitForTimeout(100);
+    return p.evaluate(() => window.__wake.lastIndexOf('request') > window.__wake.lastIndexOf('release'));
+  };
+  const w1 = await awake();
+  await p.evaluate(() => window.Fridrich.showView('casos'));
+  const w2 = await awake();
+  await p.evaluate(() => window.Fridrich.showView('entrenar'));
+  const w3 = await awake();
+  check('screen: kept on during a session in Entrenar, let go in another tab and on again back in it', w1 && !w2 && w3, JSON.stringify([w1, w2, w3]));
+
   // ================= The end =================
   await p.click('#sessEnd');
   const sum = await p.evaluate(() => ({ open: !document.getElementById('sessSheet').hidden, text: document.getElementById('sessSum').innerText, rows: document.querySelectorAll('#sessSum tbody tr').length, focus: document.activeElement && document.activeElement.id }));
   check('end: a summary (time, cases, how many right, what you mastered, each case today against before)', sum.open && /TIEMPO/i.test(sum.text) && new RegExp(`CASOS\\s*${n1}`, 'i').test(sum.text) && /DOMINADOS\s*[1-9]/i.test(sum.text) && /Has dominado/.test(sum.text) && sum.rows >= 3 && /reconociendo/.test(sum.text) && sum.focus === 'sessClose', `${n1} ${sum.rows} ${sum.focus} ${JSON.stringify(sum.text).slice(0, 120)}`);
   await p.screenshot({ path: `${SHOTS}/fridrich-session-summary-1280.png` });
+  check('screen: let go when the session ends', !(await awake()));
   await p.keyboard.press('Escape');
   const after = await p.evaluate(() => ({ sheet: document.getElementById('sessSheet').hidden, training: document.body.classList.contains('training'), pick: JSON.parse(localStorage.getItem('cfop:pick:v1')).length, list: (document.querySelector('.fr-sess-list') || {}).innerText || '', stored: JSON.parse(localStorage.getItem('cfop:sessions:v1')).length, live: localStorage.getItem('cfop:session:v1') }));
   check('end: back to Entrenar as before (every case), the session kept in «Tus sesiones»', after.sheet && !after.training && after.pick === 16 && /Tus sesiones/i.test(after.list) && after.stored === 1 && after.live === 'null', JSON.stringify(after));
