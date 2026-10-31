@@ -379,7 +379,13 @@ const SOLVE = ["D R' F2 L", "U R U' R'", "U' F' U F", "L' U' L", "U B U' B'", "F
     if (lose) await p.evaluate((m) => window.Fridrich.cube().link.silent(m), mv[mv.length - 1]);
     await unrotate(alg.rot);
     const h = await p.waitForFunction(() => { const t = document.getElementById('trBox').innerText; return /✓/.test(t) && t; }, null, { timeout: 4000 }).catch(() => null);
-    return h ? h.jsonValue() : '';
+    if (h) return h.jsonValue();
+    // No ✓: what the trainer and the cube say, on one line, for the FAIL line.
+    return p.evaluate((a) => {
+      const t = window.Fridrich._.tr;
+      const r = window.Cfop.readCube(window.Fridrich.cube().state, 'U');
+      return `(sin ✓) ${document.getElementById('trBox').innerText.replace(/\s+/g, ' ').slice(0, 120)} · ${JSON.stringify({ c: t.c && t.c.id, ready: !!t.ready, first: !!t.first, result: !!t.result, busy: t.busy, stage: r.stage, alg: a })}`;
+    }, alg.alg);
   };
   const nextReady = () => p.waitForFunction(() => { const t = window.Fridrich._.tr; return t.follow && !t.result && !t.ready; }, null, { timeout: 30000 });
   const peekState = () => p.evaluate(() => ({ open: document.getElementById('trPeek').open, sum: document.querySelector('#trPeek summary').textContent, peek: window.Fridrich._.settings.peek, saved: JSON.parse(localStorage.getItem('cfop:settings:v1')).peek }));
@@ -393,7 +399,7 @@ const SOLVE = ["D R' F2 L", "U R U' R'", "U' F' U F", "L' U' L", "U B U' B'", "F
   check('train/cube: «Ver el algoritmo» closed at first; opening it turns on this case\'s eye («Ocultar el algoritmo»), saved', !closed.open && /Ver el algoritmo/.test(closed.sum) && pk1.open && /Ocultar el algoritmo/.test(pk1.sum) && pk1.peek[t2.id] === 1 && pk1.saved[t2.id] === 1 && Object.keys(pk1.peek).length === 1, `${JSON.stringify(closed)} ${JSON.stringify(pk1)}`);
   const done2 = await solveNow(true);
   const pk2 = await p.evaluate((id) => { const log = JSON.parse(localStorage.getItem('cfop:trlog:v1')); const rec = JSON.parse(localStorage.getItem('cfop:train:v1'))[id]; return { a: log[log.length - 1].a, an: rec.an || 0, n: rec.n || 0 }; }, t2.id);
-  check('train/cube: solved with the algorithm in view (its last turn lost on the way) → practice, apart from your times', /Con el algoritmo a la vista/.test(done2) && pk2.a === 1 && pk2.an === 1 && pk2.n === t2.n, `${done2.slice(0, 120)} ${JSON.stringify(pk2)}`);
+  check('train/cube: solved with the algorithm in view (its last turn lost on the way) → practice, apart from your times', /Con el algoritmo a la vista/.test(done2) && pk2.a === 1 && pk2.an === 1 && pk2.n === t2.n, `${done2.slice(0, 400)} ${JSON.stringify(pk2)}`);
   await nextReady();
   const t3 = await caseNow();
   await turn(t3.setup);
@@ -401,7 +407,7 @@ const SOLVE = ["D R' F2 L", "U R U' R'", "U' F' U F", "L' U' L", "U B U' B'", "F
   const pk3 = await peekState();
   check('train/cube: another case comes hidden (only that one has its eye on)', t3.id !== t2.id && !pk3.open && /Ver el algoritmo/.test(pk3.sum), JSON.stringify({ t2: t2.id, t3: t3.id, pk3 }));
   const done3 = await solveNow();
-  check('train/cube: and counts, with recognition and execution', /Reconocer [\d.]+ s · hacer [\d.]+ s/.test(done3), done3.slice(0, 120));
+  check('train/cube: and counts, with recognition and execution', /Reconocer [\d.]+ s · hacer [\d.]+ s/.test(done3), done3.slice(0, 400));
   await nextReady();
   // A case whose eye is on comes up with its algorithm in view; «Ocultar el algoritmo» turns its eye off.
   const t4 = await caseNow();
@@ -414,6 +420,36 @@ const SOLVE = ["D R' F2 L", "U R U' R'", "U' F' U F", "L' U' L", "U B U' B'", "F
   const pk5 = await peekState();
   check('train/cube: a case with its eye on starts with the algorithm in view; «Ocultar el algoritmo» turns it off', pk4.open && /Ocultar el algoritmo/.test(pk4.sum) && !pk5.open && !pk5.peek[t4.id] && !pk5.saved[t4.id] && (t4.id === t2.id || pk5.peek[t2.id] === 1), JSON.stringify({ pk4, pk5 }));
   await solveNow();
+  await nextReady();
+
+  // ================= The last turn of the algorithm =================
+  // A Sune that leaves the cube solved (no random side, top turn or PLL: Math.random at 0 while it is prepared).
+  // One turn before the end, the opposite colour reads as «only the top to turn»: the case is done with the last
+  // turn, not that one early (it was, and the last turn went on to the next case at once: the ✓ flashed by).
+  await p.evaluate(() => { window.__random = Math.random; Math.random = () => 0; });
+  await p.evaluate(() => window.Fridrich.showView('casos'));
+  await p.click('[data-case="sune"] [data-train]');
+  await p.waitForFunction(() => { const t = window.Fridrich._.tr; return t.c && t.c.id === 'sune' && t.follow && !t.ready; }, null, { timeout: 30000 });
+  await p.evaluate(() => { Math.random = window.__random; });
+  await turn(await p.evaluate(() => window.Fridrich._.tr.setup));
+  await p.waitForFunction(() => window.Fridrich._.tr.ready, null, { timeout: 4000 }).catch(() => {});
+  const suneAlg = await p.evaluate(() => {
+    const C = window.Cfop;
+    const r = C.readFace(window.Fridrich.cube().state, 'U');
+    const k = C.recognize(r.g, r.stage);
+    return ['z2', k.view, k.pre, k.case.alg, k.post].filter(Boolean).join(' ');
+  });
+  const sm = suneAlg.split(' ');
+  await p.evaluate((a) => window.Fridrich.cube().link.play([a], 20), sm.slice(0, -1).join(' '));
+  const before = await p.evaluate(() => {
+    const C = window.Cfop; const st = window.Fridrich.cube().state;
+    return { result: !!window.Fridrich._.tr.result, any: C.readCube(st, 'U').stage, cross: C.readFace(st, 'U').stage };
+  });
+  await turn(sm[sm.length - 1]);
+  await p.waitForFunction(() => /✓/.test(document.getElementById('trBox').innerText), null, { timeout: 4000 }).catch(() => {});
+  const after = await p.evaluate(() => ({ result: !!window.Fridrich._.tr.result, text: document.getElementById('trBox').innerText.replace(/\s+/g, ' ') }));
+  check('train/cube: one turn from solved the case is not done yet (though the opposite colour reads so); the last turn → ✓, and it stays', !before.result && before.any >= 4 && before.cross < 4 && after.result && /✓ Sune/.test(after.text), JSON.stringify({ suneAlg, before, after: { ...after, text: after.text.slice(0, 80) } }));
+  await turn('z2');   // held as before again
   await nextReady();
 
   // ================= The overlay follows this page =================

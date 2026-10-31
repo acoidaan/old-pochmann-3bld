@@ -1753,7 +1753,7 @@
       return;
     }
     if (!tr.first) tr.first = t;
-    const read = C.readCube(st, settings.cross);
+    const read = C.readFace(st, settings.cross);   // the cross colour only: one turn from solved, the opposite one reads as done
     const goal = stepAt(tr.c) + 1;
     if (read.stage >= goal) {
       const total = t - tr.ready;
@@ -1854,7 +1854,7 @@
     } else if (tr.result) {
       html += `<p class="fr-big ok">✓ ${esc(c.name)} en ${f1(tr.result.total)} s</p><p class="hint">${tr.result.peeked ? 'Con el algoritmo a la vista: cuenta como práctica, aparte de tus tiempos.' : `Reconocer ${f1(tr.result.recog)} s · hacer ${f1(tr.result.exec)} s.`} Ahora otro…</p>`;
     } else {
-      const read = C.readCube(cube.state, settings.cross);
+      const read = C.readFace(cube.state, settings.cross);
       const want = stepAt(c);
       html += tr.first
         ? `<p class="fr-note">Resuélvelo… ${read.stage < want ? '<span class="bad">se ha deshecho el paso anterior</span>' : ''}</p>`
