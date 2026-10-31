@@ -71,7 +71,7 @@
 .fr-moves .sm.pre, .fr-moves .sm.post { outline: 1px dashed var(--muted); outline-offset: -1px; }
 .fr-alg { font-family: var(--font-mono); display: inline-flex; flex-wrap: wrap; column-gap: .5em; }
 .fr-alg-big { font-size: 22px; }
-.fr-top { display: block; width: 100%; height: auto; }
+.fr-top, .fr-iso { display: block; width: 100%; height: auto; }
 .fr-arrow path { stroke: var(--plastic); stroke-width: 2.4; fill: none; stroke-linecap: round; }
 
 /* ---------- Splits of the last solve ---------- */
@@ -203,6 +203,12 @@ body.fr .install { padding: 4px 12px; font-size: 13px; }
 .fr-card .seg button { padding: 3px 9px; font-size: 12px; }
 .fr-card-stats:empty { display: none; }
 .fr-card-stats { margin: 0; flex-basis: 100%; }
+/* F2L cases: the other algorithms, folded */
+.fr-alts { font-size: 13px; }
+.fr-alts summary { cursor: pointer; color: var(--muted); }
+.fr-alts p { margin: 4px 0 0; }
+.fr-case-set { margin-bottom: 14px; }
+.fr-case-set [aria-pressed="true"] .muted { color: inherit; opacity: .75; }
 .fr-card .btn { font-size: 13px; padding: 4px 10px; }
 
 /* «Pruébalo»: mix, what it looks like, how to solve it */
@@ -232,12 +238,12 @@ body.fr .install { padding: 4px 12px; font-size: 13px; }
 .fr-setup { margin: 0; font-family: var(--font-mono); font-size: clamp(18px, 3.6vw, 26px); line-height: 1.8; word-spacing: .12em; }
 .fr-peek summary { cursor: pointer; font-weight: 700; font-size: 14px; color: var(--muted); }
 .fr-peek[open] { display: grid; gap: 6px; }
-.fr-peek .fr-top { width: 104px; }
+.fr-peek .fr-top, .fr-peek .fr-iso { width: 104px; }
 .fr-peek p { margin: 0; }
 .fr-train-off { display: grid; gap: 10px; }
 .fr-train-off p { margin: 0; }
 .fr-train-card { display: flex; gap: 14px; align-items: center; }
-.fr-train-card .fr-top { width: 96px; }
+.fr-train-card .fr-top, .fr-train-card .fr-iso { width: 96px; }
 .fr-train-card > div { display: grid; gap: 4px; }
 .fr-quiz { display: flex; flex-wrap: wrap; gap: 18px; align-items: center; }
 .fr-quiz-pic { flex: none; width: min(220px, 60vw); }

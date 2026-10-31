@@ -181,17 +181,26 @@
 
     <!-- ================= Casos ================= -->
     <div class="view" data-view="casos" hidden>
-      <section class="panel" aria-labelledby="hMethod">
+      <div class="seg fr-case-set" role="group" aria-label="Qué casos ver">
+        <button type="button" data-case-set="ll" aria-pressed="true">OLL y PLL <span class="muted">16</span></button>
+        <button type="button" data-case-set="f2l" aria-pressed="false">F2L <span class="muted">41</span></button>
+      </div>
+      <section class="panel" aria-labelledby="hMethod" id="caseMethod">
         <div class="panel-head"><h2 id="hMethod">El método, en 6 pasos</h2></div>
         <ol class="fr-method">
           <li><b>Cruz.</b> Las cuatro aristas blancas abajo, cada una con su centro. Planéala entera en la inspección: casi siempre sale en 8 giros o menos (en el cronómetro puedes ver la más corta).</li>
-          <li><b>F2L.</b> Las dos primeras capas, pareja a pareja: junta cada esquina blanca con su arista y mételas a la vez en su hueco. Sin algoritmos: entiende cómo se juntan y cómo entran (<i>R U R'</i>, <i>F' U' F</i>…).</li>
+          <li><b>F2L.</b> Las dos primeras capas, pareja a pareja: junta cada esquina blanca con su arista y mételas a la vez en su hueco. Empieza sin algoritmos: entiende cómo se juntan y cómo entran (<i>R U R'</i>, <i>F' U' F</i>…). Después, los 41 casos básicos tienen su algoritmo (arriba, en «F2L»).</li>
           <li><b>OLL 1.</b> La cruz amarilla de arriba: 3 casos.</li>
           <li><b>OLL 2.</b> Toda la cara amarilla: 7 casos.</li>
           <li><b>PLL 1.</b> Las esquinas de arriba en su sitio: 2 casos.</li>
           <li><b>PLL 2.</b> Las aristas de arriba en su sitio, y resuelto: 4 casos.</li>
         </ol>
         <p class="hint">Los 16 algoritmos son los de <a href="https://jperm.net/3x3/cfop" target="_blank" rel="noopener">J Perm</a>, tal cual. Se dibujan como él: amarillo arriba y visto desde arriba, con las pegatinas de los lados alrededor. Si tienes el cubo conectado, en el cronómetro te dice qué caso tienes y cómo sujetarlo.</p>
+      </section>
+      <section class="panel" aria-labelledby="hF2lIntro" id="caseF2lIntro" hidden>
+        <div class="panel-head"><h2 id="hF2lIntro">El F2L con algoritmos: los 41 casos básicos</h2></div>
+        <p>Cada caso es una pareja (la esquina y su arista) con su hueco delante a la derecha, la cruz hecha y las otras parejas metidas. Están numerados y agrupados como en <a href="https://www.speedcubedb.com/a/3x3/F2L" target="_blank" rel="noopener">SpeedCubeDB</a>: las dos piezas arriba (directas, unidas o separadas) o alguna ya en su hueco.</p>
+        <p class="hint">El primer algoritmo de cada caso es el de J Perm (su <a href="https://bit.ly/bestf2l" target="_blank" rel="noopener">«Best F2L Algorithms»</a>); en «Otros algoritmos», los demás suyos y el más votado en SpeedCubeDB. Se dibujan desde arriba de la esquina de delante a la derecha: en gris, la última capa. Con el cubo conectado, al resolver te dice qué caso es cada pareja y su algoritmo.</p>
       </section>
       <div id="caseGroups"></div>
     </div>
@@ -222,7 +231,8 @@
         <details class="fr-pick" open>
           <summary>Qué casos salen</summary>
           <div class="actions" role="group" aria-label="Elegir casos">
-            <button class="btn" type="button" data-pick="all">Todos</button>
+            <button class="btn" type="button" data-pick="all">OLL y PLL</button>
+            <button class="btn" type="button" data-pick="f2l">F2L</button>
             <button class="btn" type="button" data-pick="oll">OLL</button>
             <button class="btn" type="button" data-pick="pll">PLL</button>
             <button class="btn" type="button" data-pick="learning">Los que estoy aprendiendo</button>
@@ -432,6 +442,7 @@
 <script src="cubemodel.js"></script>
 <script src="follow.js"></script>
 <script src="cfop.js"></script>
+<script src="cfopf2l.js"></script>
 <script src="cfopstats.js"></script>
 <script src="smartcube.js"></script>
 <script src="syncplan.js"></script>

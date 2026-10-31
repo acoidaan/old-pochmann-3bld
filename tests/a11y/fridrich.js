@@ -51,6 +51,13 @@ const SOLVE = ["D R' F2 L", "U R U' R'", "U' F' U F", "L' U' L", "U B U' B'", "F
       await p.waitForTimeout(150);
       if (v === 'casos') await p.click('[data-case="sune"] [data-try]');
       await run(v);
+      if (v === 'casos') {
+        await p.click('[data-case-set="f2l"]');
+        await p.click('[data-case="f2l23"] [data-try]');
+        await p.evaluate(() => { document.querySelector('[data-case="f2l23"] .fr-alts').open = true; });
+        await run('casos · F2L');
+        await p.click('[data-case-set="ll"]');
+      }
     }
     await p.evaluate(() => window.Fridrich.showView('entrenar'));
     await p.click('#trModeLook');

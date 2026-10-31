@@ -5,6 +5,8 @@
   'use strict';
   const M = window.CubeModel;
   const C = window.Cfop;
+  const F2 = window.CfopF2l;
+  const ALL_CASES = [...C.CASES, ...F2.CASES];
   if (!M || !C || !document.body.classList.contains('fr')) return;
   const { apply, parseAlg, invertAlg, solved, isSolved, faceOfSticker, toFacelets, norm, FACE_ORDER, COLOR_NAME } = M;
   const $ = (id) => document.getElementById(id);
@@ -216,8 +218,36 @@
     });
     return out;
   }
+  // An F2L case in 3D, as J Perm and SpeedCubeDB draw them: the top, front and right faces seen from above the
+  // front right corner, the pieces of the last layer grey (the pair's own pieces are not of it).
+  const ISO = { s: 19, cx: 0, cy: 0 };
+  const isoPt = ([x, y, z]) => [((x - z) * 0.866 * ISO.s).toFixed(1), (((x + z) * 0.5 - y) * ISO.s).toFixed(1)];
+  const add3 = (a, b, k) => a.map((v, i) => v + b[i] * k);
+  function f2lView(g, opts) {
+    const o = opts || {};
+    const top = faceOfSticker(g[4]);
+    const ll = (i) => M.PIECE_OF[i].some((j) => faceOfSticker(g[j]) === top);
+    const quad = (c, r, d, h) => [add3(add3(c, r, h), d, h), add3(add3(c, r, -h), d, h), add3(add3(c, r, -h), d, -h), add3(add3(c, r, h), d, -h)]
+      .map((p) => isoPt(p).join(',')).join(' ');
+    let out = `<svg class="fr-iso" viewBox="${(-2.75 * ISO.s).toFixed(1)} ${(-3.1 * ISO.s).toFixed(1)} ${(5.5 * ISO.s).toFixed(1)} ${(6.2 * ISO.s).toFixed(1)}" role="img" aria-label="${esc(o.label || 'Caso del F2L')}">`;
+    ['U', 'F', 'R'].forEach((f, k) => {
+      const F = M.FACES[f];
+      out += `<polygon points="${quad(F.n.map((v) => v * 1.5), F.r, F.d, 1.5)}" fill="var(--plastic)" stroke="var(--plastic)" stroke-width="3" stroke-linejoin="round"/>`;
+      for (let i = k === 0 ? 0 : f === 'R' ? 9 : 18, j = 0; j < 9; i++, j++) {
+        const st = M.STICKERS[i];
+        const fill = j !== 4 && ll(i) ? 'var(--fr-blank)' : STICKER[faceOfSticker(g[i])];
+        out += `<polygon points="${quad(add3(st.pos, st.nrm, 0.5), F.r, F.d, 0.44)}" fill="${fill}" stroke="${fill}" stroke-width="1.5" stroke-linejoin="round"/>`;
+      }
+      // A little shade on the sides, so it reads as a cube.
+      if (f !== 'U') out += `<polygon points="${quad(F.n.map((v) => v * 1.5), F.r, F.d, 1.5)}" fill="#000" opacity="${f === 'R' ? 0.16 : 0.07}"/>`;
+    });
+    return `${out}</svg>`;
+  }
   const modeOf = (step) => (step && step.startsWith('oll') ? 'oll' : 'pll');
-  const casePicture = (c, auf, label) => topView(C.caseState(c, auf), { mode: modeOf(c.step), arrows: c.step.startsWith('pll'), label: label || `${c.name}: ${c.look}` });
+  // The picture of a cube showing a case: from above for the last layer, in 3D for the F2L.
+  const pictureOf = (c, g, label) => (c.step === 'f2l' ? f2lView(g, { label }) : topView(g, { mode: modeOf(c.step), arrows: c.step.startsWith('pll'), label }));
+  const stateOf = (c, auf) => (c.step === 'f2l' ? F2.caseState(c, auf) : C.caseState(c, auf));
+  const casePicture = (c, auf, label) => pictureOf(c, stateOf(c, auf), label || `${c.name}: ${c.look}`);
   const algHtml = (alg) => `<span class="fr-alg">${parseAlg(alg).map((m) => `<span>${esc(m.text)}</span>`).join(' ')}</span>`;
   const STEP_NAME = Object.fromEntries(C.STEPS.map((s) => [s.id, s.name]));
 
@@ -839,7 +869,21 @@
   // moment after the cube stops moving (a few milliseconds; up to a few tenths in hard positions).
   let pairHint = { key: null, sols: null };
   let pairTimer = 0;
+  // The pairs that are one of the 41 basic cases, with J Perm's algorithm: which slot, the whole-cube turn that
+  // brings it front right, the turn of the top before and the algorithm.
+  function f2lCasesHtml(read, names) {
+    const found = F2.recognize(read.g);
+    if (!found.length) return '';
+    return '<p class="fr-note"><b>Con los 41 casos:</b></p><ul class="fr-pairs fr-f2l-cases">'
+      + found.map((r) => `<li><span class="fr-pair-name">${esc(names[r.slot])}</span>`
+        + `<span class="fr-pair-moves">${r.view ? `<span class="muted">${esc(r.view)}</span> ` : ''}<b>${esc(r.case.name)}</b> ${algHtml([r.auf, r.case.alg].filter(Boolean).join(' '))}</span>`
+        + `<span class="muted">${esc(F2.groupOf(r.case).name)}</span></li>`).join('')
+      + '</ul>';
+  }
   function pairHtml(read, st, names) {
+    return f2lCasesHtml(read, names) + shortestPairHtml(read, st, names);
+  }
+  function shortestPairHtml(read, st, names) {
     const k = key(st);
     if (pairHint.key !== k) {
       clearTimeout(pairTimer);
@@ -1399,7 +1443,7 @@
     const step = C.STEPS.find((s) => s.id === t.c.step);
     return `<ol class="fr-try-steps">
       <li><span>Con el cubo resuelto, ${holdText()}, haz:</span><p class="fr-setup">${setupChips(t.setup)}</p></li>
-      <li><span>Te queda <b>${esc(t.c.name)}</b> (${esc(step.name)}):</span><div class="fr-try-pic">${topView(t.g, { mode: modeOf(t.c.step), arrows: t.c.step.startsWith('pll'), label: `Así queda: ${t.c.name}` })}</div></li>
+      <li><span>Te queda <b>${esc(t.c.name)}</b> (${esc(step.name)}):</span><div class="fr-try-pic">${pictureOf(t.c, t.g, `Así queda: ${t.c.name}`)}</div></li>
       <li><span>Resuélvelo: ${tryHow(t)}</span></li>
     </ol>
     <div class="actions"><button class="btn" type="button" data-try-mode="hidden">${t.hidden ? 'Otra mezcla' : 'Una mezcla que no lo delate'}</button>${t.hidden ? '<button class="btn" type="button" data-try-mode="short">La mezcla corta</button>' : ''}</div>
@@ -1429,17 +1473,12 @@
     if (t.mn) bits.push(`con tu cubo: ${Math.round((t.mok / t.mn) * 100)} % acertados (${t.mn})`);
     return bits.join(' · ');
   }
-  function renderCases() {
-    const groups = C.LL.map((step) => {
-      const s = C.STEPS.find((x) => x.id === step);
-      const cases = C.CASES.filter((c) => c.step === step);
-      return `<section class="panel" aria-labelledby="h-${step}">
-        <div class="panel-head"><h2 id="h-${step}">${s.name} · ${s.long} <span class="muted">(${cases.length})</span></h2></div>
-        <div class="fr-cards">${cases.map((c) => `<article class="fr-card" data-case="${c.id}">
+  const caseTile = (c) => `<article class="fr-card${c.step === 'f2l' ? ' f2l' : ''}" data-case="${c.id}">
           <div class="fr-card-pic">${casePicture(c)}</div>
           <div class="fr-card-body">
             <h3>${esc(c.name)}${c.es !== c.name ? ` <span class="muted">· ${esc(c.es)}</span>` : ''}</h3>
             <p class="fr-card-alg">${algHtml(c.alg)}</p>
+            ${c.alts && c.alts.length ? `<details class="fr-alts"><summary>Otros algoritmos (${c.alts.length})</summary>${c.alts.map((a) => `<p>${algHtml(a)}</p>`).join('')}</details>` : ''}
             <p class="fr-card-look">${esc(c.look)}</p>
           </div>
           <div class="fr-card-foot">
@@ -1449,11 +1488,36 @@
             <p class="hint fr-card-stats">${esc(trainLine(c.id))}</p>
           </div>
           <div class="fr-try" hidden></div>
-        </article>`).join('')}</div>
+        </article>`;
+  // Casos shows one set at a time: the last layer (16) or the F2L (41), in its six groups.
+  if (!['ll', 'f2l'].includes(settings.caseSet)) settings.caseSet = 'll';
+  function renderCases() {
+    document.querySelectorAll('[data-case-set]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.caseSet === settings.caseSet)));
+    $('caseMethod').hidden = settings.caseSet !== 'll';
+    $('caseF2lIntro').hidden = settings.caseSet !== 'f2l';
+    const groups = settings.caseSet === 'f2l'
+      ? F2.GROUPS.map((gr) => {
+        const cases = F2.CASES.filter((c) => c.group === gr.id);
+        return `<section class="panel" aria-labelledby="h-f2l-${gr.id}">
+        <div class="panel-head"><h2 id="h-f2l-${gr.id}">${esc(gr.name)} · ${esc(gr.long)} <span class="muted">(${cases.length})</span></h2></div>
+        <div class="fr-cards">${cases.map(caseTile).join('')}</div>
       </section>`;
-    }).join('');
-    $('caseGroups').innerHTML = groups;
+      })
+      : C.LL.map((step) => {
+        const s = C.STEPS.find((x) => x.id === step);
+        const cases = C.CASES.filter((c) => c.step === step);
+        return `<section class="panel" aria-labelledby="h-${step}">
+        <div class="panel-head"><h2 id="h-${step}">${s.name} · ${s.long} <span class="muted">(${cases.length})</span></h2></div>
+        <div class="fr-cards">${cases.map(caseTile).join('')}</div>
+      </section>`;
+      });
+    $('caseGroups').innerHTML = groups.join('');
   }
+  document.querySelectorAll('[data-case-set]').forEach((b) => b.addEventListener('click', () => {
+    settings.caseSet = b.dataset.caseSet;
+    saveSettings();
+    renderCases();
+  }));
   $('caseGroups').addEventListener('click', (ev) => {
     const card = ev.target.closest('[data-case]');
     if (!card) return;
@@ -1492,11 +1556,16 @@
   // ================= Entrenar =================
   let pick = load(K.pick, C.CASES.map((c) => c.id));
   if (!Array.isArray(pick) || !pick.length) pick = C.CASES.map((c) => c.id);
+  const pickChip = (c, label) => `<button type="button" class="fr-chip${statusOf(c.id) === 'learning' ? ' learning' : ''}" data-pickc="${c.id}" aria-pressed="${pick.includes(c.id)}">${esc(label)}</button>`;
   function renderPick() {
-    $('trPick').innerHTML = C.LL.map((step) => {
+    const ll = C.LL.map((step) => {
       const s = C.STEPS.find((x) => x.id === step);
-      return `<div class="fr-pick-row"><span class="field-title">${s.name}</span>${C.CASES.filter((c) => c.step === step).map((c) => `<button type="button" class="fr-chip${statusOf(c.id) === 'learning' ? ' learning' : ''}" data-pickc="${c.id}" aria-pressed="${pick.includes(c.id)}">${esc(c.name.replace('PLL (', '').replace(')', ''))}</button>`).join('')}</div>`;
+      return `<div class="fr-pick-row"><span class="field-title">${s.name}</span>${C.CASES.filter((c) => c.step === step).map((c) => pickChip(c, c.name.replace('PLL (', '').replace(')', ''))).join('')}</div>`;
     }).join('');
+    // The 41 of the F2L folded, unless one of them is picked.
+    const n = F2.CASES.filter((c) => pick.includes(c.id)).length;
+    const f2l = `<details class="fr-pick-f2l"${n ? ' open' : ''}><summary>F2L <span class="muted">(${n ? `${n} de 41` : '41'})</span></summary>${F2.GROUPS.map((gr) => `<div class="fr-pick-row"><span class="field-title">${esc(gr.name)}</span>${F2.CASES.filter((c) => c.group === gr.id).map((c) => pickChip(c, String(c.n))).join('')}</div>`).join('')}</details>`;
+    $('trPick').innerHTML = ll + f2l;
   }
   $('trPick').addEventListener('click', (ev) => {
     const b = ev.target.closest('[data-pickc]');
@@ -1511,7 +1580,7 @@
   });
   document.querySelectorAll('[data-pick]').forEach((b) => b.addEventListener('click', () => {
     const p = b.dataset.pick;
-    let ids = C.CASES.filter((c) => p === 'all' || (p === 'oll' && c.step.startsWith('oll')) || (p === 'pll' && c.step.startsWith('pll')) || (p === 'learning' && statusOf(c.id) === 'learning')).map((c) => c.id);
+    let ids = ALL_CASES.filter((c) => (p === 'all' && c.step !== 'f2l') || (p === 'f2l' && c.step === 'f2l') || (p === 'oll' && c.step.startsWith('oll')) || (p === 'pll' && c.step.startsWith('pll')) || (p === 'learning' && statusOf(c.id) === 'learning')).map((c) => c.id);
     if (!ids.length) { toast('Marca en «Casos» los que estás aprendiendo'); return; }
     pick = ids;
     save(K.pick, pick);
@@ -1521,7 +1590,7 @@
   }));
   // Cases come up more often the fewer times and the slower they have gone.
   function nextCase(avoid) {
-    const pool = C.CASES.filter((c) => pick.includes(c.id));
+    const pool = ALL_CASES.filter((c) => pick.includes(c.id));
     const w = pool.map((c) => {
       const t = train[c.id] || {};
       const m = settings.trMode;
@@ -1556,9 +1625,19 @@
   $('trModeHand').addEventListener('click', () => setTrMode('hand'));
   $('trModeLook').addEventListener('click', () => setTrMode('look'));
   // A state with the first two layers solved (cross colour down) whose last layer shows this case, from a
-  // random side and with the rest of the last layer random as it would be.
+  // random side and with the rest of the last layer random as it would be. An F2L case: the cross and three
+  // pairs in, the case in one slot, and the last layer as random as after a real F2L.
+  // The stage (as Cfop.stageOf counts) a case starts at: 1 for the F2L, 2–5 for the last layer.
+  const stepAt = (c) => (c.step === 'f2l' ? 1 : C.LL.indexOf(c.step) + 2);
+  // The answers offered for a case: the cases of its step, or of its group for the F2L (41 are too many).
+  const optionsFor = (c) => (c.step === 'f2l' ? F2.CASES.filter((x) => x.group === c.group) : C.CASES.filter((x) => x.step === c.step));
+  const lastLayerMess = () => `${rnd(['', ...C.CASES.filter((x) => x.step.startsWith('oll')).map((x) => invertAlg(x.alg))])} ${rnd(C.AUF)} ${rnd(['', ...C.CASES.filter((x) => x.step.startsWith('pll')).map((x) => invertAlg(x.alg))])}`;
   function caseTarget(c) {
     const face = settings.cross;
+    if (c.step === 'f2l') {
+      const seq = `${rnd(C.VIEWS)} ${lastLayerMess()} ${rnd(C.AUF)} ${invertAlg(c.alg)} ${rnd(C.AUF)}`.replace(/\s+/g, ' ').trim();
+      return norm(apply(apply(solved(), C.DOWN[face]), seq));
+    }
     const extra = {
       oll1: () => `${rnd(['', ...C.CASES.filter((x) => x.step === 'oll2').map((x) => invertAlg(x.alg))])} ${rnd(C.AUF)} ${rnd(['', ...C.CASES.filter((x) => x.step.startsWith('pll')).map((x) => invertAlg(x.alg))])}`,
       oll2: () => `${rnd(['', ...C.CASES.filter((x) => x.step.startsWith('pll')).map((x) => invertAlg(x.alg))])} ${rnd(C.AUF)}`,
@@ -1675,7 +1754,7 @@
     }
     if (!tr.first) tr.first = t;
     const read = C.readCube(st, settings.cross);
-    const goal = C.LL.indexOf(tr.c.step) + 3;
+    const goal = stepAt(tr.c) + 1;
     if (read.stage >= goal) {
       const total = t - tr.ready;
       const recog = tr.first - tr.ready;
@@ -1714,6 +1793,8 @@
   }
   function quizPicture() {
     const c = tr.c;
+    // An F2L case keeps its slot in front, the top turned; a last-layer one is seen from any side.
+    if (c.step === 'f2l') return f2lView(F2.caseState(c, tr.qAuf), { label: 'Un caso del F2L: ¿cuál es?' });
     const g = C.caseState(c, tr.qAuf);
     const shown = tr.qView ? apply(g, tr.qView) : g;
     return topView(shown, { mode: modeOf(c.step), arrows: false, label: `Un caso de ${STEP_NAME[c.step]}: ¿cuál es?` });
@@ -1724,14 +1805,14 @@
     const box = $('trBox');
     const c = tr.c;
     if (!c) { box.innerHTML = '<p class="empty-note">Elige qué casos quieres entrenar.</p>'; return; }
-    const step = C.STEPS.find((s) => s.id === c.step);
+    const step = c.step === 'f2l' ? { name: `F2L · ${F2.groupOf(c).name}`, long: F2.groupOf(c).long } : C.STEPS.find((s) => s.id === c.step);
     if (settings.trMode === 'look') {
-      const options = C.CASES.filter((x) => x.step === c.step);
+      const options = optionsFor(c);
       box.innerHTML = `<div class="fr-quiz">
         <div class="fr-quiz-pic">${quizPicture()}</div>
         <div class="fr-quiz-body">
           <span class="field-title">${step.name} · ¿qué caso es?</span>
-          <div class="fr-options">${options.map((x, i) => `<button class="btn" type="button" data-answer="${x.id}"><kbd>${i + 1}</kbd> ${esc(x.name)}</button>`).join('')}</div>
+          <div class="fr-options">${options.map((x, i) => `<button class="btn" type="button" data-answer="${x.id}"><kbd>${(i + 1) % 10}</kbd> ${esc(x.name)}</button>`).join('')}</div>
           <p class="fr-feedback" id="trFeedback" aria-live="polite"></p>
           <p class="hint">${esc(trainLine(c.id))}</p>
           ${sessHtml()}
@@ -1741,14 +1822,14 @@
     }
     if (settings.trMode === 'hand') {
       const t = tr.hand;
-      const options = C.CASES.filter((x) => x.step === c.step);
+      const options = optionsFor(c);
       box.dataset.h = '';
       box.innerHTML = !t ? '<p class="fr-note">Preparando una mezcla…</p>' : `<div class="fr-train-head">
         <span class="field-title">${step.name} · ${esc(step.long)}</span>
         <p class="fr-note"><b>1.</b> Con el cubo resuelto, ${holdText()}, mezcla:</p>
         <p class="fr-setup">${setupChips(t.setup)}</p>
         <p class="fr-note"><b>2.</b> ¿Qué caso te ha quedado?</p>
-        <div class="fr-options">${options.map((x, i) => `<button class="btn" type="button" data-answer="${x.id}"><kbd>${i + 1}</kbd> ${esc(x.name)}</button>`).join('')}</div>
+        <div class="fr-options">${options.map((x, i) => `<button class="btn" type="button" data-answer="${x.id}"><kbd>${(i + 1) % 10}</kbd> ${esc(x.name)}</button>`).join('')}</div>
         <div class="fr-feedback" id="trFeedback" aria-live="polite"></div>
       </div><p class="hint">${esc(trainLine(c.id))}</p>${sessHtml()}`;
       return;
@@ -1774,7 +1855,7 @@
       html += `<p class="fr-big ok">✓ ${esc(c.name)} en ${f1(tr.result.total)} s</p><p class="hint">${tr.result.peeked ? 'Con el algoritmo a la vista: cuenta como práctica, aparte de tus tiempos.' : `Reconocer ${f1(tr.result.recog)} s · hacer ${f1(tr.result.exec)} s.`} Ahora otro…</p>`;
     } else {
       const read = C.readCube(cube.state, settings.cross);
-      const want = C.LL.indexOf(c.step) + 2;
+      const want = stepAt(c);
       html += tr.first
         ? `<p class="fr-note">Resuélvelo… ${read.stage < want ? '<span class="bad">se ha deshecho el paso anterior</span>' : ''}</p>`
         : '<p class="fr-big">¡Ya! ¿Qué caso es? Resuélvelo.</p>';
@@ -1864,7 +1945,7 @@
     const fb = $('trFeedback');
     fb.className = `fr-feedback ${ok ? 'ok' : 'ko'}`;
     fb.innerHTML = `<p class="fr-big ${ok ? 'ok' : ''}">${ok ? '✓' : '✗ Era'} ${esc(c.name)}</p>
-      <div class="fr-train-card">${topView(t.g, { mode: modeOf(c.step), arrows: c.step.startsWith('pll'), label: `Así queda: ${c.name}` })}<div><span class="hint">${esc(c.look)}</span></div></div>
+      <div class="fr-train-card">${pictureOf(c, t.g, `Así queda: ${c.name}`)}<div><span class="hint">${esc(c.look)}</span></div></div>
       <p class="fr-note"><b>3.</b> Resuélvelo: ${tryHow(t)}</p>
       <div class="actions"><button class="btn primary" type="button" id="trNextQ">Siguiente</button><button class="btn" type="button" id="trHandLost">Me he perdido</button></div>
       <p class="hint">«Me he perdido» lo apunta como fallo: resuelve el cubo como sea y sigue con otro.</p>`;
@@ -1881,8 +1962,8 @@
   }
   document.addEventListener('keydown', (ev) => {
     if (view !== 'entrenar' || (settings.trMode !== 'look' && settings.trMode !== 'hand') || typing(ev.target)) return;
-    const n = Number(ev.key);
-    if (n >= 1 && n <= 7) {
+    const n = ev.key === '0' ? 10 : Number(ev.key);
+    if (n >= 1 && n <= 10) {
       const b = document.querySelectorAll('[data-answer]')[n - 1];
       if (b) { ev.preventDefault(); answer(b.dataset.answer); }
     } else if ((ev.key === 'Enter' || ev.key === ' ') && tr.answered && !ev.repeat) { ev.preventDefault(); trNext(); }
@@ -3230,7 +3311,7 @@
           out.pic = quizPicture();
           if (tr.answered && lastAns) { out.phase = 'answered'; out.res = lastAns; out.cname = c.name; } else { out.phase = 'question'; out.t0 = Math.round(tr.qStart + off); }
         } else if (m === 'hand') {
-          if (tr.answered && lastAns) { out.phase = 'answered'; out.res = lastAns; out.cname = c.name; out.pic = topView(tr.hand.g, { mode: modeOf(c.step), arrows: c.step.startsWith('pll'), label: c.name }); } else out.phase = 'question';
+          if (tr.answered && lastAns) { out.phase = 'answered'; out.res = lastAns; out.cname = c.name; out.pic = pictureOf(c, tr.hand.g, c.name); } else out.phase = 'question';
         } else if (cube && cube.on) {
           if (tr.result) { out.phase = 'result'; out.cname = c.name; out.res = { ok: 1, t: Math.round(tr.result.total), r: Math.round(tr.result.recog), name: c.name }; out.pic = casePicture(c); }
           else if (tr.ready) { out.phase = 'solving'; out.t0 = Math.round(tr.ready + off); }

@@ -11,7 +11,7 @@ cd tests
 npm install
 npx playwright install chromium   # solo la primera vez
 
-npm test                  # las 20 suites (unas 580 comprobaciones, ~7 min)
+npm test                  # las 21 suites (unas 600 comprobaciones, ~7 min)
 npm test -- smart-cube    # solo las que tienen «smart-cube» en el nombre
 npm run audit             # accesibilidad y maquetación
 npm run lint              # ESLint de todo el repo (no se despliega: solo para desarrollo)
@@ -25,7 +25,7 @@ node run.js --all --shard=2/4   # la parte 2 de 4 de suites + auditorías, como 
 ✓ e2e/competition-mode.js · 18 comprobaciones · 6 s
 ✓ e2e/smart-cube.js · 69 comprobaciones · 46 s
 …
-✓ Todo bien: 20 suites, 581 comprobaciones (6.5 min)
+✓ Todo bien: 21 suites, 600 comprobaciones (6.6 min)
 ```
 
 Las capturas que hacen las suites (útiles para revisar a ojo) quedan en `tests/shots/`, que no se sube al repo.
@@ -39,6 +39,7 @@ Las capturas que hacen las suites (útiles para revisar a ojo) quedan en `tests/
 
 | Suite | Qué cubre |
 |:--|:--|
+| `e2e/fridrich-f2l.js` | Los 41 casos del F2L: cada uno y sus algoritmos contra los setups de SpeedCubeDB (`fixtures/f2l-scdb.json`), qué caso es una pareja desde cualquier hueco y lado (300 al azar), una pieza en otro hueco no es ninguno, Casos (el F2L en sus 6 grupos, dibujos en 3D, «Aprendiendo» guardado y sincronizado, «Pruébalo», se acuerda del conjunto), Entrenar (Reconocer con las opciones de su grupo y la tecla 0, con el cubo inteligente hasta el ✓), la ayuda en directo dice el caso y el móvil. |
 | `e2e/fridrich-extras.js` | Fridrich, lo demás: modo competición (F, Esc, toda la pantalla como botón), la pareja más corta en el F2L (y que de verdad la mete), la reconstrucción (en el panel, copiada y en el historial), el análisis de cada paso (giros contra lo más corto, eficiencia, qué mejorar, la media), el entrenador de la cruz (con y sin cubo), aviso de versión nueva, instalar, la gráfica con ao5/ao12, sincronizar entre dos dispositivos y la vibración en el móvil. |
 | `e2e/fridrich-ranking.js` | El ranking con amigos: crear una liga, el enlace de invitación, unirse desde el móvil sin cubo inteligente, los tiempos que se publican solos (y los récords al momento, con el puesto), el aviso de novedades, el detalle con pasos y sin ellos, probar el scramble de un amigo y quién gana, la media de 5 con sus solves, cambiar el nombre, el sitio de otro (rechazado), salir, sincronizar y un enlace que no existe. El servidor es el de verdad (`api/_liga.js`) sobre un almacén en memoria. |
 | `e2e/fridrich-session.js` | Aprender frente a cronometrar: los dos modos y su color (cambian solos), la sugerencia que se recalcula sola cada 10 casos, una sesión (su pantalla, el set, el reloj, un fallo que reinicia la racha, dominar un caso y que entre el siguiente), elegir tú los casos (los recomendados de partida, atajos, ninguno no vale, el modo; tus dominados se quedan) y cambiarlos a mitad de sesión, el ojo de cada caso del set y los intentos con el algoritmo a la vista (con un ojo, sin contar ni romper la racha, y el aviso), el overlay de OBS pasando solo a la vista de aprendizaje (sin chivar el caso; con el cubo inteligente, los giros y el resultado), irse y volver, recargar a mitad, el resumen y «Tus sesiones», sincronizar y el móvil. |
