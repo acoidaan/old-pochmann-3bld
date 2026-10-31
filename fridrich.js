@@ -2274,10 +2274,11 @@
   // The next case that costs you most, of the ones not in the set nor mastered today.
   const f2lSession = () => session.set.some((id) => (C.caseById(id) || {}).step === 'f2l');
   function candidate() {
-    // The recommendation only weighs the last layer: in a session with F2L cases, the next one you are
-    // learning (in order) comes in instead.
+    // The recommendation only weighs the last layer: in a session with F2L cases, the next F2L case you are
+    // learning comes in instead, or else the next one you don't know yet (in the order of Casos).
     if (f2lSession()) {
-      const c = F2.CASES.find((x) => statusOf(x.id) === 'learning' && !session.set.includes(x.id) && !session.done.includes(x.id));
+      const free = F2.CASES.filter((x) => !session.set.includes(x.id) && !session.done.includes(x.id));
+      const c = free.find((x) => statusOf(x.id) === 'learning') || free.find((x) => statusOf(x.id) !== 'known');
       return c ? { id: c.id, c, ms: 0 } : null;
     }
     const out = recommendation().scored.filter((x) => !session.set.includes(x.id) && !session.done.includes(x.id));
@@ -2378,7 +2379,7 @@
     return `<article class="fr-sc${cur ? ' cur' : ''}${won ? ' mastered' : ''}${lastWon === id ? ' won' : ''}" data-sc="${id}">
       <div class="fr-sc-pic">${casePicture(c)}</div>
       <div class="fr-sc-body">
-        <div class="fr-sc-top"><b>${esc(c.name)}</b><span class="muted">${STEP_NAME[c.step]}</span><span class="fr-pips" role="img" aria-label="${k} de ${need} seguidos para dominarlo">${pips}</span>${won ? '<span class="fr-sc-won">✓ Dominado</span>' : ''}<span class="fr-sc-now"${cur ? '' : ' hidden'}>Ahora</span>${eye}</div>
+        <div class="fr-sc-top"><b>${esc(c.name)}</b><span class="muted">${esc(c.step === 'f2l' ? F2.groupOf(c).name : STEP_NAME[c.step])}</span><span class="fr-pips" role="img" aria-label="${k} de ${need} seguidos para dominarlo">${pips}</span>${won ? '<span class="fr-sc-won">✓ Dominado</span>' : ''}<span class="fr-sc-now"${cur ? '' : ' hidden'}>Ahora</span>${eye}</div>
         <p class="fr-sc-line">${line}</p>
         ${last ? `<p class="fr-sc-last" aria-label="Últimos intentos">${last}</p>` : ''}
       </div>
@@ -2395,11 +2396,16 @@
       + (session.auto !== false ? ' Entonces sale del set y entra el siguiente que más te cuesta.' : ' Se queda en el set hasta que lo quites.');
     const peekNote = $('sessPeek');
     peekNote.hidden = !(session.mode === 'cube' && session.set.some(peekOn));
-    // On a phone the set is below the trainer: a line with each case and its progress, in the bar.
-    $('sessMini').innerHTML = session.set.map((id) => {
+    // On a phone the set is below the trainer: a line with each case and its progress, in the bar. A big set
+    // would fill the screen: then only the case on now, and how many more.
+    const mini = (id) => {
       const k = Math.min(need, streakOf(session.per[id]));
       return `<span class="${tr.c && tr.c.id === id ? 'cur' : ''}">${esc(shortName(C.caseById(id)))} ${'●'.repeat(k)}${'○'.repeat(need - k)}</span>`;
-    }).join('');
+    };
+    const curId = tr.c && session.set.includes(tr.c.id) ? tr.c.id : null;
+    const more = session.set.length - (curId ? 1 : 0);
+    $('sessMini').innerHTML = session.set.length <= 6 ? session.set.map(mini).join('')
+      : `${curId ? mini(curId) : ''}<span class="fr-sess-more">${curId ? 'y ' : ''}${more} ${curId ? 'más' : 'casos'}, abajo</span>`;
     const done = session.done.filter((id) => !session.set.includes(id)).map((id) => C.caseById(id));
     const swaps = session.swaps.filter((x) => x.why !== 'dominado');
     const focusEye = document.activeElement && document.activeElement.dataset ? document.activeElement.dataset.eye : null;
@@ -2546,6 +2552,9 @@
       + `<details class="fr-pick-f2l"${nF2l ? ' open' : ''}><summary>F2L <span class="muted">(${nF2l ? `${nF2l} de 41` : '41'})</span></summary>${F2.GROUPS.map((gr) => `<div class="fr-pick-row"><span class="field-title">${esc(gr.name)}</span>${F2.CASES.filter((c) => c.group === gr.id).map((c) => pc(c, String(c.n))).join('')}</div>`).join('')}</details>`;
     document.querySelectorAll('[data-pm]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.pm === pk.mode)));
     $('pickAuto').checked = pk.auto;
+    $('pickAutoText').textContent = nF2l
+      ? 'Cuando domine uno, cambiarlo por el siguiente del F2L que esté aprendiendo (o que aún no me sepa)'
+      : 'Cuando domine uno, cambiarlo por el siguiente que más me cueste';
     const n = pk.ids.size;
     $('pickGo').textContent = pk.kind === 'edit' ? `Guardar (${n} ${n === 1 ? 'caso' : 'casos'})` : `Empezar sesión con ${n} ${n === 1 ? 'caso' : 'casos'}`;
     $('pickGo').disabled = !n;

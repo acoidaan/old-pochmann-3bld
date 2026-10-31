@@ -152,6 +152,29 @@ const SCDB = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'fixtures', '
   check('session: the summary names the F2L cases', /F2L 4/.test(sum) && /F2L 5/.test(sum), sum.slice(0, 160));
   await p.keyboard.press('Escape');
 
+  // With the change on: a mastered F2L case makes way for another F2L one (F2L 5 is the one you are learning,
+  // and in the set; so the first one you don't know: F2L 1), never one of the last layer.
+  await p.click('[data-set-pick]');
+  await p.click('[data-pq="none"]');
+  await p.evaluate(() => document.querySelector('[data-pc="f2l4"]').click());
+  await p.evaluate(() => document.querySelector('[data-pc="f2l5"]').click());
+  const autoText = await p.evaluate(() => document.getElementById('pickAutoText').textContent);
+  await p.check('#pickAuto');
+  await p.click('[data-pm="look"]');
+  await p.click('#pickGo');
+  await p.waitForFunction(() => window.Fridrich._.session() && window.Fridrich._.tr.c, null, { timeout: 5000 }).catch(() => {});
+  for (let k = 0; k < 14; k++) {
+    const id = await p.evaluate(() => window.Fridrich._.tr.c.id);
+    const idx = await p.evaluate((x) => [...document.querySelectorAll('[data-answer]')].findIndex((b) => b.dataset.answer === x), id);
+    await p.keyboard.press(String((idx + 1) % 10));
+    await p.waitForFunction(() => !window.Fridrich._.tr.answered, null, { timeout: 3000 }).catch(() => {});
+    if (await p.evaluate(() => window.Fridrich._.session().done.length)) break;
+  }
+  const sw = await p.evaluate(() => ({ done: window.Fridrich._.session().done, set: window.Fridrich._.session().set }));
+  check('session: with the change on, a mastered F2L case makes way for another F2L case (the next you don\'t know), never OLL or PLL', /del F2L/.test(autoText) && sw.done.length === 1 && sw.set.length === 2 && sw.set.includes('f2l1') && sw.set.every((id) => id.startsWith('f2l')) && !sw.set.includes(sw.done[0]), JSON.stringify({ autoText, ...sw }));
+  await p.click('#sessEnd');
+  await p.keyboard.press('Escape');
+
   // ================= Entrenar: with the smart cube =================
   await p.evaluate(() => window.Fridrich.showView('crono'));
   await p.click('#cubeSim');
@@ -203,6 +226,21 @@ const SCDB = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'fixtures', '
     });
     check(`phone (${label}): the F2L cases fit, no sideways scroll, the pictures a good size`, !lay.wide && lay.pic >= 60, JSON.stringify(lay));
     await ph.p.screenshot({ path: `${SHOTS}/fridrich-f2l-casos-${label}.png` });
+    if (label === 'pixel7') {
+      // A session with the 41: the bar on top keeps to the case on now and how many more.
+      await ph.p.evaluate(() => window.Fridrich.showView('entrenar'));
+      await ph.p.click('[data-set-pick]');
+      await ph.p.click('[data-pq="f2l"]');
+      await ph.p.click('[data-pm="look"]');
+      await ph.p.click('#pickGo');
+      await ph.p.waitForFunction(() => window.Fridrich._.session() && window.Fridrich._.tr.c, null, { timeout: 5000 }).catch(() => {});
+      const bar = await ph.p.evaluate(() => ({
+        spans: document.querySelectorAll('#sessMini span').length, text: document.getElementById('sessMini').innerText.replace(/\s+/g, ' '),
+        h: Math.round(document.getElementById('sessBar').getBoundingClientRect().height), vh: window.innerHeight,
+      }));
+      check('phone: a session with the 41 → the bar shows the case on now and «y 40 más», not all of them', bar.spans === 2 && /F2L \d+/.test(bar.text) && /y 40 más/.test(bar.text) && bar.h < bar.vh * 0.25, JSON.stringify(bar));
+      await ph.p.screenshot({ path: `${SHOTS}/fridrich-f2l-session-pixel7.png` });
+    }
     await ph.ctx.close();
   }
 

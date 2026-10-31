@@ -303,6 +303,7 @@ body.fr[data-mode="learn"] .fr-modepill { border-color: var(--fr-mode); color: v
 .fr-sess-mini span { white-space: nowrap; font-weight: 600; }
 .fr-sess-mini span.cur { font-weight: 800; }
 .fr-sess-mini span.cur { opacity: 1; text-decoration: underline; text-underline-offset: 3px; }
+.fr-sess-mini .fr-sess-more { font-weight: 500; }
 body.training .view[data-view="entrenar"] > .fr-plan,
 body.training .view[data-view="entrenar"] > #ctPanel,
 body.training .view[data-view="entrenar"] > #trStatsPanel,
