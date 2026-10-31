@@ -354,8 +354,13 @@ const SOLVE = ["D R' F2 L", "U R U' R'", "U' F' U F", "L' U' L", "U B U' B'", "F
   const unrotate = (rot) => p.evaluate((x) => window.Fridrich.cube().link.turn(window.CubeModel.invertAlg(x)), rot);
   await unrotate(read.rot);
   await p.waitForFunction(() => /✓/.test(document.getElementById('trBox').innerText), null, { timeout: 4000 }).catch(() => {});
-  const res = await p.evaluate(() => ({ text: document.getElementById('trBox').innerText, rec: JSON.parse(localStorage.getItem('cfop:train:v1')) }));
-  check('train/cube: solved the step → ✓ with recognition and execution times', /✓/.test(res.text) && /Reconocer [\d.]+ s · hacer [\d.]+ s/.test(res.text) && res.rec[t1.id].n === 1, res.text.slice(0, 200));
+  const res = await p.evaluate(() => {
+    const t = window.Fridrich._.tr;
+    const r = window.Cfop.readCube(window.Fridrich.cube().state, 'U');
+    return { text: document.getElementById('trBox').innerText, rec: JSON.parse(localStorage.getItem('cfop:train:v1')), why: { c: t.c && t.c.id, ready: !!t.ready, first: !!t.first, result: !!t.result, busy: t.busy, stage: r.stage } };
+  });
+  // On one line, with the trainer's state, so a failure says what happened (run.js shows the FAIL line only).
+  check('train/cube: solved the step → ✓ with recognition and execution times', /✓/.test(res.text) && /Reconocer [\d.]+ s · hacer [\d.]+ s/.test(res.text) && res.rec[t1.id].n === 1, `${res.text.replace(/\s+/g, ' ').slice(0, 200)} · ${JSON.stringify({ ...res.why, n: (res.rec[t1.id] || {}).n, want: t1.id, alg: read.alg })}`);
   await p.waitForFunction(() => { const t = window.Fridrich._.tr; return t.follow && !t.result && !t.ready; }, null, { timeout: 30000 });
   check('train/cube: then the next case, from where the cube is', true);
 
