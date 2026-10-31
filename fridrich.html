@@ -370,8 +370,11 @@
         <p>Tus tiempos, los casos que estás aprendiendo y lo que has entrenado se guardan en este navegador (y, si activas la sincronización, también en tus otros dispositivos).</p>
         <div class="actions">
           <button class="btn" type="button" id="exportData">Descargar copia</button>
+          <button class="btn" type="button" id="csImport">Importar de csTimer</button>
           <button class="btn" type="button" id="clearTimes">Borrar tiempos</button>
         </div>
+        <input type="file" id="csFile" accept=".txt,.json,text/plain,application/json" hidden>
+        <div class="fr-cs" id="csBox" hidden></div>
       </section>
     </div>
   </main>

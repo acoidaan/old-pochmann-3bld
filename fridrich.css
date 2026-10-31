@@ -584,3 +584,9 @@ body.focus .clock-pb b { font-size: 24px; }
 .fr-note-form { display: flex; gap: 8px; align-items: center; }
 .fr-note-form input { flex: 1 1 auto; min-width: 0; }
 body.focus .fr-scr-mode, body.focus .fr-hist-mode { display: none !important; }
+
+/* Import from csTimer */
+.fr-cs { display: grid; gap: 10px; margin-top: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; }
+.fr-cs p { margin: 0; }
+.fr-cs-list { display: grid; gap: 8px; }
+.fr-cs-list .check { align-items: flex-start; }

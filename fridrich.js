@@ -3263,6 +3263,70 @@
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   });
+  // ---- Import from csTimer: its «Exportar a archivo» (a JSON, usually .txt), every session or the ones chosen.
+  // A solve there is [[penalty, ms, ...], scramble, comment, unix seconds]; penalty 0, 2000 (+2) or -1 (DNF).
+  let csData = null;
+  function parseCsTimer(text) {
+    let j;
+    try { j = JSON.parse(text); } catch (e) { return null; }
+    if (!j || typeof j !== 'object') return null;
+    let names = {};
+    try { names = JSON.parse((j.properties && j.properties.sessionData) || '{}') || {}; } catch (e) { names = {}; }
+    const sessions = Object.keys(j).filter((k) => /^session\d+$/.test(k) && Array.isArray(j[k])).map((k) => {
+      const id = k.slice(7);
+      const meta = names[id] || {};
+      const type = (meta.opt && meta.opt.scrType) || '333';
+      const seen = new Map();
+      const solves = j[k].map((x) => {
+        if (!Array.isArray(x) || !Array.isArray(x[0]) || !Number.isFinite(x[0][1]) || !Number.isFinite(x[3])) return null;
+        const p = x[0][0];
+        const base = Math.round(x[3] * 1000);
+        const n = seen.get(base) || 0;   // several in the same second: one ms apart, the same each time it is imported
+        seen.set(base, n + 1);
+        const r = { at: base + n, t: Math.round(x[0][1]), pen: p === -1 ? 'dnf' : p === 2000 ? 2 : 0, scr: typeof x[1] === 'string' ? x[1].trim() : '' };
+        if (typeof x[2] === 'string' && x[2].trim()) r.no = x[2].trim().slice(0, 200);
+        return r;
+      }).filter((r) => r && r.t > 0);
+      return { id, name: String(meta.name == null ? id : meta.name), type, solves };
+    }).filter((s) => s.solves.length);
+    return sessions.length ? sessions : null;
+  }
+  function renderCs() {
+    const box = $('csBox');
+    if (!csData) { box.hidden = true; box.innerHTML = ''; return; }
+    box.hidden = false;
+    box.innerHTML = `<p>Elige qué sesiones de csTimer traer. Entran como solves completos, con su scramble, su penalización y su comentario como nota.</p>
+      <div class="fr-cs-list">${csData.map((s, i) => `<label class="check"><input type="checkbox" data-cs="${i}"${s.type === '333' ? ' checked' : ''}> <span><b>${esc(s.name)}</b> <span class="muted">· ${s.solves.length} ${s.solves.length === 1 ? 'tiempo' : 'tiempos'}${s.type !== '333' ? ` · ${esc(s.type)}` : ''}</span></span></label>`).join('')}</div>
+      <div class="actions"><button class="btn primary" type="button" id="csGo">Importar</button><button class="btn" type="button" id="csCancel">Cancelar</button></div>`;
+    $('csGo').addEventListener('click', importCs);
+    $('csCancel').addEventListener('click', () => { csData = null; renderCs(); });
+  }
+  function importCs() {
+    const picked = [...document.querySelectorAll('[data-cs]')].filter((b) => b.checked).flatMap((b) => csData[Number(b.dataset.cs)].solves);
+    if (!picked.length) { toast('Elige al menos una sesión'); return; }
+    const have = new Set([...times, ...ltimes].map((r) => r.at));
+    const dead = new Set(load(K.deleted, []));
+    const fresh = picked.filter((r) => !have.has(r.at) && !dead.has(r.at));
+    const all = [...times, ...fresh].sort((a, b) => a.at - b.at);
+    const cut = Math.max(0, all.length - 2000);
+    times = all.slice(cut);
+    save(K.times, times);
+    csData = null;
+    renderCs();
+    renderStats();
+    changed();
+    ligaPublishSoon();
+    const skipped = picked.length - fresh.length;
+    toast(`${fresh.length} ${fresh.length === 1 ? 'tiempo importado' : 'tiempos importados'}${skipped ? ` · ${skipped} ya estaban` : ''}${cut ? ` · se guardan los 2000 más recientes` : ''}`);
+  }
+  $('csImport').addEventListener('click', () => { $('csFile').value = ''; $('csFile').click(); });
+  $('csFile').addEventListener('change', async () => {
+    const f = $('csFile').files && $('csFile').files[0];
+    if (!f) return;
+    csData = parseCsTimer(await f.text());
+    if (!csData) toast('Ese archivo no es una copia de csTimer (en csTimer: Exportar → Exportar a archivo)');
+    renderCs();
+  });
   $('clearTimes').addEventListener('click', (ev) => {
     const b = ev.currentTarget;
     if (b.dataset.armed !== '1') { b.dataset.armed = '1'; b.textContent = `¿Borrar ${times.length} tiempos? Pulsa otra vez`; setTimeout(() => { b.dataset.armed = ''; b.textContent = 'Borrar tiempos'; }, 4000); return; }
