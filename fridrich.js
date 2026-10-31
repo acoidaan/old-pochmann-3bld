@@ -2272,7 +2272,14 @@
     renderSession();
   }
   // The next case that costs you most, of the ones not in the set nor mastered today.
+  const f2lSession = () => session.set.some((id) => (C.caseById(id) || {}).step === 'f2l');
   function candidate() {
+    // The recommendation only weighs the last layer: in a session with F2L cases, the next one you are
+    // learning (in order) comes in instead.
+    if (f2lSession()) {
+      const c = F2.CASES.find((x) => statusOf(x.id) === 'learning' && !session.set.includes(x.id) && !session.done.includes(x.id));
+      return c ? { id: c.id, c, ms: 0 } : null;
+    }
     const out = recommendation().scored.filter((x) => !session.set.includes(x.id) && !session.done.includes(x.id));
     return out.find((x) => x.ms >= 15) || out[0] || null;
   }
@@ -2305,6 +2312,7 @@
   let lastWon = null;
   function reweigh() {
     session.since = 0;
+    if (f2lSession()) return;   // nothing to weigh the F2L cases against yet
     const rc = recommendation();
     const cost = (id) => (rc.scored.find((x) => x.id === id) || { ms: 0 }).ms;
     const out = rc.scored.find((x) => !session.set.includes(x.id) && !session.done.includes(x.id));
@@ -2527,11 +2535,15 @@
   function renderPicker() {
     const recIds = new Set(plan.set.map((x) => x.id));
     const cost = Object.fromEntries(plan.scored.map((x) => [x.id, x.ms]));
-    $('pickCases').innerHTML = C.LL.map((step) => `<div class="fr-pick-row"><span class="field-title">${STEP_NAME[step]}</span>${C.CASES.filter((c) => c.step === step).map((c) => {
+    const pc = (c, label) => {
       const on = pk.ids.has(c.id);
       const st = statusOf(c.id);
-      return `<button type="button" class="fr-chip${st === 'learning' ? ' learning' : ''}" data-pc="${c.id}" aria-pressed="${on}" title="${esc(`${c.name}${recIds.has(c.id) ? ' · recomendado' : ''}${cost[c.id] >= 15 ? ` · te cuesta ${(cost[c.id] / 1000).toFixed(2)} s por solve` : ''}`)}">${recIds.has(c.id) ? '<span class="fr-chip-star" aria-label="recomendado">★</span> ' : ''}${esc(shortName(c))}</button>`;
-    }).join('')}</div>`).join('');
+      return `<button type="button" class="fr-chip${st === 'learning' ? ' learning' : ''}" data-pc="${c.id}" aria-pressed="${on}" title="${esc(`${c.name}${recIds.has(c.id) ? ' · recomendado' : ''}${cost[c.id] >= 15 ? ` · te cuesta ${(cost[c.id] / 1000).toFixed(2)} s por solve` : ''}`)}">${recIds.has(c.id) ? '<span class="fr-chip-star" aria-label="recomendado">★</span> ' : ''}${esc(label)}</button>`;
+    };
+    // The 41 of the F2L folded, unless one of them is chosen.
+    const nF2l = F2.CASES.filter((c) => pk.ids.has(c.id)).length;
+    $('pickCases').innerHTML = C.LL.map((step) => `<div class="fr-pick-row"><span class="field-title">${STEP_NAME[step]}</span>${C.CASES.filter((c) => c.step === step).map((c) => pc(c, shortName(c))).join('')}</div>`).join('')
+      + `<details class="fr-pick-f2l"${nF2l ? ' open' : ''}><summary>F2L <span class="muted">(${nF2l ? `${nF2l} de 41` : '41'})</span></summary>${F2.GROUPS.map((gr) => `<div class="fr-pick-row"><span class="field-title">${esc(gr.name)}</span>${F2.CASES.filter((c) => c.group === gr.id).map((c) => pc(c, String(c.n))).join('')}</div>`).join('')}</details>`;
     document.querySelectorAll('[data-pm]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.pm === pk.mode)));
     $('pickAuto').checked = pk.auto;
     const n = pk.ids.size;
@@ -2551,7 +2563,7 @@
   });
   document.querySelectorAll('[data-pq]').forEach((b) => b.addEventListener('click', () => {
     const q = b.dataset.pq;
-    const all = C.CASES.map((c) => c.id);
+    const all = ALL_CASES.map((c) => c.id);
     const ids = q === 'rec' ? plan.set.map((x) => x.id) : q === 'none' ? [] : q === 'learning' ? all.filter((id) => statusOf(id) === 'learning')
       : all.filter((id) => C.caseById(id).step.startsWith(q));
     if (q === 'learning' && !ids.length) { toast('Marca en «Casos» los que estás aprendiendo'); return; }
@@ -2569,7 +2581,7 @@
     ev.preventDefault();
     if (!pk.ids.size) return;
     // In the order of the steps, the way you see them.
-    const ids = C.CASES.map((c) => c.id).filter((id) => pk.ids.has(id));
+    const ids = ALL_CASES.map((c) => c.id).filter((id) => pk.ids.has(id));
     closePicker();
     if (pk.kind === 'edit' && session) { editSet(ids, pk.auto); return; }
     settings.pickLast = ids;

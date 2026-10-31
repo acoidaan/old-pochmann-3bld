@@ -316,7 +316,7 @@ body.training #trPanel { position: sticky; top: 124px; border-color: var(--fr-mo
 .fr-sc.cur { border-color: var(--fr-mode); box-shadow: 0 0 0 1px var(--fr-mode); }
 .fr-sc.won { animation: frWon .9s ease; }
 @keyframes frWon { 30% { transform: scale(1.03); box-shadow: 0 0 0 3px var(--ok); } }
-.fr-sc-pic .fr-top { width: 64px; height: auto; }
+.fr-sc-pic .fr-top, .fr-sc-pic .fr-iso { width: 64px; height: auto; }
 .fr-sc-body { display: grid; gap: 3px; min-width: 0; }
 .fr-sc-top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
 .fr-sc-top .muted { font-size: 12.5px; font-weight: 600; }

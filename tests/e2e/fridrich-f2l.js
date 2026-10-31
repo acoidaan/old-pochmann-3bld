@@ -121,6 +121,37 @@ const SCDB = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'fixtures', '
   const qa = await p.evaluate((id) => ({ fb: document.getElementById('trFeedback').innerText, rec: (JSON.parse(localStorage.getItem('cfop:train:v1')) || {})[id] }), q.id);
   check('train/look: the right one with its key (0 for the tenth) → ✓ and counted', /✓/.test(qa.fb) && qa.rec && qa.rec.qn === 1 && qa.rec.qok === 1, JSON.stringify(qa));
 
+  // ================= A session with F2L cases =================
+  await p.waitForFunction(() => !window.Fridrich._.tr.answered, null, { timeout: 3000 }).catch(() => {});
+  await p.click('[data-set-pick]');
+  await p.click('[data-pq="f2l"]');
+  const all41 = await p.evaluate(() => document.querySelectorAll('#pickCases .fr-pick-f2l [data-pc][aria-pressed="true"]').length);
+  await p.click('[data-pq="none"]');
+  await p.evaluate(() => document.querySelector('[data-pc="f2l4"]').click());
+  await p.evaluate(() => document.querySelector('[data-pc="f2l5"]').click());
+  await p.click('[data-pm="look"]');
+  const go = await p.evaluate(() => document.getElementById('pickGo').textContent);
+  await p.click('#pickGo');
+  await p.waitForFunction(() => window.Fridrich._.session() && window.Fridrich._.tr.c, null, { timeout: 5000 }).catch(() => {});
+  const ses = await p.evaluate(() => ({
+    set: window.Fridrich._.session().set, cur: window.Fridrich._.tr.c.id,
+    cards: document.querySelectorAll('#sessSet .fr-sc').length, pics: document.querySelectorAll('#sessSet .fr-sc svg.fr-iso').length,
+  }));
+  check('session: «Elegir yo los casos…» has the F2L too («F2L» picks the 41) → a session with F2L 4 and F2L 5, drawn in 3D', all41 === 41 && /2 casos/.test(go) && ses.set.join() === 'f2l4,f2l5' && ses.set.includes(ses.cur) && ses.cards === 2 && ses.pics === 2, JSON.stringify({ all41, go, ...ses }));
+  for (let k = 0; k < 14; k++) {
+    const id = await p.evaluate(() => window.Fridrich._.tr.c.id);
+    const idx = await p.evaluate((x) => [...document.querySelectorAll('[data-answer]')].findIndex((b) => b.dataset.answer === x), id);
+    await p.keyboard.press(String((idx + 1) % 10));
+    await p.waitForFunction(() => !window.Fridrich._.tr.answered, null, { timeout: 3000 }).catch(() => {});
+    if (await p.evaluate(() => window.Fridrich._.session().done.length)) break;
+  }
+  const won = await p.evaluate(() => ({ done: window.Fridrich._.session().done, set: window.Fridrich._.session().set, text: document.getElementById('sessSet').innerText }));
+  check('session: four right in a row → that F2L case mastered; chosen by you, it stays in the set and nothing else comes in', won.done.length === 1 && won.done[0].startsWith('f2l') && won.set.join() === 'f2l4,f2l5' && /Dominado/.test(won.text), JSON.stringify({ ...won, text: won.text.slice(0, 80) }));
+  await p.click('#sessEnd');
+  const sum = await p.evaluate(() => document.getElementById('sessSum').innerText);
+  check('session: the summary names the F2L cases', /F2L 4/.test(sum) && /F2L 5/.test(sum), sum.slice(0, 160));
+  await p.keyboard.press('Escape');
+
   // ================= Entrenar: with the smart cube =================
   await p.evaluate(() => window.Fridrich.showView('crono'));
   await p.click('#cubeSim');
