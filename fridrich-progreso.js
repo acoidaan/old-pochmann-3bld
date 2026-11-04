@@ -88,7 +88,7 @@
         lastM = m;
       }
       const cellTitle = (c) => `${fdate(c.ts)}: ${c.n ? [c.solves && `${c.solves} ${c.solves === 1 ? 'solve' : 'solves'}`, c.train && `${c.train} ${c.train === 1 ? 'caso' : 'casos'}`, c.cross && `${c.cross} ${c.cross === 1 ? 'cruz' : 'cruces'}`].filter(Boolean).join(', ') : 'nada'}`;
-      $('progActivity').innerHTML = `<div class="fr-hm-wrap">
+      $('progActivity').innerHTML = `<div class="fr-hm-wrap" role="region" tabindex="0" aria-label="Calendario de actividad, desliza horizontalmente para ver los días">
           <div class="fr-hm-days" aria-hidden="true"><span>L</span><span></span><span>X</span><span></span><span>V</span><span></span><span>D</span></div>
           <div class="fr-hm-main">
             <div class="fr-hm-months" aria-hidden="true" style="grid-template-columns:repeat(${weeks}, var(--hm))">${months}</div>
