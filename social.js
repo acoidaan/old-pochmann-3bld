@@ -512,6 +512,7 @@
       retos: retos().map(({ pending, ...r }) => r),
       retosGone: gone(),
       name: getName(),
+      practice: window.Practice ? window.Practice.data() : {},
     };
   }
   // Merges remote data into this device. Returns true when anything changed here.
@@ -549,6 +550,7 @@
     });
     if (trainChanged) { OP.data.setTrain(train); changedHere = true; }
     if (OP.learn && remote.learn && OP.learn.merge(remote.learn)) changedHere = true;
+    if (window.Practice && window.Practice.merge(remote.practice)) changedHere = true;
     const g = gone();
     const rg = remote.retosGone && typeof remote.retosGone === 'object' ? remote.retosGone : {};
     Object.entries(rg).forEach(([id, at]) => { if (typeof at === 'number' && at > (g[id] || 0)) g[id] = at; });

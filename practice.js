@@ -6,7 +6,8 @@
 //   Practice.bump()   Practice.days() → { 'YYYY-MM-DD': ms }   Practice.data() / Practice.merge(remote)
 (() => {
   'use strict';
-  const KEY = 'cfop:practice:v1';   // { [device]: { 'YYYY-MM-DD': ms } }
+  // Each page keeps its own (<html data-practice="op3bld"> on the 3BLD one); Fridrich's is the default.
+  const KEY = `${document.documentElement.dataset.practice || 'cfop'}:practice:v1`;   // { [device]: { 'YYYY-MM-DD': ms } }
   const DEV_KEY = 'cfop:device:v1';
   const GAP = 120000;
   const load = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; } catch (e) { return d; } };

@@ -1284,11 +1284,106 @@
   }
   // Weighted draw: misses raise a letter's weight, hits lower it.
   function pickLetter(kind) {
+    const ses = sesOn(kind);
+    if (ses) {
+      // In a session: only its set, the ones with the shortest streak more often.
+      const set = ses.set.length > 1 ? ses.set.filter((L) => L !== trainer.prev) : ses.set;
+      const ws = set.map((L) => SES_NEED + 1 - (ses.k[L] || 0));
+      let r = Math.random() * ws.reduce((a, b) => a + b, 0);
+      for (let i = 0; i < set.length; i++) { r -= ws[i]; if (r <= 0) return set[i]; }
+      return set[set.length - 1];
+    }
     const pool = trainLetters(kind).filter((L) => L !== trainer.prev);
     const weights = pool.map((L) => statOf(kind, L).w);
     let r = Math.random() * weights.reduce((a, b) => a + b, 0);
     for (let i = 0; i < pool.length; i++) { r -= weights[i]; if (r <= 0) return pool[i]; }
     return pool[pool.length - 1];
+  }
+  // ---- Sessions: a few letters that cost you, until each one is right SES_NEED times in a row; then the next
+  // one comes in. The eye on a letter shows its setup while you practise it, and those answers do not count.
+  const SES_KEY = 'op3bld:trses:v1';
+  const SES_NEED = 3;
+  const SES_SIZE = 5;
+  const EYE_ON = '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+  const EYE_OFF = '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.9 5.2A9.7 9.7 0 0 1 12 5c6.4 0 10 7 10 7a17.6 17.6 0 0 1-2.9 3.8M6.3 6.3C3.6 8 2 12 2 12s3.6 7 10 7a9.5 9.5 0 0 0 5.7-1.9"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/><path d="M3 3l18 18"/></svg>';
+  let ses = (() => { try { const x = JSON.parse(localStorage.getItem(SES_KEY)); return x && Array.isArray(x.set) && x.set.length ? x : null; } catch (e) { return null; } })();
+  const saveSes = () => { try { if (ses) localStorage.setItem(SES_KEY, JSON.stringify(ses)); else localStorage.removeItem(SES_KEY); } catch (e) { /* this visit */ } };
+  const sesOn = (kind) => (ses && ses.kind === kind ? ses : null);
+  // The letters that cost you most: broken attempts, misses, weight; then the ones never practised.
+  function costly(kind, skip) {
+    const data = trainData[kind] || {};
+    const score = (L) => { const st = data[L]; if (!st) return 0.5; return (st.dnf || 0) * 3 + ((st.seen || 0) - (st.right || 0)) + st.w - (st.streak >= 3 ? 3 : 0); };
+    return trainLetters(kind).filter((L) => !skip.includes(L)).sort((a, b) => score(b) - score(a));
+  }
+  function startSession(kind, letters) {
+    const k = kind === 'corner' ? 'corner' : 'edge';
+    const valid = (letters || []).filter((L) => trainLetters(k).includes(L));
+    const set = [...new Set([...valid, ...costly(k, valid)])].slice(0, Math.max(SES_SIZE, valid.length));
+    ses = { kind: k, set, k: {}, done: [], peek: {}, n: 0, ok: 0, at: Date.now() };
+    saveSes();
+    if (trainer.kind !== k) setTrainKind(k); else { trainer.prev = null; nextCard(false); renderTrainStats(); }
+  }
+  function endSession() { ses = null; saveSes(); trainer.prev = null; nextCard(false); renderTrainStats(); }
+  // One answer in the session: right raises the letter's streak, wrong resets it; with the eye on it does not count.
+  function sesAnswer(L, ok) {
+    const s = sesOn(trainer.kind);
+    if (!s || !s.set.includes(L)) return '';
+    if (s.peek[L]) return ' <span class=tr-ses-note>Con el setup a la vista: no cuenta para dominarla.</span>';
+    s.n++;
+    if (ok) s.ok++;
+    s.k[L] = ok ? (s.k[L] || 0) + 1 : 0;
+    let msg = '';
+    if (s.k[L] >= SES_NEED) {
+      s.set = s.set.filter((x) => x !== L);
+      s.done.push(L);
+      delete s.peek[L];
+      const next = costly(s.kind, [...s.set, ...s.done])[0];
+      if (next) s.set.push(next);
+      msg = ` <span class=tr-ses-note><b>¡${L} dominada!</b>${next ? ` Entra la ${next}.` : ''}</span>`;
+      if (!s.set.length) msg += ' <span class=tr-ses-note>Has dominado todas las letras.</span>';
+    }
+    saveSes();
+    return msg;
+  }
+  function renderSession() {
+    const box = $('trSession');
+    const s = sesOn(trainer.kind);
+    const noun = trainer.kind === 'edge' ? 'aristas' : 'esquinas';
+    if (!s) {
+      const other = ses && ses.kind !== trainer.kind ? ` <span class=hint>Tienes una sesión de ${ses.kind === 'edge' ? 'aristas' : 'esquinas'} a medias.</span>` : '';
+      const top = costly(trainer.kind, []).slice(0, SES_SIZE);
+      box.innerHTML = `<div class=tr-ses-start><span><b>Sesión de entrenamiento</b> <span class=muted>· ${SES_SIZE} letras de ${noun} que te cuestan (${top.join(', ')}), hasta acertar cada una ${SES_NEED} veces seguidas</span>${other}</span>`
+        + `<button class='btn primary' type=button id=trSesGo>Empezar sesión</button></div>`;
+      return;
+    }
+    const pip = (L) => '●'.repeat(Math.min(SES_NEED, s.k[L] || 0)) + '○'.repeat(Math.max(0, SES_NEED - (s.k[L] || 0)));
+    box.innerHTML = `<div class=tr-ses-head><b>Sesión · ${noun}</b><span class=muted>${s.n} ${s.n === 1 ? 'respuesta' : 'respuestas'} · ${s.ok} bien · ${s.done.length} ${s.done.length === 1 ? 'dominada' : 'dominadas'}</span><button class=btn type=button id=trSesEnd>Terminar</button></div>`
+      + `<div class=tr-ses-set>${s.set.map((L) => `<span class='tr-ses-l${L === trainer.letter ? ' cur' : ''}'><b>${L}</b><span class=pips aria-label='${s.k[L] || 0} de ${SES_NEED} seguidas'>${pip(L)}</span>`
+        + `<button class=tr-eye type=button data-tr-eye='${L}' aria-pressed='${!!s.peek[L]}' aria-label='Ver el setup de ${L} al entrenarla' title='${s.peek[L] ? 'Sale con el setup a la vista (no cuenta). Pulsa para ocultarlo.' : 'Pulsa para verla con el setup a la vista.'}'>${s.peek[L] ? EYE_ON : EYE_OFF}</button></span>`).join('')}</div>`
+      + (s.done.length ? `<div class=tr-ses-done>${s.done.map((L) => `<span>✓ ${L}</span>`).join('')}</div>` : '');
+  }
+  $('trSession').addEventListener('click', (ev) => {
+    if (ev.target.closest('#trSesGo')) { startSession(trainer.kind, []); return; }
+    if (ev.target.closest('#trSesEnd')) { endSession(); return; }
+    const e = ev.target.closest('[data-tr-eye]');
+    if (e && ses) {
+      const L = e.dataset.trEye;
+      if (ses.peek[L]) delete ses.peek[L]; else ses.peek[L] = true;
+      saveSes();
+      if (trainer.letter === L && trainer.phase === 'ask') showPeek();
+      renderSession();
+      const again = $('trSession').querySelector(`[data-tr-eye="${L}"]`);
+      if (again) again.focus();
+    }
+  });
+  // The setup in view for a letter with its eye on.
+  function showPeek() {
+    const s = sesOn(trainer.kind);
+    const L = trainer.letter;
+    const el = $('trPeek');
+    const on = !!(s && L && s.peek[L] && s.set.includes(L));
+    el.hidden = !on;
+    if (on) { const right = MODES[trainer.kind].table[L]; el.innerHTML = `Setup de ${L}: ${right ? `<code>${esc(right)}</code>` : 'sin setup'}`; }
   }
   function nextCard(focus, keepFeedback) {
     const kind = trainer.kind;
@@ -1310,6 +1405,8 @@
       $('trFeedback').className = 'tr-feedback';
     }
     showSpoiler(false);
+    showPeek();
+    renderSession();
     if (focus) inp.focus();
     emit('train', { letter: L });
   }
@@ -1333,7 +1430,7 @@
     if (res.ok) { trainer.session.ok++; trainer.session.time += secs; }
     const fb = $('trFeedback');
     fb.className = 'tr-feedback ' + (res.ok && res.clean ? 'ok' : 'ko');
-    fb.innerHTML = html;
+    fb.innerHTML = html + sesAnswer(trainer.letter, !!(res.ok && res.clean));
     trainer.phase = 'answered';
     renderTrainStats();
     emit('train', { answered: true });
@@ -1407,9 +1504,9 @@
     const ans = right ? `<code>${right}</code>` : 'sin setup';
     const fb = $('trFeedback');
     fb.className = 'tr-feedback ' + (res.ok ? 'ok' : 'ko');
-    fb.innerHTML = res.ok
+    fb.innerHTML = (res.ok
       ? `Correcto en ${secs.toFixed(1).replace('.', ',')} s.${res.norm !== right ? ` Tu tabla usa ${ans}.` : ''}`
-      : `${res.msg} La de tu tabla: ${ans}.`;
+      : `${res.msg} La de tu tabla: ${ans}.`) + sesAnswer(L, res.ok);
     trainer.phase = 'answered';
     $('trInput').readOnly = true;
     $('trSubmit').textContent = 'Siguiente';
@@ -1434,6 +1531,7 @@
       return `<span class='m-cell ${cls}' title='${L}: ${tip}'>${L}</span>`;
     }).join('');
     renderFromSolves();
+    renderSession();
   }
   // Letters that went wrong in a timed solve (found by the smart cube) come up more until you get them
   // right three times in a row.
@@ -1905,7 +2003,7 @@
   });
 
   // ================= Menus =================
-  const VIEWS = ['practicar', 'crono', 'entrenar', 'aprender', 'retos', 'tabla', 'ajustes'];
+  const VIEWS = ['practicar', 'crono', 'entrenar', 'progreso', 'aprender', 'retos', 'tabla', 'ajustes'];
   const VIEW_KEY = 'op3bld:view:v1';
   const viewHooks = {};
   let currentView = 'practicar';
@@ -1958,6 +2056,7 @@
     timerState, trainLetters,
     // For the smart cube: the setup trainer and the guided execution.
     trainer: { state: () => ({ kind: trainer.kind, letter: trainer.letter, phase: trainer.phase, t0: trainer.t0 }), next: (keep) => nextCard(false, keep), cubeAnswer, flag: flagLetter,
+      session: startSession, sessionState: () => (ses ? JSON.parse(JSON.stringify(ses)) : null), endSession,
       hint: (text) => { if (trainer.hint !== text) { trainer.hint = text; renderTrainStats(); } } },
     solveState, simplifyAlg,
     // For the smart cube in «Practicar»: the memo's letters, and showing one of them at a given step.
@@ -1984,6 +2083,8 @@
     },
     refreshFocus: () => { if (focus.on) renderFocus(); },
     resultExtra: null, scrHtml: null,
+    // The numbers of the crono, for «Progreso».
+    bld: { partOf, valueOf, mo3Of, bestMo3Of, fmtV, PART_NAME },
     scramble: () => $('scr').value.trim(),
     data: {
       times: () => times,
@@ -2001,7 +2102,7 @@
   if (['full', 'edges', 'corners'].includes(saved.scrKind)) $('scrKind').value = saved.scrKind;
   renderTimes();
   renderCronoMode();
-  setTrainKind('edge');
+  setTrainKind(ses ? ses.kind : 'edge');
   if (saved.railCollapsed && window.matchMedia('(max-width: 860px)').matches) {
     $('rail').classList.add('collapsed');
     $('railToggle').textContent = 'Mostrar';

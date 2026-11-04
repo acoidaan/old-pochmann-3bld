@@ -3,7 +3,7 @@ const { chromium } = require('playwright');
 const fs = require('fs');
 const { SITE_PLAIN: SITE } = require('../env');
 const axeSrc = fs.readFileSync(require.resolve('axe-core/axe.min.js'), 'utf8');
-const VIEWS = ['practicar', 'crono', 'entrenar', 'aprender', 'tabla', 'retos', 'ajustes'];
+const VIEWS = ['practicar', 'crono', 'entrenar', 'progreso', 'aprender', 'tabla', 'retos', 'ajustes'];
 
 (async () => {
   const browser = await chromium.launch();
