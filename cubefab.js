@@ -29,6 +29,11 @@
     });
     fab.style.bottom = lift ? `${Math.round(lift) + 12}px` : '';
     tip.style.bottom = `${(lift ? Math.round(lift) + 12 : 16) + 60}px`;
+    // While it is there, what scrolls into view stays above it, and the end of the page can go past it.
+    const room = fab.hidden ? 0 : Math.round(lift) + (lift ? 12 : 16) + (fab.offsetHeight || 48) + 8;
+    document.documentElement.style.scrollPaddingBottom = room ? `${room}px` : '';
+    document.body.classList.toggle('has-fab', !!room);
+    document.body.style.setProperty('--fab-room', `${room}px`);
   };
   addEventListener('resize', render);
   fab.addEventListener('click', () => { if ((dot.dataset.s || 'off') === 'off') btn.click(); });
