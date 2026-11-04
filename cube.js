@@ -141,7 +141,7 @@
   document.addEventListener('op3:timer', (ev) => {
     const d = ev.detail || {};
     if (d.phase === 'memo') unlockAudio();
-    if (d.phase === 'memo' && !attempt && cube.status === 'on' && cube.state) {
+    if (d.phase === 'memo' && !attempt && !d.memoOnly && cube.status === 'on' && cube.state) {
       const scrState = (() => { try { return norm(apply(solved(), d.scramble || '')); } catch (e) { return null; } })();
       attempt = { running: true, scramble: d.scramble || '', scrState, start: cube.state, states: [cube.state], moves: [], gap: false };
       liveStart(attempt, cube.state);

@@ -916,3 +916,23 @@ img { max-width: 100%; }
 html.sc-hosting, html.sc-hosting body { overflow: hidden; }
 html.sc-hosting body > :not(.sc-frame) { display: none !important; }
 .sc-frame { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; background: var(--bg); z-index: 2147483647; }
+
+/* ---------- 3BLD crono: what it times, your memo under the clock, the parts and the notes ---------- */
+.crono-mode { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.clock-memo { display: flex; flex-wrap: wrap; justify-content: center; align-items: baseline; gap: 4px 8px; margin-top: 4px; font-size: 13px; color: var(--muted); }
+.clock-memo[hidden] { display: none; }
+.clock-memo b { font-family: var(--font-mono); font-size: 15px; font-weight: 600; color: var(--ink); letter-spacing: .02em; }
+.clock-memo i { font-style: normal; }
+body.focus .clock-memo { font-size: 15px; }
+body.focus .clock-memo b { font-size: clamp(16px, 2.6vw, 22px); }
+.memo-ask input { font: inherit; font-family: var(--font-mono); text-transform: uppercase; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); width: min(100%, 220px); }
+body.focus .memo-ask input { width: 100%; font-size: 18px; }
+.after-text.ok { color: var(--ok); font-weight: 700; }
+.after-text.ko { color: var(--accent); font-weight: 700; }
+.part-seg { flex-wrap: wrap; width: fit-content; max-width: 100%; }
+.history tr.h-extra > td { white-space: normal; padding-top: 0; border-top: 0; }
+.h-memo, .h-note { display: inline-block; margin-right: 14px; font-size: 13px; }
+.h-memo code { font-family: var(--font-mono); }
+.h-note { font-style: italic; color: var(--muted); }
+.h-note-form { display: flex; gap: 8px; align-items: center; }
+.h-note-form input { flex: 1 1 auto; min-width: 0; }

@@ -885,6 +885,54 @@
   const timer = { phase: 'idle', t0: 0, t1: 0, t2: 0, raf: 0, scramble: '', quietUntil: 0 };
   let times = (() => { try { return JSON.parse(localStorage.getItem(TIMES_KEY)) || []; } catch (e) { return []; } })();
   const saveTimes = () => { try { localStorage.setItem(TIMES_KEY, JSON.stringify(times.slice(-500))); } catch (e) { /* not kept */ } };
+  // ---- Parts: a whole attempt or a part of it on its own. Edges only or corners only come from the scramble
+  // (the other pieces already solved), so older attempts sort themselves too; «solo memo» is marked on the
+  // attempt (m: 'memo'). Each part keeps its own numbers.
+  const PART_NAME = { full: 'Completos', edges: 'Solo aristas', corners: 'Solo esquinas', memo: 'Solo memo' };
+  const kindCache = new Map();
+  function scrKindOf(scr) {
+    const k = String(scr || '');
+    if (kindCache.has(k)) return kindCache.get(k);
+    let kind = 'full';
+    try {
+      const st = apply(solved(), k);
+      const edgesOk = st.every((v, i) => !EDGE_LETTER[i] || v === i);
+      const cornersOk = st.every((v, i) => !CORNER_LETTER[i] || v === i);
+      if (edgesOk && !cornersOk) kind = 'corners';
+      else if (cornersOk && !edgesOk) kind = 'edges';
+    } catch (e) { /* unreadable: counted as a whole one */ }
+    if (kindCache.size > 2000) kindCache.clear();
+    kindCache.set(k, kind);
+    return kind;
+  }
+  const partOf = (t) => (t.m === 'memo' ? 'memo' : scrKindOf(t.scr));
+  // A solved attempt's time (memo + execution; just the memo in «solo memo»); a DNF counts as infinite.
+  const valueOf = (t) => (t.ok ? t.memo + (t.exec || 0) : Infinity);
+  // Mean of 3, as the WCA does in 3BLD: every attempt counts, and one DNF makes it DNF.
+  const mo3Of = (list) => (list.length < 3 ? null : list.slice(-3).reduce((a, t) => a + valueOf(t), 0) / 3);
+  function bestMo3Of(list) {
+    let best = null;
+    for (let i = 2; i < list.length; i++) {
+      const v = (valueOf(list[i - 2]) + valueOf(list[i - 1]) + valueOf(list[i])) / 3;
+      if (Number.isFinite(v) && (best == null || v < best)) best = v;
+    }
+    return best;
+  }
+  const fmtV = (v) => (v == null ? '—' : Number.isFinite(v) ? fmt(v) : 'DNF');
+  // Whether these letters solve this scramble (the check of «Comprobar memo», without touching the page).
+  function memoSolves(scr, e, c) {
+    if (e.some((L) => !(L in EDGE_POS) || MODES.edge.buffer.includes(L))) return false;
+    if (c.some((L) => !(L in CORNER_POS) || MODES.corner.buffer.includes(L))) return false;
+    let st;
+    try { st = apply(solved(), scr); } catch (err) { return false; }
+    for (const L of e) st = apply(st, conjugate(EDGE_SETUP[L], ALGS.T.moves));
+    if (e.length % 2) st = apply(st, ALGS.P.moves);
+    for (const L of c) st = apply(st, conjugate(CORNER_SETUP[L], ALGS.Y.moves));
+    return st.every((v, i) => v === i);
+  }
+  // What the crono times: a whole attempt, or only the memo (then you write it down and it is checked).
+  const CRONO_KEY = 'op3bld:crono:v1';
+  const crono = { mode: (() => { try { return localStorage.getItem(CRONO_KEY) === 'memo' ? 'memo' : 'full'; } catch (e) { return 'full'; } })() };
   const esc = (txt) => String(txt).replace(/[&<>'"]/g, (ch) => '&#' + ch.charCodeAt(0) + ';');
   function fmt(ms) {
     if (ms == null || !isFinite(ms)) return '—';
@@ -903,7 +951,26 @@
     if (timer.phase === 'exec') { total = now - timer.t0; memo = timer.t1 - timer.t0; }
     if (timer.phase === 'done') { total = timer.t2 - timer.t0; memo = timer.t1 - timer.t0; exec = timer.t2 - timer.t1; }
     $('clockTime').textContent = fmt(total);
-    $('clockSplit').textContent = `Memo ${fmt(memo)} · Ejecución ${fmt(exec)}`;
+    $('clockSplit').textContent = crono.mode === 'memo' ? 'Solo memo: para el reloj cuando lo tengas' : `Memo ${fmt(memo)} · Ejecución ${fmt(exec)}`;
+    if (timer.phase === 'done' && crono.mode === 'memo') $('clockSplit').textContent = `Memo ${fmt(memo)}`;
+  }
+  // Your memo from «Practicar», under the clock (also in competition mode), when it solves this scramble.
+  // Not in «solo memo», where it would give the answer away.
+  function memoNow() {
+    const e = lettersOf($('memoE').value);
+    const c = lettersOf($('memoC').value);
+    if (!e.length && !c.length) return null;
+    return memoSolves($('scr').value.trim(), e, c) ? `${pairs(e) || '—'} · ${pairs(c) || '—'}` : null;
+  }
+  function renderClockMemo() {
+    const el = $('clockMemo');
+    const m = crono.mode === 'full' ? memoNow() : null;
+    el.hidden = !m;
+    if (m) {
+      const [e, c] = m.split(' · ');
+      el.innerHTML = `<span>Tu memo</span> <b>${esc(e)}</b> <i aria-hidden="true">·</i> <b>${esc(c)}</b>`;
+      el.setAttribute('aria-label', `Tu memo: aristas ${e}, esquinas ${c}`);
+    }
   }
   function tick() {
     paintClock(performance.now());
@@ -923,7 +990,7 @@
   }
   const emitTimer = (extra) => {
     document.body.dataset.timer = timer.phase;
-    emit('timer', { ...timerState(), ...extra });
+    emit('timer', { ...timerState(), ...(crono.mode === 'memo' ? { memoOnly: true } : {}), ...extra });
   };
   const SHARE_ICON = '<svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   // An attempt lasts minutes, longer than most phones stay awake: keep the screen on until it is saved.
@@ -959,8 +1026,18 @@
       timer.phase = 'memo'; timer.t0 = now; timer.scramble = $('scr').value.trim();
       $('verdict').hidden = true;
       $('afterResult').hidden = true;
+      $('memoAsk').hidden = true;
       holdScreen(true);
       tick();
+    } else if (timer.phase === 'memo' && crono.mode === 'memo') {
+      // Only the memo: stop here and write it down.
+      timer.phase = 'done'; timer.t1 = now; timer.t2 = now;
+      cancelAnimationFrame(timer.raf);
+      paintClock(now);
+      $('maE').value = '';
+      $('maC').value = '';
+      $('memoAsk').hidden = false;
+      $('maE').focus();
     } else if (timer.phase === 'memo') {
       timer.phase = 'exec'; timer.t1 = now;
     } else if (timer.phase === 'exec') {
@@ -977,6 +1054,7 @@
     timer.phase = 'idle';
     holdScreen(focus.on);
     $('verdict').hidden = true;
+    $('memoAsk').hidden = true;
     paintClock(0);
     $('clockPhase').textContent = 'Intento cancelado';
     emitTimer({ cancelled: true });
@@ -997,12 +1075,60 @@
     $('verdict').hidden = true;
     $('clock').dataset.phase = 'idle';
     $('clockPhase').textContent = ok ? 'Guardado como resuelto' : 'Guardado como DNF';
+    $('afterText').hidden = true;
+    $('afterCheck').hidden = true;
+    $('shareLast').hidden = false;
     $('afterResult').hidden = false;
     lastEntry = entry;
     renderTimes();
     emit('result', entry);
     emit('changed', { what: 'times' });
     emitTimer();
+  }
+  // «Solo memo»: the letters written after stopping the clock, checked against the scramble.
+  function markMemo() {
+    if (timer.phase !== 'done' || crono.mode !== 'memo') return;
+    const e = lettersOf($('maE').value);
+    const c = lettersOf($('maC').value);
+    const ok = memoSolves(timer.scramble, e, c);
+    const entry = { at: Date.now(), memo: Math.round(timer.t1 - timer.t0), exec: 0, ok, scr: timer.scramble, m: 'memo', mem: `${pairs(e) || '—'} · ${pairs(c) || '—'}` };
+    times.push(entry);
+    saveTimes();
+    timer.phase = 'idle';
+    holdScreen(focus.on);
+    $('memoAsk').hidden = true;
+    $('clock').dataset.phase = 'idle';
+    $('clockPhase').textContent = ok ? 'Memo correcto' : 'Memo con fallos';
+    $('afterText').hidden = false;
+    $('afterText').textContent = ok ? `Correcto: con ese memo el cubo queda resuelto (${fmt(entry.memo)}).` : 'Ese memo no resuelve el cubo. Míralo letra a letra en «Practicar».';
+    $('afterText').className = `after-text ${ok ? 'ok' : 'ko'}`;
+    $('afterCheck').hidden = ok;
+    $('shareLast').hidden = true;
+    $('afterResult').hidden = false;
+    lastEntry = entry;
+    renderTimes();
+    emit('result', entry);
+    emit('changed', { what: 'times' });
+    emitTimer();
+  }
+  function setCronoMode(mode) {
+    if (timer.phase !== 'idle') return;
+    crono.mode = mode === 'memo' ? 'memo' : 'full';
+    try { localStorage.setItem(CRONO_KEY, crono.mode); } catch (e) { /* this visit */ }
+    hist.part = crono.mode === 'memo' ? 'memo' : scrKindOf($('scr').value.trim());
+    hist.limit = HIST_PAGE;
+    $('afterResult').hidden = true;
+    renderCronoMode();
+    renderTimes();
+    paintClock(0);
+  }
+  function renderCronoMode() {
+    document.querySelectorAll('[data-cm]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.cm === crono.mode)));
+    const kind = scrKindOf($('scr').value.trim());
+    $('cronoKind').textContent = crono.mode === 'memo'
+      ? 'Memoriza, para el reloj y escribe tu memo: se comprueba solo.'
+      : kind === 'full' ? '' : `Scramble ${kind === 'edges' ? 'solo de aristas' : 'solo de esquinas'}: va a su propia lista.`;
+    renderClockMemo();
   }
   let lastEntry = null;
   const emit = (name, detail) => document.dispatchEvent(new CustomEvent('op3:' + name, { detail }));
@@ -1013,32 +1139,43 @@
     const merged = [...new Set([...dead, ...ats])].slice(-2000);
     try { localStorage.setItem(DELETED_KEY, JSON.stringify(merged)); } catch (e) { /* not kept */ }
   }
-  // History: newest first, a page at a time, optionally only solves or only DNFs.
+  // History: newest first, a page at a time, optionally only solves or only DNFs; one part at a time.
   const HIST_PAGE = 10;
-  const hist = { filter: 'all', limit: HIST_PAGE };
+  const hist = { filter: 'all', limit: HIST_PAGE, part: null, note: null };
   function renderTimes() {
-    const n = times.length;
-    const okList = times.filter((t) => t.ok);
-    const total = (t) => t.memo + t.exec;
-    const last5 = okList.slice(-5);
+    if (!hist.part) hist.part = crono.mode === 'memo' ? 'memo' : scrKindOf($('scr').value.trim());
+    const memoOnly = hist.part === 'memo';
+    document.querySelectorAll('[data-part]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.part === hist.part)));
+    const all = times.map((t, idx) => ({ t, idx })).filter(({ t }) => partOf(t) === hist.part);
+    const list = all.map((x) => x.t);
+    const n = list.length;
+    const okList = list.filter((t) => t.ok);
+    const last12 = okList.slice(-12);
     const mean = (arr, f) => (arr.length ? arr.reduce((a, t) => a + f(t), 0) / arr.length : null);
+    const best = okList.length ? Math.min(...okList.map(valueOf)) : null;
     $('stats').innerHTML = n ? [
       ['Intentos', String(n)],
-      ['Resueltos', `${okList.length} (${Math.round((100 * okList.length) / n)} %)`],
-      ['Mejor', fmt(okList.length ? Math.min(...okList.map(total)) : null)],
-      ['Media últimos 5', fmt(mean(last5, total))],
-      ['Memo media', fmt(mean(last5, (t) => t.memo))],
-      ['Ejecución media', fmt(mean(last5, (t) => t.exec))],
+      ['Aciertos', `${okList.length} (${Math.round((100 * okList.length) / n)} %)`],
+      [memoOnly ? 'Mejor memo' : 'Mejor', fmtV(best)],
+      ['mo3', fmtV(mo3Of(list))],
+      ['Mejor mo3', fmtV(bestMo3Of(list))],
+      ...(memoOnly ? [['Memo media', fmt(mean(last12, (t) => t.memo))]] : [
+        ['Memo media', fmt(mean(last12, (t) => t.memo))],
+        ['Ejecución media', fmt(mean(last12, (t) => t.exec))],
+      ]),
     ].map(([k, v]) => `<div class='stat'><span>${k}</span><b>${v}</b></div>`).join('') : '';
-    $('clearTimes').hidden = !n;
+    $('stats').title = n ? 'mo3: la media de los 3 últimos intentos, como en la WCA (un DNF la hace DNF). Las medias de memo y ejecución son de tus últimos 12 aciertos.' : '';
+    $('clearTimes').hidden = !times.length;
     if (!n) {
       $('histBar').hidden = true;
       $('histMore').hidden = true;
-      $('history').innerHTML = '<p class=empty-note>Aún no hay intentos. Genera un scramble, desordena tu cubo y toca el reloj para empezar el memo.</p>';
+      $('history').innerHTML = `<p class=empty-note>${times.length && hist.part !== 'full'
+        ? `Aún no hay intentos de «${PART_NAME[hist.part]}». ${memoOnly ? 'Elige «Solo memo» arriba del reloj.' : `Genera un scramble ${hist.part === 'edges' ? 'solo de aristas' : 'solo de esquinas'} en «Practicar».`}`
+        : 'Aún no hay intentos. Genera un scramble, desordena tu cubo y toca el reloj para empezar el memo.'}</p>`;
       return;
     }
     const keep = { all: () => true, ok: (t) => t.ok, dnf: (t) => !t.ok }[hist.filter];
-    const picked = times.map((t, idx) => ({ t, idx })).filter(({ t }) => keep(t)).reverse();
+    const picked = all.filter(({ t }) => keep(t)).reverse();
     const rows = picked.slice(0, hist.limit);
     $('histBar').hidden = false;
     document.querySelectorAll('[data-hf]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.hf === hist.filter)));
@@ -1050,13 +1187,26 @@
       $('history').innerHTML = `<p class=empty-note>${hist.filter === 'ok' ? 'Todavía no hay intentos resueltos.' : 'No hay ningún DNF.'}</p>`;
       return;
     }
-    $('history').innerHTML = '<table><thead><tr><th>#</th><th>Total</th><th>Memo</th><th>Ejecución</th><th>Resultado</th><th>Scramble</th><th><span class=sr-only>Acciones</span></th></tr></thead><tbody>'
-      + rows.map(({ t, idx }) => `<tr><td>${idx + 1}</td><td>${fmt(total(t))}</td><td>${fmt(t.memo)}</td><td>${fmt(t.exec)}</td>`
-        + `<td><span class='pill ${t.ok ? 'ok' : 'dnf'}'>${t.ok ? 'Resuelto' : 'DNF'}</span></td>`
-        + `<td class=scr title='${esc(t.scr)}'>${esc(t.scr)}</td>`
-        + `<td class=row-acts><button type=button class=x data-share='${idx}' aria-label='Compartir intento ${idx + 1}' title='Compartir como imagen'>${SHARE_ICON}</button>`
-        + `<button type=button class=x data-del='${idx}' aria-label='Borrar intento ${idx + 1}' title='Borrar'>×</button></td></tr>`).join('')
+    const cols = memoOnly ? 5 : 7;
+    const num = new Map(all.map(({ idx }, i) => [idx, i + 1]));
+    $('history').innerHTML = `<table><thead><tr><th>#</th>${memoOnly ? '<th>Memo</th>' : '<th>Total</th><th>Memo</th><th>Ejecución</th>'}<th>Resultado</th><th>Scramble</th><th><span class=sr-only>Acciones</span></th></tr></thead><tbody>`
+      + rows.map(({ t, idx }) => {
+        const k = num.get(idx);
+        const extra = [];
+        if (t.mem) extra.push(`<span class=h-memo><span class=muted>${memoOnly ? 'Escribiste' : 'Memo'}</span> <code>${esc(t.mem)}</code></span>`);
+        if (t.no && hist.note !== t.at) extra.push(`<span class=h-note>${esc(t.no)}</span>`);
+        return `<tr><td>${k}</td>${memoOnly ? `<td>${fmt(t.memo)}</td>` : `<td>${fmt(t.memo + t.exec)}</td><td>${fmt(t.memo)}</td><td>${fmt(t.exec)}</td>`}`
+          + `<td><span class='pill ${t.ok ? 'ok' : 'dnf'}'>${t.ok ? (memoOnly ? 'Correcto' : 'Resuelto') : (memoOnly ? 'Fallos' : 'DNF')}</span></td>`
+          + `<td class=scr title='${esc(t.scr)}'>${esc(t.scr)}</td>`
+          + `<td class=row-acts><button type=button class=x data-note='${idx}' aria-expanded='${hist.note === t.at}' aria-label='${t.no ? 'Cambiar la nota' : 'Añadir una nota'} del intento ${k}' title='Nota'>✎</button>`
+          + (memoOnly ? '' : `<button type=button class=x data-share='${idx}' aria-label='Compartir intento ${k}' title='Compartir como imagen'>${SHARE_ICON}</button>`)
+          + `<button type=button class=x data-del='${idx}' aria-label='Borrar intento ${k}' title='Borrar'>×</button></td></tr>`
+          + (hist.note === t.at
+            ? `<tr class=h-extra><td></td><td colspan=${cols - 1}><form class=h-note-form data-note-form='${idx}'><input class=text-input name=note maxlength=200 value='${esc(t.no || '')}' placeholder='Una nota para este intento (p. ej. «fallé la paridad»)' aria-label='Nota del intento ${k}' autocomplete=off><button class=btn type=submit>Guardar</button></form></td></tr>`
+            : extra.length ? `<tr class=h-extra><td></td><td colspan=${cols - 1}>${extra.join('')}</td></tr>` : '');
+      }).join('')
       + '</tbody></table>';
+    if (hist.note != null) { const inp = $('history').querySelector('.h-note-form input'); if (inp && document.activeElement !== inp) inp.focus(); }
   }
 
   // ================= Competition mode =================
@@ -1494,6 +1644,12 @@
   $('markOk').addEventListener('click', () => markResult(true));
   $('markDnf').addEventListener('click', () => markResult(false));
   $('history').addEventListener('click', (ev) => {
+    const nb = ev.target.closest('[data-note]');
+    if (nb) {
+      const t = times[Number(nb.dataset.note)];
+      if (t) { hist.note = hist.note === t.at ? null : t.at; renderTimes(); }
+      return;
+    }
     const sh = ev.target.closest('[data-share]');
     if (sh) { emit('share', times[Number(sh.dataset.share)]); return; }
     const b = ev.target.closest('[data-del]');
@@ -1502,6 +1658,42 @@
     if (gone) tombstone([gone.at]);
     saveTimes(); renderTimes();
     emit('changed', { what: 'times' });
+  });
+  $('history').addEventListener('submit', (ev) => {
+    const f = ev.target.closest('[data-note-form]');
+    if (!f) return;
+    ev.preventDefault();
+    const t = times[Number(f.dataset.noteForm)];
+    hist.note = null;
+    if (t) {
+      const txt = f.note.value.trim().slice(0, 200);
+      if (txt) t.no = txt; else delete t.no;
+      t.ed = Date.now();
+      saveTimes();
+      emit('changed', { what: 'times' });
+    }
+    renderTimes();
+  });
+  document.querySelectorAll('[data-part]').forEach((b) => b.addEventListener('click', () => {
+    hist.part = b.dataset.part;
+    hist.limit = HIST_PAGE;
+    hist.note = null;
+    renderTimes();
+  }));
+  document.querySelectorAll('[data-cm]').forEach((b) => b.addEventListener('click', () => setCronoMode(b.dataset.cm)));
+  $('memoAsk').addEventListener('submit', (ev) => { ev.preventDefault(); markMemo(); });
+  $('afterCheck').addEventListener('click', () => {
+    if (!lastEntry || !lastEntry.mem) return;
+    const [e, c] = lastEntry.mem.split(' · ');
+    loadPractice(lastEntry.scr, e, c);
+    showView('practicar');
+    checkMemo();
+  });
+  ['memoE', 'memoC', 'scr'].forEach((id) => $(id).addEventListener('input', renderCronoMode));
+  document.addEventListener('op3:scramble', () => {
+    renderCronoMode();
+    // A new scramble of another kind: the list follows it (not in «solo memo»).
+    if (crono.mode === 'full' && timer.phase === 'idle') { const k = scrKindOf($('scr').value.trim()); if (k !== hist.part) { hist.part = k; hist.limit = HIST_PAGE; renderTimes(); } }
   });
   $('shareLast').addEventListener('click', () => { if (lastEntry) emit('share', lastEntry); });
   document.querySelectorAll('[data-hf]').forEach((b) => b.addEventListener('click', () => {
@@ -1808,6 +2000,7 @@
   $('memoC').value = saved.memoC ?? DEFAULTS.memoC;
   if (['full', 'edges', 'corners'].includes(saved.scrKind)) $('scrKind').value = saved.scrKind;
   renderTimes();
+  renderCronoMode();
   setTrainKind('edge');
   if (saved.railCollapsed && window.matchMedia('(max-width: 860px)').matches) {
     $('rail').classList.add('collapsed');

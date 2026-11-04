@@ -203,6 +203,13 @@
           </div>
         </div>
       </div>
+      <div class="crono-mode" id="cronoModeBox">
+        <div class="seg small" role="group" aria-label="Qué cronometrar">
+          <button type="button" data-cm="full" aria-pressed="true">Intento completo</button>
+          <button type="button" data-cm="memo" aria-pressed="false">Solo memo</button>
+        </div>
+        <span class="hint" id="cronoKind"></span>
+      </div>
       <div class="focus-top focus-only" id="focusTop">
         <div class="focus-bar">
           <button class="btn" type="button" id="focusExit" aria-keyshortcuts="Escape">Salir</button>
@@ -215,13 +222,22 @@
         <span class="clock-phase" id="clockPhase">Listo</span>
         <span class="clock-time" id="clockTime">0:00.00</span>
         <span class="clock-split" id="clockSplit">Memo — · Ejecución —</span>
+        <span class="clock-memo" id="clockMemo" hidden></span>
       </button>
       <div class="verdict" id="verdict" hidden>
         <span id="verdictAsk">¿Lo has resuelto?</span>
         <button class="btn primary" type="button" id="markOk">Resuelto</button>
         <button class="btn" type="button" id="markDnf">DNF</button>
       </div>
+      <form class="verdict memo-ask" id="memoAsk" hidden autocomplete="off">
+        <span>Escribe tu memo y comprueba si resuelve el cubo</span>
+        <input id="maE" type="text" spellcheck="false" autocapitalize="characters" placeholder="Aristas" aria-label="Memo de aristas">
+        <input id="maC" type="text" spellcheck="false" autocapitalize="characters" placeholder="Esquinas" aria-label="Memo de esquinas">
+        <button class="btn primary" type="submit">Comprobar</button>
+      </form>
       <div class="verdict" id="afterResult" hidden>
+        <span class="after-text" id="afterText" hidden></span>
+        <button class="btn" type="button" id="afterCheck" hidden>Verlo en Practicar</button>
         <button class="btn" type="button" id="shareLast">Compartir como imagen</button>
       </div>
       <div class="result cube-report" id="cubeReport" aria-live="polite"></div>
@@ -243,6 +259,12 @@
         <p class="focus-hint"><span class="on-touch">Toca la pantalla para empezar el memo</span><span class="on-keys">Toca la pantalla o pulsa <kbd>Espacio</kbd> para empezar el memo · <kbd>Esc</kbd> sale</span></p>
       </div>
       <div class="focus-moves focus-only" id="focusMoves"></div>
+      <div class="seg small part-seg" id="partSeg" role="group" aria-label="Qué intentos ver">
+        <button type="button" data-part="full" aria-pressed="true">Completos</button>
+        <button type="button" data-part="edges" aria-pressed="false">Solo aristas</button>
+        <button type="button" data-part="corners" aria-pressed="false">Solo esquinas</button>
+        <button type="button" data-part="memo" aria-pressed="false">Solo memo</button>
+      </div>
       <div class="stats" id="stats"></div>
       <div class="hist-bar" id="histBar" hidden>
         <div class="seg small" role="group" aria-label="Filtrar intentos">

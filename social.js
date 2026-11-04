@@ -523,9 +523,20 @@
     const byAt = new Map();
     OP.data.times().forEach((t) => byAt.set(t.at, t));
     const before = byAt.size;
-    (Array.isArray(remote.times) ? remote.times : []).forEach((t) => { if (t && typeof t.at === 'number' && !byAt.has(t.at)) byAt.set(t.at, t); });
+    let edited = false;
+    (Array.isArray(remote.times) ? remote.times : []).forEach((t) => {
+      if (!t || typeof t.at !== 'number') return;
+      const mine = byAt.get(t.at);
+      if (!mine) { byAt.set(t.at, t); return; }
+      // A note written on another device (the newest edit wins).
+      if ((t.ed || 0) > (mine.ed || 0)) {
+        byAt.set(t.at, { ...mine, ed: t.ed, ...(t.no ? { no: t.no } : {}) });
+        if (!t.no) delete byAt.get(t.at).no;
+        edited = true;
+      }
+    });
     const merged = [...byAt.values()].filter((t) => !dead.has(t.at)).sort((a, b) => a.at - b.at).slice(-500);
-    if (merged.length !== OP.data.times().length || byAt.size !== before) { OP.data.setTimes(merged); changedHere = true; }
+    if (edited || merged.length !== OP.data.times().length || byAt.size !== before) { OP.data.setTimes(merged); changedHere = true; }
     const train = JSON.parse(JSON.stringify(OP.data.train() || {}));
     let trainChanged = false;
     const rt = remote.train && typeof remote.train === 'object' ? remote.train : {};
