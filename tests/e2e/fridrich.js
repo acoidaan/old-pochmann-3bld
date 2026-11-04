@@ -397,10 +397,18 @@ const SOLVE = ["D R' F2 L", "U R U' R'", "U' F' U F", "L' U' L", "U B U' B'", "F
   await p.waitForTimeout(150);
   const pk1 = await peekState();
   check('train/cube: «Ver el algoritmo» closed at first; opening it turns on this case\'s eye («Ocultar el algoritmo»), saved', !closed.open && /Ver el algoritmo/.test(closed.sum) && pk1.open && /Ocultar el algoritmo/.test(pk1.sum) && pk1.peek[t2.id] === 1 && pk1.saved[t2.id] === 1 && Object.keys(pk1.peek).length === 1, `${JSON.stringify(closed)} ${JSON.stringify(pk1)}`);
+  // The weighted picker can legitimately repeat a case; make the next draw
+  // choose a different one so this test checks the eye, not random chance.
+  await p.evaluate((current) => {
+    const oll = window.Cfop.CASES.filter((x) => x.step.startsWith('oll'));
+    window.__peekTestRandom = Math.random;
+    Math.random = () => oll[0].id === current ? 0.999999 : 0;
+  }, t2.id);
   const done2 = await solveNow(true);
   const pk2 = await p.evaluate((id) => { const log = JSON.parse(localStorage.getItem('cfop:trlog:v1')); const rec = JSON.parse(localStorage.getItem('cfop:train:v1'))[id]; return { a: log[log.length - 1].a, an: rec.an || 0, n: rec.n || 0 }; }, t2.id);
   check('train/cube: solved with the algorithm in view (its last turn lost on the way) → practice, apart from your times', /Con el algoritmo a la vista/.test(done2) && pk2.a === 1 && pk2.an === 1 && pk2.n === t2.n, `${done2.slice(0, 400)} ${JSON.stringify(pk2)}`);
   await nextReady();
+  await p.evaluate(() => { Math.random = window.__peekTestRandom; delete window.__peekTestRandom; });
   const t3 = await caseNow();
   await turn(t3.setup);
   await p.waitForFunction(() => window.Fridrich._.tr.ready && document.getElementById('trPeek'), null, { timeout: 4000 });
