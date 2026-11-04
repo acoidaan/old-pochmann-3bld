@@ -1,6 +1,6 @@
 // Offline support. build.js fills in the versioned asset list and cache name.
 const CACHE = 'op3bld-__BUILD__';
-const SHELL = ['./', 'fridrich', 'principiante', 'manifest.webmanifest', 'fridrich.webmanifest', 'principiante.webmanifest', 'icon-192.png', 'icon-512.png', 'cubejs/cube.js', 'cubejs/solve.js', __ASSETS__];
+const SHELL = ['./', 'fridrich', 'principiante', 'manifest.webmanifest', 'fridrich.webmanifest', 'principiante.webmanifest', 'icon-192.png', 'icon-512.png', 'cubejs/cube.js', 'cubejs/solve.js', 'vendor/gan-web-bluetooth-3.0.2.js', __ASSETS__];
 const FONT_HOSTS = ['fonts.googleapis.com', 'fonts.gstatic.com'];
 
 self.addEventListener('install', (e) => {

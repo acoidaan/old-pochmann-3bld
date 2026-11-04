@@ -1728,7 +1728,10 @@
       if (b.dataset.go === name) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
     });
     try { localStorage.setItem(VIEW_KEY, name); } catch (e) { /* not kept */ }
-    try { history.replaceState(null, '', `${location.pathname}${location.search}#${name}`); } catch (e) { /* sandboxed */ }
+    // Offline Bluefy may interpret an address-bar update as navigation; keep the view local.
+    if (navigator.onLine) {
+      try { history.replaceState(null, '', `${location.pathname}${location.search}#${name}`); } catch (e) { /* sandboxed */ }
+    }
     if (changed && !o.keepScroll) { try { window.scrollTo(0, 0); } catch (e) { /* no layout */ } }
     if (name === 'practicar') fitScramble();
     (viewHooks[name] || []).forEach((fn) => fn());

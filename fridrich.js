@@ -113,7 +113,10 @@
     if (typeof renderMode2 === 'function') renderMode2();
     holdScreen(screenWanted());
     emit('view', name);
-    try { history.replaceState(null, '', `${location.pathname}${location.search}#${name}`); } catch (e) { /* sandboxed */ }
+    // Offline Bluefy may interpret an address-bar update as navigation; keep the view local.
+    if (navigator.onLine) {
+      try { history.replaceState(null, '', `${location.pathname}${location.search}#${name}`); } catch (e) { /* sandboxed */ }
+    }
     if (changed) { try { window.scrollTo(0, 0); } catch (e) { /* no layout */ } }
     (viewHooks[name] || []).forEach((fn) => fn());
   }

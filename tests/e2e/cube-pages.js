@@ -79,6 +79,20 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
   await Promise.all([p.waitForNavigation(), p.click('a[href="fridrich"]')]);
   await p.waitForFunction(() => window.Fridrich);
   check('no cube connected → a link navigates as always', await path() === '/fridrich' && await p.evaluate(() => !document.querySelector('.sc-frame')));
+  // On Bluefy in flight, changing tabs must stay within the current document.
+  // Simulate the offline signal without disabling the test server (the web app still renders).
+  for (const [route, tab] of [['/', 'ajustes'], ['/fridrich', 'casos'], ['/principiante', 'resolver']]) {
+    await p.goto(`${SITE}${route}`);
+    await p.evaluate(() => Object.defineProperty(navigator, 'onLine', { configurable: true, value: false }));
+    const beforeUrl = await p.evaluate(() => location.href);
+    await p.click(`button.tab[data-go="${tab}"]`);
+    const state = await p.evaluate((target) => ({
+      url: location.href,
+      visible: !document.querySelector(`.view[data-view="${target}"]`).hidden,
+    }), tab);
+    check(`offline: ${route} tabs work without changing the URL`, state.visible && state.url === beforeUrl, JSON.stringify(state));
+  }
+
   await ctx.close();
 
   console.log(results.join('\n'));
