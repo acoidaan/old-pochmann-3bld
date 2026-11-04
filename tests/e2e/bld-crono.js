@@ -174,4 +174,10 @@ const CORNERS = "R' F R' B2 R F' R' B2 R2";            // Aa: only corners move
   console.log(`page errors: ${errs.length ? JSON.stringify(errs) : 'none'}`);
   console.log(`${results.filter((r) => r.startsWith('FAIL')).length} failed of ${results.length}`);
   await browser.close();
-})().catch((e) => { console.error(e); process.exit(1); });
+})().catch((e) => {
+  // run.js shows the FAIL lines: where it stopped, and why.
+  const at = (String(e.stack || '').split('\n').find((l) => /e2e\/bld-/.test(l)) || '').trim();
+  console.log(`FAIL stopped — ${String(e.message || e).split('\n')[0]} ${at}`);
+  console.error(e);
+  process.exit(1);
+});
