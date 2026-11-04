@@ -1096,6 +1096,8 @@
     saveTimes();
     timer.phase = 'idle';
     holdScreen(focus.on);
+    // Out of the boxes, so Space starts the next one (it was typing in them).
+    if (document.activeElement && $('memoAsk').contains(document.activeElement)) document.activeElement.blur();
     $('memoAsk').hidden = true;
     $('clock').dataset.phase = 'idle';
     $('clockPhase').textContent = ok ? 'Memo correcto' : 'Memo con fallos';

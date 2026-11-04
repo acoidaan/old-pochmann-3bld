@@ -121,6 +121,7 @@ const CORNERS = "R' F R' B2 R F' R' B2 R2";            // Aa: only corners move
   await sm.p.press('#maC', 'Enter');
   let t = (await times(sm.p)).slice(-1)[0];
   check('solo memo: a memo that solves it → correct, saved as «memo» with no execution', t.m === 'memo' && t.ok && t.exec === 0 && t.memo >= 250 && /Correcto/.test(await sm.p.evaluate(() => document.getElementById('afterText').textContent)), JSON.stringify(t));
+  check('solo memo: after checking, Space starts the next one (not typing in the box)', await sm.p.evaluate(() => !document.getElementById('memoAsk').contains(document.activeElement)));
   await tap(sm.p);
   await tap(sm.p);
   await sm.p.fill('#maE', 'AB');
