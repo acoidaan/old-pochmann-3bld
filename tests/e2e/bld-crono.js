@@ -26,6 +26,13 @@ const CORNERS = "R' F R' B2 R F' R' B2 R2";            // Aa: only corners move
       localStorage.setItem('op3bld:v1', JSON.stringify({ scr: x.scr, memoE: x.e, memoC: x.c }));
       if (x.times) localStorage.setItem('op3bld:times:v1', JSON.stringify(x.times));
     }, { scr: SCR, e: MEMO_E, c: MEMO_C, ...(seed || {}) });
+    // The floating «Conectar cubo» (its own suite tests it) can sit over the last row of a list, and then a click
+    // there waits for it to move: out of the way here.
+    await ctx.addInitScript(() => document.addEventListener('DOMContentLoaded', () => {
+      const st = document.createElement('style');
+      st.textContent = '.cube-fab, .cube-fab-tip { display: none !important; }';
+      document.head.appendChild(st);
+    }));
     const p = await ctx.newPage();
     p.on('pageerror', (e) => errs.push(e.message));
     await p.goto(`${SITE}/#crono`);

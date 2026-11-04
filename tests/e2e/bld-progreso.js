@@ -36,6 +36,13 @@ function history(now) {
       sessionStorage.setItem('seeded', '1');
       Object.entries(x || {}).forEach(([k, v]) => localStorage.setItem(k, JSON.stringify(v)));
     }, seed || {});
+    // The floating «Conectar cubo» (its own suite tests it) can sit over the last row of a list, and then a click
+    // there waits for it to move: out of the way here.
+    await ctx.addInitScript(() => document.addEventListener('DOMContentLoaded', () => {
+      const st = document.createElement('style');
+      st.textContent = '.cube-fab, .cube-fab-tip { display: none !important; }';
+      document.head.appendChild(st);
+    }));
     const p = await ctx.newPage();
     p.on('pageerror', (e) => errs.push(e.message));
     await p.goto(`${SITE}/#${hash}`);
