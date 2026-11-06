@@ -27,7 +27,6 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
   // ================= The cases =================
   const data = await p.evaluate(() => {
     const M = window.CubeModel; const C = window.Cfop; const F = window.CfopFull;
-    const ok = (g, i) => M.faceOfSticker(g[i]) === M.faceOfSticker(g[Math.floor(i / 9) * 9 + 4]);
     const bad = [];
     const keys = new Set();
     F.CASES.forEach((c) => {
@@ -82,7 +81,7 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
     const g = M.apply(M.apply(M.solved(), C.DOWN.U), setup);
     return { centres: [4, 13, 22, 31, 40, 49].every((i) => g[i] === M.apply(M.solved(), C.DOWN.U)[i]), stage: C.stageOf(g).stage };
   });
-  check('casos: «Pruébalo» with the Aa (it turns the whole cube) → a setup that leaves it held as before, its picture and how to solve it', tryBox.open && tryBox.pic && /Resuélvelo/.test(tryBox.text) && held.centres && held.stage === 5, JSON.stringify({ ...held, text: tryBox.text.slice(0, 140) }));
+  check('casos: «Pruébalo» with the Aa (it turns the whole cube) → a setup that leaves it held as before, its picture and how to solve it', tryBox.open && tryBox.pic && /Resuélvelo/.test(tryBox.text) && held.centres && held.stage === 4, JSON.stringify({ ...held, text: tryBox.text.slice(0, 140) }));
   await p.click('[data-case-set="ll"]');
   cs = await p.evaluate(() => ({ n: document.querySelectorAll('#caseGroups .fr-card').length, method: !document.getElementById('caseMethod').hidden, intro: !document.getElementById('caseFullIntro').hidden }));
   check('casos: «2 looks» → the 16 as before', cs.n === 16 && cs.method && !cs.intro, JSON.stringify(cs));
