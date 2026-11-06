@@ -112,7 +112,7 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
     const c = window.Fridrich._.tr.c;
     const ids = [...document.querySelectorAll('[data-answer]')].map((b) => b.dataset.answer);
     const same = window.CfopFull.OLL.filter((x) => x.group === c.group).map((x) => x.id);
-    return { id: c.id, ids, same, pick: JSON.parse(localStorage.getItem('cfop:pick:v1')).length, text: document.getElementById('trBox').innerText, pic: !!document.querySelector('#trBox .fr-quiz-pic svg') };
+    return { id: c.id, ids, same, pick: JSON.parse(localStorage.getItem('cfop:pick-full:v1')).length, text: document.getElementById('trBox').innerText, pic: !!document.querySelector('#trBox .fr-quiz-pic svg') };
   });
   check('train/look: «OLL completo» picks the 57; a case comes with its group\'s cases to choose from', q.pick === 57 && q.pic && q.ids.join() === q.same.join() && q.ids.includes(q.id) && /OLL ·/.test(q.text), JSON.stringify({ ...q, text: q.text.slice(0, 80) }));
   await p.keyboard.press(String((q.ids.indexOf(q.id) + 1) % 10));
@@ -169,11 +169,11 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
     const ph = await open({ ...dev }, 'casos');
     await ph.p.click('[data-case-set="foll"]');
     const lay = await ph.p.evaluate(() => {
-      const bs = [...document.querySelectorAll('[data-case-set]')].map((b) => b.getBoundingClientRect());
+      const bs = [...document.querySelectorAll('[data-case-set]')].filter((b) => b.offsetParent).map((b) => b.getBoundingClientRect());
       const r = document.querySelector('[data-case="oll-1"] .fr-card-pic').getBoundingClientRect();
       return { wide: document.documentElement.scrollWidth > window.innerWidth + 1, row: bs.every((b) => Math.abs(b.top - bs[0].top) < 2), pic: Math.round(r.width) };
     });
-    check(`phone (${label}): the four sets in one row, the OLL cases fit, no sideways scroll`, !lay.wide && lay.row && lay.pic >= 60, JSON.stringify(lay));
+    check(`phone (${label}): the three sets in one row, the OLL cases fit, no sideways scroll`, !lay.wide && lay.row && lay.pic >= 60, JSON.stringify(lay));
     await ph.p.screenshot({ path: `${SHOTS}/fridrich-full-casos-${label}.png` });
     await ph.ctx.close();
   }
