@@ -202,7 +202,7 @@ const keys = (d) => ({ 'cfop:times:v1': d.times, 'cfop:trlog:v1': d.trlog, 'cfop
   const ed0 = await q.evaluate(() => ({ title: document.getElementById('pickTitle').textContent, on: [...document.querySelectorAll('[data-pc][aria-pressed="true"]')].map((x) => x.dataset.pc).join(), mode: document.getElementById('pickModeRow').hidden }));
   check('change: in the session, «Cambiar los casos» with yours ticked', /Cambiar los casos de la sesión/.test(ed0.title) && ed0.on === rest && ed0.mode, JSON.stringify(ed0));
   await q.keyboard.press('Escape');
-  check('change: Esc closes it, nothing changed', await q.evaluate(() => document.getElementById('pickSheet').hidden && window.Fridrich._.session().set.join() === rest));
+  check('change: Esc closes it, nothing changed', await q.evaluate((r) => document.getElementById('pickSheet').hidden && window.Fridrich._.session().set.join() === r, rest));
   await q.click('#sessEdit');
   const gone = rest.split(',')[0];
   const left = rest.split(',')[1];
