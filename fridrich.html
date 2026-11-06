@@ -36,6 +36,8 @@
     </div>
     <span class="fr-modepill" id="modePill" aria-live="polite"></span>
     <button class="btn install" type="button" hidden>Instalar app</button>
+    <a class="fr-switch" data-only="reduced" href="cfop">CFOP completo<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+    <a class="fr-switch" data-only="full" href="fridrich">Fridrich reducido<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
     <a class="fr-switch" href="./">Old Pochmann 3BLD<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
     <a class="fr-switch" href="principiante">Principiante<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
   </header>
@@ -182,10 +184,10 @@
     <!-- ================= Casos ================= -->
     <div class="view" data-view="casos" hidden>
       <div class="seg fr-case-set" role="group" aria-label="Qué casos ver">
-        <button type="button" data-case-set="ll" aria-pressed="true">2 looks <span class="muted">16</span></button>
+        <button type="button" data-case-set="ll" data-only="reduced" aria-pressed="true">2 looks <span class="muted">16</span></button>
         <button type="button" data-case-set="f2l" aria-pressed="false">F2L <span class="muted">41</span></button>
-        <button type="button" data-case-set="foll" aria-pressed="false">OLL <span class="muted">57</span></button>
-        <button type="button" data-case-set="fpll" aria-pressed="false">PLL <span class="muted">21</span></button>
+        <button type="button" data-case-set="foll" data-only="full" aria-pressed="false">OLL <span class="muted">57</span></button>
+        <button type="button" data-case-set="fpll" data-only="full" aria-pressed="false">PLL <span class="muted">21</span></button>
       </div>
       <section class="panel" aria-labelledby="hMethod" id="caseMethod">
         <div class="panel-head"><h2 id="hMethod">El método, en 6 pasos</h2></div>
@@ -238,12 +240,12 @@
         <details class="fr-pick" open>
           <summary>Qué casos salen</summary>
           <div class="actions" role="group" aria-label="Elegir casos">
-            <button class="btn" type="button" data-pick="all">OLL y PLL</button>
+            <button class="btn" type="button" data-pick="all" data-only="reduced">OLL y PLL</button>
             <button class="btn" type="button" data-pick="f2l">F2L</button>
-            <button class="btn" type="button" data-pick="oll">OLL</button>
-            <button class="btn" type="button" data-pick="pll">PLL</button>
-            <button class="btn" type="button" data-pick="foll">OLL completo</button>
-            <button class="btn" type="button" data-pick="fpll">PLL completo</button>
+            <button class="btn" type="button" data-pick="oll" data-only="reduced">OLL</button>
+            <button class="btn" type="button" data-pick="pll" data-only="reduced">PLL</button>
+            <button class="btn" type="button" data-pick="foll" data-only="full">OLL</button>
+            <button class="btn" type="button" data-pick="fpll" data-only="full">PLL</button>
             <button class="btn" type="button" data-pick="learning">Los que estoy aprendiendo</button>
           </div>
           <div class="fr-pick-cases" id="trPick"></div>
@@ -417,11 +419,11 @@
     <div class="actions fr-pick-quick" role="group" aria-label="Elegir rápido">
       <button class="btn" type="button" data-pq="rec">Los recomendados</button>
       <button class="btn" type="button" data-pq="learning">Los que estoy aprendiendo</button>
-      <button class="btn" type="button" data-pq="oll">OLL</button>
-      <button class="btn" type="button" data-pq="pll">PLL</button>
+      <button class="btn" type="button" data-pq="oll" data-only="reduced">OLL</button>
+      <button class="btn" type="button" data-pq="pll" data-only="reduced">PLL</button>
       <button class="btn" type="button" data-pq="f2l">F2L</button>
-      <button class="btn" type="button" data-pq="foll">OLL completo</button>
-      <button class="btn" type="button" data-pq="fpll">PLL completo</button>
+      <button class="btn" type="button" data-pq="foll" data-only="full">OLL</button>
+      <button class="btn" type="button" data-pq="fpll" data-only="full">PLL</button>
       <button class="btn" type="button" data-pq="none">Ninguno</button>
     </div>
     <div id="pickCases"></div>

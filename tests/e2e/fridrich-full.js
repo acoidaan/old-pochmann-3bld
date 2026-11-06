@@ -1,7 +1,8 @@
-// «Fridrich reducido», full CFOP: the 57 OLL and the 21 PLL (cfopfull.js). Each algorithm does its step and
+// Full CFOP, its own page (/cfop, the Fridrich page with data-cfop="full"): the 57 OLL and the 21 PLL (cfopfull.js). Each algorithm does its step and
 // keeps the first two layers, every case is told apart from the others (from any top turn), Casos (the two new
 // sets, by groups, «Pruébalo» with a PLL that turns the whole cube), Entrenar («Reconocer» with the options of
-// its group, with the smart cube until the ✓), a session that keeps to full OLL, and the phone.
+// its group, with the smart cube until the ✓), a session that keeps to full OLL, /fridrich left as it was
+// (2-look only), and the phone.
 const { chromium, devices } = require('playwright');
 const { SITE, SHOTS } = require('../env');
 const results = [];
@@ -10,13 +11,13 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
 (async () => {
   const browser = await chromium.launch();
   const errs = [];
-  const open = async (opts, hash) => {
+  const open = async (opts, hash, page = 'cfop') => {
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, ...opts });
     await ctx.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
     await ctx.addInitScript(() => { try { localStorage.setItem('op3bld:awake:v1', '0'); } catch (e) { /* none */ } });
     const p = await ctx.newPage();
     p.on('pageerror', (e) => errs.push(e.message));
-    await p.goto(`${SITE}/fridrich?cubo=virtual#${hash}`);
+    await p.goto(`${SITE}/${page}?cubo=virtual#${hash}`);
     await p.waitForFunction(() => window.Fridrich && window.CfopFull, null, { timeout: 30000 });
     await p.addStyleTag({ content: '.cube-fab { display: none !important; }' });
     return { ctx, p };
@@ -56,6 +57,13 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
     && data.nums === Array.from({ length: 57 }, (_, i) => i + 1).join() && data.names === 'Aa,Ab,E,F,Ga,Gb,Gc,Gd,H,Ja,Jb,Na,Nb,Ra,Rb,T,Ua,Ub,V,Y,Z' && data.byId, JSON.stringify(data));
 
   // ================= Casos =================
+  const head = await p.evaluate(() => ({
+    title: document.title, h1: document.querySelector('h1').textContent, full: document.documentElement.dataset.cfop,
+    sets: [...document.querySelectorAll('[data-case-set]')].filter((b) => b.offsetParent).map((b) => b.dataset.caseSet).join(),
+    picks: [...document.querySelectorAll('[data-pick]')].filter((b) => b.offsetParent || b.closest('details')).filter((b) => getComputedStyle(b).display !== 'none').map((b) => b.dataset.pick).join(),
+    back: !!document.querySelector('a.fr-switch[href="fridrich"]'),
+  }));
+  check('page: /cfop is «CFOP completo», with only OLL, PLL and F2L (no 2-look) and a link back to Fridrich reducido', head.title === 'CFOP completo' && head.h1 === 'CFOP completo' && head.full === 'full' && head.sets === 'f2l,foll,fpll' && head.picks === 'f2l,foll,fpll,learning' && head.back, JSON.stringify(head));
   await p.click('[data-case-set="foll"]');
   let cs = await p.evaluate(() => ({
     n: document.querySelectorAll('#caseGroups .fr-card').length, groups: document.querySelectorAll('#caseGroups section').length,
@@ -82,9 +90,18 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
     return { centres: [4, 13, 22, 31, 40, 49].every((i) => g[i] === M.apply(M.solved(), C.DOWN.U)[i]), stage: C.stageOf(g).stage };
   });
   check('casos: «Pruébalo» with the Aa (it turns the whole cube) → a setup that leaves it held as before, its picture and how to solve it', tryBox.open && tryBox.pic && /Resuélvelo/.test(tryBox.text) && held.centres && held.stage === 4, JSON.stringify({ ...held, text: tryBox.text.slice(0, 140) }));
-  await p.click('[data-case-set="ll"]');
-  cs = await p.evaluate(() => ({ n: document.querySelectorAll('#caseGroups .fr-card').length, method: !document.getElementById('caseMethod').hidden, intro: !document.getElementById('caseFullIntro').hidden }));
-  check('casos: «2 looks» → the 16 as before', cs.n === 16 && cs.method && !cs.intro, JSON.stringify(cs));
+  // Fridrich reducido stays as it was: 2-look and F2L only, its own cases to train, and a link here.
+  const rp = await ctx.newPage();
+  rp.on('pageerror', (e) => errs.push(e.message));
+  await rp.goto(`${SITE}/fridrich?cubo=virtual#casos`);
+  await rp.waitForFunction(() => window.Fridrich && document.querySelector('#caseGroups .fr-card'), null, { timeout: 30000 });
+  cs = await rp.evaluate(() => ({
+    title: document.title, n: document.querySelectorAll('#caseGroups .fr-card').length, method: !document.getElementById('caseMethod').hidden,
+    sets: [...document.querySelectorAll('[data-case-set]')].filter((b) => b.offsetParent).map((b) => b.dataset.caseSet).join(),
+    link: !!document.querySelector('a.fr-switch[href="cfop"]'), learn: JSON.parse(localStorage.getItem('cfop:learn:v1') || '{}')['pll-Aa'],
+  }));
+  check('fridrich: still «Fridrich reducido», the 16 of 2-look and the F2L only, a link to CFOP completo; what you marked here is there too', cs.title === 'Fridrich reducido' && cs.n === 16 && cs.method && cs.sets === 'll,f2l' && cs.link && cs.learn === 'learning', JSON.stringify(cs));
+  await rp.close();
 
   // ================= Entrenar: «Reconocer» =================
   await p.evaluate(() => window.Fridrich.showView('entrenar'));

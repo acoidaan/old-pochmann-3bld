@@ -590,3 +590,6 @@ body.focus .fr-scr-mode, body.focus .fr-hist-mode { display: none !important; }
 .fr-cs p { margin: 0; }
 .fr-cs-list { display: grid; gap: 8px; }
 .fr-cs-list .check { align-items: flex-start; }
+
+/* One page, two methods: /fridrich (2-look) and /cfop (full OLL and PLL) — see build.js. */
+html[data-cfop="full"] [data-only="reduced"], html:not([data-cfop="full"]) [data-only="full"] { display: none !important; }

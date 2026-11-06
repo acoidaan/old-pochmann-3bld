@@ -382,7 +382,7 @@
     // its page. So with the cube connected, a link to another section does not leave: this page opens it in
     // a frame over itself and lends it the connection (it sleeps meanwhile), and coming back to this section
     // takes the frame away. If the cube goes, or is disconnected, the section on screen becomes the page.
-    const SECTIONS = { '/': /^\/(index\.html)?$/, '/fridrich': /^\/fridrich(\.html)?$/, '/principiante': /^\/principiante(\.html)?$/ };
+    const SECTIONS = { '/': /^\/(index\.html)?$/, '/fridrich': /^\/fridrich(\.html)?$/, '/cfop': /^\/cfop(\.html)?$/, '/principiante': /^\/principiante(\.html)?$/ };
     const sectionOf = (href) => {
       let u;
       try { u = new URL(href, location.href); } catch (e) { return null; }

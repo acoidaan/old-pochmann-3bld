@@ -9,6 +9,10 @@
   const FU = window.CfopFull;   // the 57 OLL and the 21 PLL (full CFOP)
   const ALL_CASES = [...C.CASES, ...F2.CASES, ...FU.CASES];
   if (!M || !C || !document.body.classList.contains('fr')) return;
+  // The same page serves «Fridrich reducido» (/fridrich: 2-look OLL and PLL) and full CFOP (/cfop: the 57 OLL
+  // and 21 PLL). Times, cases and settings are shared; each one keeps its own cases to train and its session.
+  const FULL = document.documentElement.dataset.cfop === 'full';
+  const defaultPick = () => (FULL ? FU.OLL : C.CASES).map((c) => c.id);
   const { apply, parseAlg, invertAlg, solved, isSolved, faceOfSticker, toFacelets, norm, FACE_ORDER, COLOR_NAME } = M;
   const $ = (id) => document.getElementById(id);
   const esc = (txt) => String(txt).replace(/[&<>'"]/g, (ch) => `&#${ch.charCodeAt(0)};`);
@@ -20,10 +24,10 @@
   // ================= Storage (this browser only) =================
   const K = {
     times: 'cfop:times:v1', set: 'cfop:settings:v1', learn: 'cfop:learn:v1', train: 'cfop:train:v1',
-    view: 'cfop:view:v1', scr: 'cfop:scramble:v1', pick: 'cfop:pick:v1', theme: 'op3bld:theme:v1',
+    view: 'cfop:view:v1', scr: 'cfop:scramble:v1', pick: FULL ? 'cfop:pick-full:v1' : 'cfop:pick:v1', theme: 'op3bld:theme:v1',
     crossTr: 'cfop:crosstr:v1', deleted: 'cfop:deleted:v1', learnAt: 'cfop:learn-at:v1', sync: 'op3bld:sync:v1', synced: 'cfop:synced:v1',
     trlog: 'cfop:trlog:v1', player: 'cfop:player:v1', ligas: 'cfop:ligas:v1', ligaPub: 'cfop:liga-pub:v1', ligaSeen: 'cfop:liga-seen:v1',
-    name: 'op3bld:name:v1', session: 'cfop:session:v1', sessions: 'cfop:sessions:v1',
+    name: 'op3bld:name:v1', session: FULL ? 'cfop:session-full:v1' : 'cfop:session:v1', sessions: 'cfop:sessions:v1',
     ltimes: 'cfop:ltimes:v1', scrMeta: 'cfop:scrmeta:v1',
   };
   const load = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; } catch (e) { return d; } };
@@ -1500,23 +1504,26 @@
           <div class="fr-try" hidden></div>
         </article>`;
   // Casos shows one set at a time: the last layer (16) or the F2L (41), in its six groups.
-  if (!['ll', 'f2l', 'foll', 'fpll'].includes(settings.caseSet)) settings.caseSet = 'll';
+  // Each page remembers its own: the last layer of its method or the F2L.
+  const SET_KEY = FULL ? 'caseSetFull' : 'caseSet';
+  if (!(FULL ? ['foll', 'fpll', 'f2l'] : ['ll', 'f2l']).includes(settings[SET_KEY])) settings[SET_KEY] = FULL ? 'foll' : 'll';
+  const caseSet = () => settings[SET_KEY];
   function renderCases() {
-    document.querySelectorAll('[data-case-set]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.caseSet === settings.caseSet)));
-    $('caseMethod').hidden = settings.caseSet !== 'll';
-    $('caseF2lIntro').hidden = settings.caseSet !== 'f2l';
-    $('caseFullIntro').hidden = !isFull(settings.caseSet);
-    const full = settings.caseSet === 'foll' ? [FU.OLL_GROUPS, FU.OLL] : [FU.PLL_GROUPS, FU.PLL];
-    const groups = isFull(settings.caseSet)
+    document.querySelectorAll('[data-case-set]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.caseSet === caseSet())));
+    $('caseMethod').hidden = caseSet() !== 'll';
+    $('caseF2lIntro').hidden = caseSet() !== 'f2l';
+    $('caseFullIntro').hidden = !isFull(caseSet());
+    const full = caseSet() === 'foll' ? [FU.OLL_GROUPS, FU.OLL] : [FU.PLL_GROUPS, FU.PLL];
+    const groups = isFull(caseSet())
       ? full[0].map((gr) => {
         const cases = full[1].filter((c) => c.group === gr.id);
-        return `<section class="panel" aria-labelledby="h-${settings.caseSet}-${gr.id}">
-        <div class="panel-head"><h2 id="h-${settings.caseSet}-${gr.id}">${esc(STEP_NAME[settings.caseSet])} · ${esc(gr.name)} <span class="muted">(${cases.length})</span></h2></div>
+        return `<section class="panel" aria-labelledby="h-${caseSet()}-${gr.id}">
+        <div class="panel-head"><h2 id="h-${caseSet()}-${gr.id}">${esc(STEP_NAME[caseSet()])} · ${esc(gr.name)} <span class="muted">(${cases.length})</span></h2></div>
         <p class="hint">${esc(gr.long)}.</p>
         <div class="fr-cards">${cases.map(caseTile).join('')}</div>
       </section>`;
       })
-      : settings.caseSet === 'f2l'
+      : caseSet() === 'f2l'
       ? F2.GROUPS.map((gr) => {
         const cases = F2.CASES.filter((c) => c.group === gr.id);
         return `<section class="panel" aria-labelledby="h-f2l-${gr.id}">
@@ -1535,7 +1542,7 @@
     $('caseGroups').innerHTML = groups.join('');
   }
   document.querySelectorAll('[data-case-set]').forEach((b) => b.addEventListener('click', () => {
-    settings.caseSet = b.dataset.caseSet;
+    settings[SET_KEY] = b.dataset.caseSet;
     saveSettings();
     renderCases();
   }));
@@ -1581,8 +1588,8 @@
     const n = cases.filter((c) => has(c.id)).length;
     return `<details class="fr-pick-f2l"${n ? ' open' : ''}><summary>${title} <span class="muted">(${n ? `${n} de ${cases.length}` : cases.length})</span></summary>${grs.map((gr) => `<div class="fr-pick-row"><span class="field-title">${esc(gr.name)}</span>${cases.filter((c) => c.group === gr.id).map((c) => chip(c, label(c))).join('')}</div>`).join('')}</details>`;
   }).join('');
-  let pick = load(K.pick, C.CASES.map((c) => c.id));
-  if (!Array.isArray(pick) || !pick.length) pick = C.CASES.map((c) => c.id);
+  let pick = load(K.pick, defaultPick());
+  if (!Array.isArray(pick) || !pick.length) pick = defaultPick();
   const pickChip = (c, label) => `<button type="button" class="fr-chip${statusOf(c.id) === 'learning' ? ' learning' : ''}" data-pickc="${c.id}" aria-pressed="${pick.includes(c.id)}">${esc(label)}</button>`;
   function renderPick() {
     const ll = C.LL.map((step) => {
@@ -1592,7 +1599,7 @@
     // The 41 of the F2L folded, unless one of them is picked.
     const n = F2.CASES.filter((c) => pick.includes(c.id)).length;
     const f2l = `<details class="fr-pick-f2l"${n ? ' open' : ''}><summary>F2L <span class="muted">(${n ? `${n} de 41` : '41'})</span></summary>${F2.GROUPS.map((gr) => `<div class="fr-pick-row"><span class="field-title">${esc(gr.name)}</span>${F2.CASES.filter((c) => c.group === gr.id).map((c) => pickChip(c, String(c.n))).join('')}</div>`).join('')}</details>`;
-    $('trPick').innerHTML = ll + f2l + fullPick(pick, pickChip);
+    $('trPick').innerHTML = FULL ? fullPick(pick, pickChip) + f2l : ll + f2l;
   }
   $('trPick').addEventListener('click', (ev) => {
     const b = ev.target.closest('[data-pickc]');
@@ -2122,7 +2129,17 @@
   const smartOn = () => !!(cube && cube.on);
   const modeFor = (m) => (m === 'look' ? 'look' : m === 'learn' ? 'hand' : smartOn() ? 'cube' : 'hand');
   let plan = null;
-  const recommendation = () => S.recommend({ times, train, trlog, learn, crossTr: load(K.crossTr, []) });
+  const recommend2 = () => S.recommend({ times, train, trlog, learn, crossTr: load(K.crossTr, []) });
+  // Full CFOP: nothing to weigh the 78 against yet, so the set is the ones you are learning (or else the first
+  // ones you don't know yet, in the order of Casos).
+  function fullPlan() {
+    const base = recommend2();
+    const learning = FU.CASES.filter((c) => statusOf(c.id) === 'learning');
+    const list = learning.length ? learning : FU.CASES.filter((c) => statusOf(c.id) !== 'known');
+    const set = (list.length ? list : FU.OLL).slice(0, 5).map((c) => ({ id: c.id, c, ms: 0, why: [statusOf(c.id) === 'learning' ? 'Lo estás aprendiendo' : statusOf(c.id) === 'known' ? 'Para repasarlo' : 'Aún no lo has marcado como sabido'] }));
+    return { ...base, parts: [], scored: [], set };
+  }
+  const recommendation = () => (FULL ? fullPlan() : recommend2());
   function goButton(go) {
     if (go === 'slow' || go === 'help') return '<button class="btn" type="button" data-plan-go="slow">Practicar sin crono</button>';
     if (go === 'cross') return '<button class="btn" type="button" data-plan-go="cross">Entrenar la cruz</button>';
@@ -2142,7 +2159,8 @@
     const parts = plan.parts.slice(0, 4);
     const max = Math.max(1, ...parts.map((p) => p.ms));
     let html = '';
-    if (parts.length) {
+    if (FULL) html += '<p class="fr-note">Un set con los OLL y PLL que marcaste como «Aprendiendo» en Casos (o, si no hay, los primeros que aún no te sabes).</p>';
+    else if (parts.length) {
       const shown = new Set();
       const once = (go) => { const k = go === 'help' ? 'slow' : go; if (shown.has(k)) return ''; shown.add(k); return goButton(go); };
       html += `<details class="fr-gain" id="gainBox"${settings.gainOpen === false ? '' : ' open'}><summary><span class="field-title">Dónde puedes ganar tiempo <span class="muted">· tus últimos ${plan.solves} solves con el cubo</span></span></summary>
@@ -2188,7 +2206,7 @@
     $('setLeave').addEventListener('click', () => {
       settings.trSet = null;
       saveSettings();
-      pick = C.CASES.map((c) => c.id);
+      pick = defaultPick();
       save(K.pick, pick);
       renderPick();
       renderSetNote();
@@ -2504,7 +2522,7 @@
       save(K.sessions, list.slice(-200));
       changed();
     }
-    pick = Array.isArray(s2.prevPick) && s2.prevPick.length ? s2.prevPick : C.CASES.map((c) => c.id);
+    pick = Array.isArray(s2.prevPick) && s2.prevPick.length ? s2.prevPick : defaultPick();
     save(K.pick, pick);
     renderPick();
     applySession();
@@ -2588,9 +2606,8 @@
     // The 41 of the F2L folded, unless one of them is chosen.
     const nF2l = F2.CASES.filter((c) => pk.ids.has(c.id)).length;
     const fam = familyOf([...pk.ids]);
-    $('pickCases').innerHTML = C.LL.map((step) => `<div class="fr-pick-row"><span class="field-title">${STEP_NAME[step]}</span>${C.CASES.filter((c) => c.step === step).map((c) => pc(c, shortName(c))).join('')}</div>`).join('')
-      + `<details class="fr-pick-f2l"${nF2l ? ' open' : ''}><summary>F2L <span class="muted">(${nF2l ? `${nF2l} de 41` : '41'})</span></summary>${F2.GROUPS.map((gr) => `<div class="fr-pick-row"><span class="field-title">${esc(gr.name)}</span>${F2.CASES.filter((c) => c.group === gr.id).map((c) => pc(c, String(c.n))).join('')}</div>`).join('')}</details>`
-      + fullPick(pk.ids, pc);
+    $('pickCases').innerHTML = (FULL ? fullPick(pk.ids, pc) : '') + (FULL ? [] : C.LL).map((step) => `<div class="fr-pick-row"><span class="field-title">${STEP_NAME[step]}</span>${C.CASES.filter((c) => c.step === step).map((c) => pc(c, shortName(c))).join('')}</div>`).join('')
+      + `<details class="fr-pick-f2l"${nF2l ? ' open' : ''}><summary>F2L <span class="muted">(${nF2l ? `${nF2l} de 41` : '41'})</span></summary>${F2.GROUPS.map((gr) => `<div class="fr-pick-row"><span class="field-title">${esc(gr.name)}</span>${F2.CASES.filter((c) => c.group === gr.id).map((c) => pc(c, String(c.n))).join('')}</div>`).join('')}</details>`;
     document.querySelectorAll('[data-pm]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.pm === pk.mode)));
     $('pickAuto').checked = pk.auto;
     $('pickAutoText').textContent = fam

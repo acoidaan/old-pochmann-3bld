@@ -37,10 +37,29 @@ for (const page of PAGES) {
   pages[page] = html;
   all.update(html);
 }
+// Full CFOP (/cfop): the Fridrich page in its full mode (data-cfop="full": the 57 OLL and 21 PLL instead of
+// 2-look), with its own name. Each replacement has to find its text, or the page would keep the other name.
+const FULL_CFOP = [
+  ['<html lang="es">', '<html lang="es" data-cfop="full">'],
+  [/<meta name="description" content="[^"]*">/, '<meta name="description" content="CFOP completo, con los 57 OLL y los 21 PLL de J Perm: cronómetro con tiempos por fase, casos reconocidos por el cubo inteligente y entrenador.">'],
+  ['<meta property="og:title" content="Fridrich reducido">', '<meta property="og:title" content="CFOP completo">'],
+  [/<meta property="og:description" content="[^"]*">/, '<meta property="og:description" content="CFOP con los 57 OLL y los 21 PLL de J Perm: casos, entrenador y cronómetro.">'],
+  ['vercel.app/fridrich"', 'vercel.app/cfop"'],
+  ['href="fridrich.webmanifest"', 'href="cfop.webmanifest"'],
+  ['content="Fridrich">', 'content="CFOP">'],
+  ['<title>Fridrich reducido</title>', '<title>CFOP completo</title>'],
+  ['<h1>Fridrich reducido</h1>', '<h1>CFOP completo</h1>'],
+  ['<p>CFOP en 2 pasos · algoritmos de J Perm</p>', '<p>57 OLL y 21 PLL · algoritmos de J Perm</p>'],
+];
+pages['cfop.html'] = FULL_CFOP.reduce((html, [from, to]) => {
+  if (typeof from === 'string' ? !html.includes(from) : !from.test(html)) throw new Error(`cfop.html: no encuentro ${from}`);
+  return html.replace(from, to);
+}, pages['fridrich.html']);
+all.update(pages['cfop.html']);
 const build = all.digest('hex').slice(0, 10);
 // Each page knows its build, so it can tell when a newer one has replaced it.
-for (const page of PAGES) fs.writeFileSync(path.join(out, page), pages[page].replace('__BUILD__', build));
-for (const m of ['fridrich.webmanifest', 'principiante.webmanifest']) fs.copyFileSync(path.join(__dirname, m), path.join(out, m));
+for (const page of Object.keys(pages)) fs.writeFileSync(path.join(out, page), pages[page].replace('__BUILD__', build));
+for (const m of ['fridrich.webmanifest', 'cfop.webmanifest', 'principiante.webmanifest']) fs.copyFileSync(path.join(__dirname, m), path.join(out, m));
 const sw = fs.readFileSync(path.join(__dirname, 'sw.js'), 'utf8')
   .replace('__BUILD__', build)
   .replace('__ASSETS__', ASSETS.map((f) => `'${f}?v=${versions[f]}'`).join(', '));

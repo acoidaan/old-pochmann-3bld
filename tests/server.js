@@ -70,6 +70,7 @@ function start({ root, port, cubejs = true }) {
     if (u.pathname === '/wrap.html') return file(path.join(FIXTURES, 'wrap.html'));
     if (u.pathname === '/fridrich') return file(path.join(root, 'fridrich.html'));   // like the rewrite in vercel.json
     if (u.pathname === '/principiante') return file(path.join(root, 'principiante.html'));
+    if (u.pathname === '/cfop') return file(path.join(root, 'cfop.html'));
     return file(path.join(root, u.pathname === '/' ? 'index.html' : decodeURIComponent(u.pathname)));
   });
   return new Promise((resolve, reject) => {

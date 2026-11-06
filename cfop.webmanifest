@@ -1,0 +1,15 @@
+{
+  "name": "CFOP completo",
+  "short_name": "CFOP",
+  "description": "CFOP completo, con los 57 OLL y los 21 PLL de J Perm: cronómetro con tiempos por fase, casos reconocidos por el cubo inteligente y entrenador.",
+  "lang": "es",
+  "start_url": "./cfop",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0F1319",
+  "theme_color": "#0F1319",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

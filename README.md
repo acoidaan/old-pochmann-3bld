@@ -175,7 +175,7 @@ Los de [J Perm](https://jperm.net/3x3/cfop) ([2-look OLL](https://jperm.net/algs
 | | Ub | `R2 U R U R' U' R' U' R' U R'` |
 | | Z | `M' U M2 U M2 U M' U2 M2` |
 
-Para cuando ya sabes los 2 looks, **«OLL» (57) y «PLL» (21)** son el CFOP completo: cada caso con su número o su nombre de siempre, el algoritmo de J Perm y agrupados por cómo se ve la cara de arriba. Se marcan, se prueban y se entrenan igual que los demás («OLL completo» y «PLL completo» en Entrenar y en las sesiones).
+Para cuando ya sabes los 2 looks, **CFOP completo** (`/cfop`) es la misma página pero con «OLL» (57) y «PLL» (21) en vez de los 2 looks: cada caso con su número o su nombre de siempre, el algoritmo de J Perm y agrupados por cómo se ve la cara de arriba. Se marcan, se prueban y se entrenan igual que los demás («OLL completo» y «PLL completo» en Entrenar y en las sesiones).
 
 Los **41 casos del F2L** van numerados y agrupados como en [SpeedCubeDB](https://www.speedcubedb.com/a/3x3/F2L). El primer algoritmo de cada uno es el de J Perm (su [«Best F2L Algorithms»](https://bit.ly/bestf2l), la columna del hueco de delante a la derecha); después, los demás suyos y el más votado en SpeedCubeDB. Todos están comprobados contra los setups de SpeedCubeDB (`tests/fixtures/f2l-scdb.json`): cada uno resuelve su caso sin tocar la cruz ni las otras parejas. Los de J Perm que mueven otro hueco (los marca en su hoja) no están.
 
