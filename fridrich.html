@@ -182,8 +182,10 @@
     <!-- ================= Casos ================= -->
     <div class="view" data-view="casos" hidden>
       <div class="seg fr-case-set" role="group" aria-label="Qué casos ver">
-        <button type="button" data-case-set="ll" aria-pressed="true">OLL y PLL <span class="muted">16</span></button>
+        <button type="button" data-case-set="ll" aria-pressed="true">2 looks <span class="muted">16</span></button>
         <button type="button" data-case-set="f2l" aria-pressed="false">F2L <span class="muted">41</span></button>
+        <button type="button" data-case-set="foll" aria-pressed="false">OLL <span class="muted">57</span></button>
+        <button type="button" data-case-set="fpll" aria-pressed="false">PLL <span class="muted">21</span></button>
       </div>
       <section class="panel" aria-labelledby="hMethod" id="caseMethod">
         <div class="panel-head"><h2 id="hMethod">El método, en 6 pasos</h2></div>
@@ -201,6 +203,11 @@
         <div class="panel-head"><h2 id="hF2lIntro">El F2L con algoritmos: los 41 casos básicos</h2></div>
         <p>Cada caso es una pareja (la esquina y su arista) con su hueco delante a la derecha, la cruz hecha y las otras parejas metidas. Están numerados y agrupados como en <a href="https://www.speedcubedb.com/a/3x3/F2L" target="_blank" rel="noopener">SpeedCubeDB</a>: las dos piezas arriba (directas, unidas o separadas) o alguna ya en su hueco.</p>
         <p class="hint">El primer algoritmo de cada caso es el de J Perm (su <a href="https://bit.ly/bestf2l" target="_blank" rel="noopener">«Best F2L Algorithms»</a>); en «Otros algoritmos», los demás suyos y el más votado en SpeedCubeDB. Se dibujan desde arriba de la esquina de delante a la derecha: en gris, la última capa. Con el cubo conectado, al resolver te dice qué caso es cada pareja y su algoritmo.</p>
+      </section>
+      <section class="panel" aria-labelledby="hFullIntro" id="caseFullIntro" hidden>
+        <div class="panel-head"><h2 id="hFullIntro">CFOP completo: el OLL y el PLL de una vez</h2></div>
+        <p>El paso siguiente al de 2 looks: cada OLL (57) orienta toda la cara de arriba con un solo algoritmo, y cada PLL (21) la deja resuelta. Así te ahorras un reconocimiento y un algoritmo en cada paso.</p>
+        <p class="hint">Numerados y con el nombre que usa todo el mundo, con los algoritmos de J Perm (<a href="https://www.jperm.net/algs/oll" target="_blank" rel="noopener">OLL</a> y <a href="https://www.jperm.net/algs/pll" target="_blank" rel="noopener">PLL</a>) y agrupados por cómo se ve la cara de arriba. Muchos ya los usas en 2 looks: la Sune es el OLL 27, la T-perm, la Y-perm, las U, la H y la Z son PLL. Para aprenderlos, márcalos como «Aprendiendo» y entrénalos en «Entrenar».</p>
       </section>
       <div id="caseGroups"></div>
     </div>
@@ -235,6 +242,8 @@
             <button class="btn" type="button" data-pick="f2l">F2L</button>
             <button class="btn" type="button" data-pick="oll">OLL</button>
             <button class="btn" type="button" data-pick="pll">PLL</button>
+            <button class="btn" type="button" data-pick="foll">OLL completo</button>
+            <button class="btn" type="button" data-pick="fpll">PLL completo</button>
             <button class="btn" type="button" data-pick="learning">Los que estoy aprendiendo</button>
           </div>
           <div class="fr-pick-cases" id="trPick"></div>
@@ -411,6 +420,8 @@
       <button class="btn" type="button" data-pq="oll">OLL</button>
       <button class="btn" type="button" data-pq="pll">PLL</button>
       <button class="btn" type="button" data-pq="f2l">F2L</button>
+      <button class="btn" type="button" data-pq="foll">OLL completo</button>
+      <button class="btn" type="button" data-pq="fpll">PLL completo</button>
       <button class="btn" type="button" data-pq="none">Ninguno</button>
     </div>
     <div id="pickCases"></div>
@@ -448,6 +459,7 @@
 <script src="follow.js"></script>
 <script src="cfop.js"></script>
 <script src="cfopf2l.js"></script>
+<script src="cfopfull.js"></script>
 <script src="cfopstats.js"></script>
 <script src="smartcube.js"></script>
 <script src="syncplan.js"></script>

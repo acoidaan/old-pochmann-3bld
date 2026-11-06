@@ -175,6 +175,8 @@ Los de [J Perm](https://jperm.net/3x3/cfop) ([2-look OLL](https://jperm.net/algs
 | | Ub | `R2 U R U R' U' R' U' R' U R'` |
 | | Z | `M' U M2 U M2 U M' U2 M2` |
 
+Para cuando ya sabes los 2 looks, **«OLL» (57) y «PLL» (21)** son el CFOP completo: cada caso con su número o su nombre de siempre, el algoritmo de J Perm y agrupados por cómo se ve la cara de arriba. Se marcan, se prueban y se entrenan igual que los demás («OLL completo» y «PLL completo» en Entrenar y en las sesiones).
+
 Los **41 casos del F2L** van numerados y agrupados como en [SpeedCubeDB](https://www.speedcubedb.com/a/3x3/F2L). El primer algoritmo de cada uno es el de J Perm (su [«Best F2L Algorithms»](https://bit.ly/bestf2l), la columna del hueco de delante a la derecha); después, los demás suyos y el más votado en SpeedCubeDB. Todos están comprobados contra los setups de SpeedCubeDB (`tests/fixtures/f2l-scdb.json`): cada uno resuelve su caso sin tocar la cruz ni las otras parejas. Los de J Perm que mueven otro hueco (los marca en su hoja) no están.
 
 ### Cómo reconoce los casos
@@ -348,6 +350,7 @@ flowchart LR
 | `fridrich-progreso.js` · `fridrich-cruz.js` · `fridrich-sync.js` | Partes de `fridrich.js` en su propio archivo: Progreso, Entrenar la cruz y la sincronización. Cada una expone `window.Fridrich…(ctx)`, que `fridrich.js` llama con lo que necesita. |
 | `practice.js` | El tiempo real practicando en Fridrich (entre una acción y la siguiente, si no pasan 2 minutos), por día y por dispositivo. Expone `window.Practice`. |
 | `cfop.js` | El método CFOP sin pantalla: los 16 algoritmos de J Perm, en qué paso está un cubo, qué caso es, la cruz más corta y los tiempos de un solve. Expone `window.Cfop`. |
+| `cfopfull.js` | El CFOP completo sin pantalla: los 57 OLL y los 21 PLL con los algoritmos de J Perm, sus grupos, qué caso es una última capa, su dibujo y cómo se ven. También amplía `Cfop.caseById`. |
 | `cfopf2l.js` | Los 41 casos del F2L sin pantalla: sus algoritmos, qué caso enseña cada hueco libre, su dibujo y cómo se ven en palabras. Hace que `Cfop.caseById` los conozca también (la sincronización, el entrenador). |
 | `cfopstats.js` | Los números de Fridrich, sin pantalla: medias, mejores marcas, días, racha, logros, cada paso, eficiencia, cada caso y el set recomendado. Expone `window.CfopStats`. |
 | `smartcube.js` | El cubo inteligente de las tres páginas: conexión GAN, la MAC, el cubo virtual, el sonido, los giros perdidos, el reloj del cubo y prestar la conexión a otra sección (un iframe encima) para que no se corte. Expone `window.SmartCube`. |
