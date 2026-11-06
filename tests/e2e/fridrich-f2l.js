@@ -146,10 +146,10 @@ const SCDB = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'fixtures', '
     if (await p.evaluate(() => window.Fridrich._.session().done.length)) break;
   }
   const won = await p.evaluate(() => ({ done: window.Fridrich._.session().done, set: window.Fridrich._.session().set, text: document.getElementById('sessSet').innerText }));
-  check('session: four right in a row → that F2L case mastered; chosen by you, it stays in the set and nothing else comes in', won.done.length === 1 && won.done[0].startsWith('f2l') && won.set.join() === 'f2l4,f2l5' && /dominado/i.test(won.text), JSON.stringify({ ...won, text: won.text.slice(0, 80) }));
+  check('session: four right in a row → that F2L case mastered; with the change off, it leaves the set and nothing else comes in', won.done.length === 1 && won.done[0].startsWith('f2l') && won.set.join() === ['f2l4', 'f2l5'].filter((x) => x !== won.done[0]).join() && /dominado/i.test(won.text), JSON.stringify({ ...won, text: won.text.slice(0, 80) }));
   await p.click('#sessEnd');
   const sum = await p.evaluate(() => document.getElementById('sessSum').innerText);
-  check('session: the summary names the F2L cases', /F2L 4/.test(sum) && /F2L 5/.test(sum), sum.slice(0, 160));
+  check('session: the summary names the F2L case mastered', new RegExp(`F2L ${won.done[0].slice(3)}`).test(sum), sum.slice(0, 160));
   await p.keyboard.press('Escape');
 
   // With the change on: a mastered F2L case makes way for another F2L one (F2L 5 is the one you are learning,

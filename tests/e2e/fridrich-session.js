@@ -189,26 +189,29 @@ const keys = (d) => ({ 'cfop:times:v1': d.times, 'cfop:trlog:v1': d.trlog, 'cfop
   await q.click('#pickGo');
   await q.waitForFunction(() => window.Fridrich._.session(), null, { timeout: 5000 });
   const ses = await q.evaluate(() => { const x = window.Fridrich._.session(); return { set: x.set.join(), auto: x.auto, mode: x.mode, pick: JSON.parse(localStorage.getItem('cfop:pick:v1')).join(), rule: document.getElementById('sessRule').textContent, cards: [...document.querySelectorAll('#sessSet .fr-sc')].map((c) => c.dataset.sc).join() }; });
-  check('choose: the session with exactly your cases, how you chose', ses.set === 'sune,t,z' && ses.pick === 'sune,t,z' && ses.cards === 'sune,t,z' && ses.mode === 'look' && ses.auto === false && /Se queda en el set hasta que lo quites/.test(ses.rule), JSON.stringify(ses));
+  check('choose: the session with exactly your cases, how you chose', ses.set === 'sune,t,z' && ses.pick === 'sune,t,z' && ses.cards === 'sune,t,z' && ses.mode === 'look' && ses.auto === false && /sale del set y no entra otro/.test(ses.rule), JSON.stringify(ses));
   let kept = null;
   for (let i = 0; i < 30 && !kept; i++) {
     await answer(q, true);
     kept = await q.evaluate(() => window.Fridrich._.session().done[0] || null);
   }
-  const k1 = await q.evaluate((id) => ({ set: window.Fridrich._.session().set.join(), card: document.querySelector(`#sessSet [data-sc="${id}"]`) ? document.querySelector(`#sessSet [data-sc="${id}"]`).className + '|' + document.querySelector(`#sessSet [data-sc="${id}"]`).innerText.replace(/\s+/g, ' ') : '' }), kept);
-  check('choose: a mastered case of yours stays in the set, marked «Dominado»', !!kept && k1.set === 'sune,t,z' && /mastered/.test(k1.card) && /✓ Dominado/i.test(k1.card), JSON.stringify({ kept, k1 }));
+  const rest = ['sune', 't', 'z'].filter((id) => id !== kept).join();
+  const k1 = await q.evaluate((id) => ({ set: window.Fridrich._.session().set.join(), card: !!document.querySelector(`#sessSet [data-sc="${id}"]`), done: document.querySelector('#sessSet .fr-sc-done') ? document.querySelector('#sessSet .fr-sc-done').innerText.replace(/\s+/g, ' ') : '' }), kept);
+  check('choose: with the change off, a mastered case leaves the set and none comes in; it shows under «Dominados en esta sesión»', !!kept && k1.set === rest && !k1.card && /Dominados en esta sesión/i.test(k1.done), JSON.stringify({ kept, k1 }));
   await q.click('#sessEdit');
   const ed0 = await q.evaluate(() => ({ title: document.getElementById('pickTitle').textContent, on: [...document.querySelectorAll('[data-pc][aria-pressed="true"]')].map((x) => x.dataset.pc).join(), mode: document.getElementById('pickModeRow').hidden }));
-  check('change: in the session, «Cambiar los casos» with yours ticked', /Cambiar los casos de la sesión/.test(ed0.title) && ed0.on === 'sune,t,z' && ed0.mode, JSON.stringify(ed0));
+  check('change: in the session, «Cambiar los casos» with yours ticked', /Cambiar los casos de la sesión/.test(ed0.title) && ed0.on === rest && ed0.mode, JSON.stringify(ed0));
   await q.keyboard.press('Escape');
-  check('change: Esc closes it, nothing changed', await q.evaluate(() => document.getElementById('pickSheet').hidden && window.Fridrich._.session().set.join() === 'sune,t,z'));
+  check('change: Esc closes it, nothing changed', await q.evaluate(() => document.getElementById('pickSheet').hidden && window.Fridrich._.session().set.join() === rest));
   await q.click('#sessEdit');
-  await q.click('[data-pc="t"]');
+  const gone = rest.split(',')[0];
+  const left = rest.split(',')[1];
+  await q.click(`[data-pc="${gone}"]`);
   await q.click('[data-pc="ua"]');
   await q.click('#pickGo');
   await q.waitForTimeout(200);
   const ed1 = await q.evaluate(() => ({ set: window.Fridrich._.session().set.join(), pick: JSON.parse(localStorage.getItem('cfop:pick:v1')).join(), cur: window.Fridrich._.tr.c.id, toast: document.getElementById('toast').innerText, cards: document.querySelectorAll('#sessSet .fr-sc').length }));
-  check('change: out goes T, in comes Ua (the rest keep their place and count), and only those come up', ed1.set === 'sune,z,ua' && ed1.pick === 'sune,z,ua' && ['sune', 'z', 'ua'].includes(ed1.cur) && /Set cambiado: 3 casos/.test(ed1.toast) && ed1.cards === 3, JSON.stringify(ed1));
+  check('change: out goes one, in comes Ua (the other keeps its place and count), and only those come up', ed1.set === `${left},ua` && ed1.pick === `${left},ua` && [left, 'ua'].includes(ed1.cur) && /Set cambiado: 2 casos/.test(ed1.toast) && ed1.cards === 2, JSON.stringify({ gone, ...ed1 }));
   await own.ctx.close();
 
   // ================= With the algorithm in view, case by case =================

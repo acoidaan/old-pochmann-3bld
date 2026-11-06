@@ -2356,9 +2356,10 @@
     const p = session.per[id];
     p.mastered = Date.now();
     session.done.push(id);
-    // With the cases you chose (and that option off), a mastered one stays: you take it out if you want.
+    // A mastered case leaves the set: with the change on, the next one comes in its place; with it off (or none
+    // left to bring in), the set gets smaller. The last one stays, so there is always something to train.
     const next = session.auto !== false ? candidate() : null;
-    if (session.auto !== false && (next || session.set.length > 1)) swapIn(id, next && next.id, 'dominado');
+    if (next || session.set.length > 1) swapIn(id, next && next.id, 'dominado');
     session.since = 0;
     saveSession();
     const c = C.caseById(id);
@@ -2450,7 +2451,7 @@
     $('sessRule').textContent = (session.mode === 'cube' ? `Dominas un caso con ${need} seguidos por debajo de su objetivo (tu buen nivel para ese caso), sin el algoritmo a la vista.`
       : session.mode === 'look' ? `Dominas un caso con ${need} seguidos bien y en menos de ${secs(session.look)}.`
         : `Dominas un caso con ${need} seguidos bien, sin perderte.`)
-      + (session.auto !== false ? ' Entonces sale del set y entra el siguiente que más te cuesta.' : ' Se queda en el set hasta que lo quites.');
+      + (session.auto !== false ? ' Entonces sale del set y entra el siguiente que más te cuesta.' : ' Entonces sale del set y no entra otro.');
     const peekNote = $('sessPeek');
     peekNote.hidden = !(session.mode === 'cube' && session.set.some(peekOn));
     // On a phone the set is below the trainer: a line with each case and its progress, in the bar. A big set
