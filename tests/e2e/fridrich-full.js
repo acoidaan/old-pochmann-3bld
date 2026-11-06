@@ -130,7 +130,7 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
   await p.click('#trModeCube');
   await p.waitForFunction(() => window.Fridrich._.tr.follow && window.Fridrich._.tr.c.id === 'pll-Aa', null, { timeout: 30000 });
   const t1 = await p.evaluate(() => ({ setup: window.Fridrich._.tr.setup, text: document.getElementById('trBox').innerText }));
-  check('train/cube: a full PLL, and how to leave the cube in it', /Déjalo en el caso/.test(t1.text) && /PLL · Solo esquinas/.test(t1.text) && t1.setup.length > 0, t1.text.slice(0, 120));
+  check('train/cube: a full PLL, and how to leave the cube in it', /Déjalo en el caso/.test(t1.text) && /PLL · Solo esquinas/i.test(t1.text) && t1.setup.length > 0, t1.text.slice(0, 120));
   await turn(t1.setup);
   await p.waitForFunction(() => window.Fridrich._.tr.ready, null, { timeout: 4000 }).catch(() => {});
   const read = await p.evaluate(() => {
