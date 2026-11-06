@@ -174,8 +174,10 @@
     try {
       const t0 = audio.currentTime + 0.02;
       // A tick, the solved chime, or a little fanfare for a record.
+      // 'bad': two low notes going down (a turn off the way, with your eyes closed).
       const notes = short === 'pb' ? [[1047, 0], [1319, 0.09], [1568, 0.18], [2093, 0.3], [1568, 0.42], [2093, 0.52]]
-        : short ? [[1319, 0]] : [[1047, 0], [1319, 0.1], [1568, 0.2]];
+        : short === 'bad' ? [[392, 0], [294, 0.13]]
+          : short ? [[1319, 0]] : [[1047, 0], [1319, 0.1], [1568, 0.2]];
       notes.forEach(([f, d]) => {
         const o = audio.createOscillator();
         const g = audio.createGain();
@@ -188,7 +190,7 @@
         o.start(t0 + d);
         o.stop(t0 + d + 1);
       });
-      fxLog.push(short === 'pb' ? 'pb' : short ? 'tick' : 'chime');
+      fxLog.push(short === 'pb' ? 'pb' : short === 'bad' ? 'bad' : short ? 'tick' : 'chime');
     } catch (e) { /* no sound */ }
   }
 

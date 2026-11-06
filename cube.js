@@ -972,6 +972,11 @@
   $('cubeNewScr').addEventListener('click', () => $('newScr').click());
 
   O.cube = {
+    // Sound and vibration as set in «Ajustes» (for the algorithm trainer, done with your eyes closed).
+    fx: (kind) => {
+      if (fx.sound) window.SmartCube.chime(kind === 'done' ? undefined : kind);
+      if (fx.vibrate && canVibrate) { try { navigator.vibrate(kind === 'done' ? [80, 60, 180] : kind === 'bad' ? [220] : [30]); fxLog.push('vibrate'); } catch (e) { /* no vibration */ } }
+    },
     overlay: overlayState,
     attach: sc.attach, detach: sc.detach, connectGan: sc.connect, simLink: sc.virtualLink, simSolve, simSolution, simMemo, flawed, fromFacelets, toFacelets, norm, facePath,
     get state() { return cube.state; },

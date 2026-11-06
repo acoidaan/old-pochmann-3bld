@@ -97,7 +97,14 @@
       if (F && F.lost) hint = 'Te has salido del algoritmo. Deja el cubo como esté y pulsa «Empezar desde aquí».';
       else if (F && F.off.length) hint = `Ese giro no toca. Deshaz: <b>${esc(CF.undoText(F))}</b>`;
       else if (st.phase === 'run') hint = `Giro ${F.pos + (F.halfway ? 0 : 1)} de ${F.n}…`;
-      action = `<p class="at-hint${F && (F.lost || F.off.length) ? ' bad' : ''}">${hint}</p><div class="actions"><button class="btn" type="button" id="algRearm">Empezar desde aquí</button></div>`;
+      // The counter: where you are, big, also with the algorithm hidden (it does not give it away).
+      const n = F ? F.n : movesOf(k).length;
+      const pos = F ? F.pos : 0;
+      const jd = st.justDone;
+      const counter = jd && st.phase === 'ready'
+        ? `<div class="at-count done" role="status"><b>✓ Hecha</b><span>${esc(ALGS[jd.alg].name)} · ${secs(jd.ms)} s</span></div>`
+        : `<div class="at-count${F && (F.lost || F.off.length) ? ' bad' : ''}" role="status" aria-label="Giro ${pos} de ${n}"><b>${pos}<i>/</i>${n}</b><span class="at-dots" aria-hidden="true">${Array.from({ length: n }, (_, i) => `<i class="${i < pos ? 'on' : ''}"></i>`).join('')}</span><span>${F && F.off.length ? `Deshaz: ${esc(CF.undoText(F))}` : F && F.lost ? 'Te has salido' : st.phase === 'run' ? 'giros' : 'Esperando tu primer giro'}</span></div>`;
+      action = `${counter}<p class="at-hint${F && (F.lost || F.off.length) ? ' bad' : ''}">${hint}</p><div class="actions"><button class="btn" type="button" id="algRearm">Empezar desde aquí</button></div>`;
     } else if (h === 'timer') {
       const label = st.phase === 'run' ? 'Pulsa para parar' : 'Pulsa (o Espacio) para empezar';
       action = `<button type="button" class="clock at-clock" id="algClock" data-phase="${st.phase === 'run' ? 'exec' : 'idle'}"><span class="clock-phase">${st.phase === 'run' ? 'En marcha' : 'Listo'}</span><span class="clock-time" id="algTime">${st.phase === 'run' ? '0,00' : st.lastMs ? secs(st.lastMs) : '0,00'}</span><span class="clock-split">${label}</span></button>`
@@ -242,12 +249,22 @@
     const F = st.F;
     if (F.lost) { render(); return; }
     if (st.phase === 'ready') { st.phase = 'run'; st.t0 = t; st.fb = null; }
+    const wasOff = F.off.length;
     CF.followMove(F, state, mv);
+    // With your eyes closed: a low sound when a turn goes off the way (and when you get lost), a tick when
+    // you are back on it, and the chime when it is done.
+    const fx = (k) => { if (O.cube && O.cube.fx) O.cube.fx(k); };
+    if (F.lost) fx('bad');
+    else if (F.off.length > wasOff) fx('bad');
+    else if (wasOff && !F.off.length) fx('tick');
     if (CF.done(F)) {
-      st.fb = { html: record(st.alg, t - st.t0), tone: 'ok' };
+      const ms = t - st.t0;
+      st.fb = { html: record(st.alg, ms), tone: 'ok' };
+      st.justDone = { alg: st.alg, ms, n: F.n };
+      fx('done');
       nextAlg();
       armCube();
-    }
+    } else st.justDone = null;
     render();
   });
   // The cube connecting or going: the way to practise follows.

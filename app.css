@@ -1043,3 +1043,16 @@ body.focus .memo-ask input { width: 100%; font-size: 18px; }
 .at-stats tr.cur th { color: var(--accent); }
 @media (max-width: 560px) { .at-stats { font-size: 12.5px; } .at-stats th, .at-stats td { padding: 5px 4px; white-space: normal; } .at-stats .at-tps { display: none; } }
 .at-moves { overflow-wrap: anywhere; }
+
+/* The counter of the algorithm trainer with the smart cube: big enough to glance at with the cube in your hands. */
+.at-count { display: grid; justify-items: center; gap: 8px; padding: 16px; border: 1px solid var(--line); border-radius: var(--r, 14px); background: var(--surface); text-align: center; }
+.at-count b { font-family: var(--font-display); font-size: clamp(44px, 9vw, 72px); line-height: 1; font-variant-numeric: tabular-nums; }
+.at-count b i { font-style: normal; color: var(--muted); margin: 0 .1em; font-size: .6em; }
+.at-count > span:last-child { font-size: 15px; color: var(--muted); }
+.at-count.bad { border-color: var(--accent); }
+.at-count.bad > span:last-child { color: var(--accent); font-weight: 700; }
+.at-count.done { border-color: var(--ok); }
+.at-count.done b { color: var(--ok); font-size: clamp(32px, 6vw, 48px); }
+.at-dots { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; max-width: 100%; }
+.at-dots i { width: 12px; height: 12px; border-radius: 50%; background: var(--line); }
+.at-dots i.on { background: var(--accent); }
