@@ -24,7 +24,8 @@ const keys = (d) => ({ 'cfop:times:v1': d.times, 'cfop:trlog:v1': d.trlog, 'cfop
         const fns = [];
         return { addEventListener: (t, f) => fns.push(f), release() { window.__wake.push('release'); fns.forEach((f) => f()); return Promise.resolve(); } };
       };
-      Object.defineProperty(navigator, 'wakeLock', { configurable: true, value: { request: () => { window.__wake.push('request'); return Promise.resolve(lock()); } } });
+      try { localStorage.setItem('op3bld:awake:v1', '0'); } catch (e) { /* none */ }   // the always-on lock (awake.js) counted apart
+  Object.defineProperty(navigator, 'wakeLock', { configurable: true, value: { request: () => { window.__wake.push('request'); return Promise.resolve(lock()); } } });
     });
     if (data) {
       await ctx.addInitScript((x) => {

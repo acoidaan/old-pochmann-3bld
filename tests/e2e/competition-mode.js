@@ -7,6 +7,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const fakeWakeLock = () => {
   const held = new Set();
   window.__wl = { held };
+  try { localStorage.setItem('op3bld:awake:v1', '0'); } catch (e) { /* none */ }   // the always-on lock (awake.js) counted apart
   Object.defineProperty(navigator, 'wakeLock', {
     configurable: true,
     value: {
