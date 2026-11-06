@@ -1019,3 +1019,27 @@ body.focus .memo-ask input { width: 100%; font-size: 18px; }
 
 /* The floating «Conectar cubo»: the end of the page can scroll past it (on phones the menu already leaves room). */
 @media (min-width: 861px) { body.has-fab { padding-bottom: var(--fab-room, 80px); } }
+
+/* ---------- 3BLD «Entrenar → Algoritmos» (bldalgs.js) ---------- */
+.at-tr { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+.at-tr > * { min-width: 0; }
+.at-top { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; }
+.at-top .seg { flex-wrap: wrap; max-width: 100%; }
+.at-card { display: grid; gap: 10px; padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--r, 14px); background: var(--raise); }
+.at-name { display: grid; gap: 2px; }
+.at-name b { font-family: var(--font-display); font-size: 20px; }
+.at-name .muted { font-size: 13.5px; }
+.at-moves { margin: 0; font-family: var(--font-mono); font-size: clamp(17px, 3.4vw, 24px); line-height: 1.8; word-spacing: .1em; }
+.at-moves.hidden-alg { font-family: var(--font-body); font-size: 15px; }
+.at-hint { margin: 0; font-size: 15px; }
+.at-hint.bad { color: var(--accent); font-weight: 700; }
+.at-clock { min-height: 150px; }
+.at-fb { margin: 0; min-height: 1.4em; font-size: 15px; }
+.at-fb.ok { color: var(--ok); }
+.at-fb.ko { color: var(--accent); }
+.at-stats { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; font-size: 14px; }
+.at-stats th, .at-stats td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.at-stats thead th { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.at-stats tr.cur th { color: var(--accent); }
+@media (max-width: 560px) { .at-stats { font-size: 12.5px; } .at-stats th, .at-stats td { padding: 5px 4px; white-space: normal; } .at-stats .at-tps { display: none; } }
+.at-moves { overflow-wrap: anywhere; }

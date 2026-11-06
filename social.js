@@ -513,6 +513,7 @@
       retosGone: gone(),
       name: getName(),
       practice: window.Practice ? window.Practice.data() : {},
+      algtr: store.get('op3bld:algtr:v1', {}),
     };
   }
   // Merges remote data into this device. Returns true when anything changed here.
@@ -551,6 +552,16 @@
     if (trainChanged) { OP.data.setTrain(train); changedHere = true; }
     if (OP.learn && remote.learn && OP.learn.merge(remote.learn)) changedHere = true;
     if (window.Practice && window.Practice.merge(remote.practice)) changedHere = true;
+    // The algorithm trainer: for each algorithm, the device that has done it more times.
+    if (remote.algtr && typeof remote.algtr === 'object') {
+      const mine = store.get('op3bld:algtr:v1', {});
+      let alg = false;
+      Object.entries(remote.algtr).forEach(([k, x]) => {
+        const tot = (y) => (y ? (y.n || 0) + (y.seen || 0) : 0);
+        if (['T', 'P', 'Y'].includes(k) && x && typeof x === 'object' && tot(x) > tot(mine[k])) { mine[k] = x; alg = true; }
+      });
+      if (alg) { store.set('op3bld:algtr:v1', mine); document.dispatchEvent(new CustomEvent('op3:algtr')); changedHere = true; }
+    }
     const g = gone();
     const rg = remote.retosGone && typeof remote.retosGone === 'object' ? remote.retosGone : {};
     Object.entries(rg).forEach(([id, at]) => { if (typeof at === 'number' && at > (g[id] || 0)) g[id] = at; });

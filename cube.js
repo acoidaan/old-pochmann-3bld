@@ -104,6 +104,7 @@
   let attempt = null;
   let last = null;   // the last finished attempt, for the report
   function onMove(mv, st) {
+    document.dispatchEvent(new CustomEvent('op3:cubemove', { detail: { mv, st, t: performance.now() } }));
     if (isSolved(st)) handMoves = [];
     else if (handMoves) handMoves.push(mv);
     const ph = O.clock.phase();
@@ -531,7 +532,7 @@
   const TR_KEY = 'op3bld:train-cube:v1';
   let trUseCube = (() => { try { return localStorage.getItem(TR_KEY) !== 'type'; } catch (e) { return true; } })();
   const tr = { path: null, letter: null, kind: null, t0: 0, first: 0, clean: true, others: null, setup: '', algName: '', descSaved: null, descSet: null, descFor: null };
-  const trActive = () => cube.status === 'on' && !!cube.state && trUseCube && O.currentView() === 'entrenar';
+  const trActive = () => cube.status === 'on' && !!cube.state && trUseCube && O.currentView() === 'entrenar' && document.body.dataset.trmode !== 'alg';
   function trStart() {
     const s = O.trainer.state();
     tr.path = null;
