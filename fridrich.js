@@ -1676,7 +1676,7 @@
     }
     if (isFull(c.step)) {
       // A full OLL comes with any PLL after it (or none); a full PLL with the top oriented.
-      const after = c.step === 'foll' ? `${rnd(['', ...FU.PLL.map((x) => invertAlg(x.alg))])} ${rnd(C.AUF)}` : '';
+      const after = c.step === 'foll' ? `${rnd(['', ...FU.PLL.map((x) => `${invertAlg(x.back)} ${invertAlg(x.alg)}`)])} ${rnd(C.AUF)}` : '';
       const seq = `${rnd(C.VIEWS)} ${after} ${rnd(C.AUF)} ${invertAlg(c.back)} ${invertAlg(c.alg)} ${rnd(C.AUF)}`.replace(/\s+/g, ' ').trim();
       return norm(apply(apply(solved(), C.DOWN[face]), seq));
     }

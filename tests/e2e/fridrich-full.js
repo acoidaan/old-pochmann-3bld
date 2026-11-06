@@ -56,6 +56,21 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
   check('cases: 57 OLL (1–57, all different) and 21 PLL, each algorithm does its step and keeps the F2L, each one recognised as itself', data.bad.length === 0 && data.nO === 57 && data.nP === 21 && data.distinct === 57
     && data.nums === Array.from({ length: 57 }, (_, i) => i + 1).join() && data.names === 'Aa,Ab,E,F,Ga,Gb,Gc,Gd,H,Ja,Jb,Na,Nb,Ra,Rb,T,Ua,Ub,V,Y,Z' && data.byId, JSON.stringify(data));
 
+  // The trainer's cases: from any side, with any PLL after a full OLL (some PLL turn the whole cube, Aa: x …),
+  // the cube really is in that case.
+  const targets = await p.evaluate(() => {
+    const C = window.Cfop; const F = window.CfopFull; const bad = [];
+    for (const c of [...F.OLL, ...F.PLL]) {
+      for (let k = 0; k < 6; k++) {
+        const g = C.canon(window.Fridrich._.caseTarget(c), 'U');
+        const r = F.recognize(g, c.step);
+        if (!r || r.case.id !== c.id) { bad.push(c.name); break; }
+      }
+    }
+    return bad;
+  });
+  check('train: every case the trainer prepares (6 times each, from any side) is really that case', targets.length === 0, targets.join());
+
   // ================= Casos =================
   const head = await p.evaluate(() => ({
     title: document.title, h1: document.querySelector('h1').textContent, full: document.documentElement.dataset.cfop,
