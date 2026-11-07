@@ -208,7 +208,8 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
   await turn(await p.evaluate(() => window.CubeModel.invertAlg(window.Cfop.caseById('oll-25').alg)));
   await p.waitForFunction(() => /OLL 25/.test(document.getElementById('focusLive').innerText), null, { timeout: 3000 }).catch(() => {});
   const f2 = await p.evaluate(() => document.getElementById('focusLive').innerText.replace(/\s+/g, ' '));
-  check('focus: without the clock, competition mode shows the case of the cube (PLL Ua, and after turning, OLL 25)', /PLL · PLL \(Ua\)/.test(f1) && /OLL · OLL 25/.test(f2), JSON.stringify({ f1, f2 }));
+  const fpic = await p.evaluate(() => { const live = document.getElementById('focusLive'); const kids = [...live.children].map((x) => x.className); return { kids: kids.join(), svg: !!live.querySelector('.focus-case svg') }; });
+  check('focus: without the clock, competition mode shows the case of the cube (PLL Ua, and after turning, OLL 25), its picture and the algorithm below', /PLL · PLL \(Ua\)/.test(f1) && /OLL · OLL 25/.test(f2) && fpic.svg && fpic.kids === 'live-letters,focus-case,live-moves', JSON.stringify({ f1, f2, fpic }));
   await p.click('#focusExit');
   await ctx.close();
 

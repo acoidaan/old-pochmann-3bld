@@ -367,6 +367,8 @@ body.focus .focus-moves {
 }
 body.focus[data-timer="idle"] .focus-moves { bottom: calc(max(16px, env(safe-area-inset-bottom, 0px)) + 76px); }
 .focus-moves:empty { display: none !important; }
+.focus-case { width: clamp(96px, 30vw, 150px); }
+.focus-case svg { display: block; width: 100%; height: auto; }
 .live-letters { margin: 0; font-family: var(--font-display); font-weight: 700; font-size: clamp(18px, 4.4vw, 28px); letter-spacing: .04em; }
 /* Fits its content, centred; when too long, the oldest turns slide out on the left. */
 .live-moves {
@@ -396,6 +398,7 @@ body.focus:not([data-timer="idle"]) .focus-bottom { visibility: hidden; }
   body.focus .verdict .btn { font-size: 15px; padding: 8px 14px; }
   body.focus .focus-bottom { gap: 2px; }
   body.focus[data-timer="idle"] .focus-moves { bottom: calc(max(8px, env(safe-area-inset-bottom, 0px)) + 44px); }
+  .focus-case { display: none; }   /* no room for it on a phone on its side */
 }
 /* Smart cube: setup trainer and guided execution */
 .tr-how { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }

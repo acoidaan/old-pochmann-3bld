@@ -3187,7 +3187,10 @@
     if (cube && cube.on && (settings.help || timer.phase !== 'run') && (!L || L.scrambled)) {
       const info = L ? L.info : liveInfo(cube.state);
       const t = info.track || (info.held && info.stage >= 2 ? prog.last : null);
-      if (t && t.rec && t.rec.case) live = `<p class="live-letters">${esc(liveStep(t.stage).name)} · ${esc(t.rec.case.name)}</p><p class="live-moves">${esc([t.rec.pre, t.rec.case.alg, t.rec.post].filter(Boolean).join(' '))}</p>`;
+      // With the clock stopped, its picture too, between the name and the algorithm.
+      const pic = t && t.rec && t.rec.case && timer.phase !== 'run'
+        ? `<div class="focus-case">${topView(t.rec.g, { mode: modeOf(t.rec.case.step), arrows: isPll(t.rec.case.step), label: `${liveStep(t.stage).name}: ${t.rec.case.name}` })}</div>` : '';
+      if (t && t.rec && t.rec.case) live = `<p class="live-letters">${esc(liveStep(t.stage).name)} · ${esc(t.rec.case.name)}</p>${pic}<p class="live-moves">${esc([t.rec.pre, t.rec.case.alg, t.rec.post].filter(Boolean).join(' '))}</p>`;
       else if ((timer.phase === 'run' || !settings.timed) && info.stage < 6) live = `<p class="live-letters">${esc(liveStep(info.stage).name)}${info.stage === 1 ? ` · ${(info.held ? (prog.pairs || []) : info.read.pairs).filter(Boolean).length}/4` : ''}</p>`;
     }
     const fl = $('focusLive');
