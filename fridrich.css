@@ -593,3 +593,16 @@ body.focus .fr-scr-mode, body.focus .fr-hist-mode { display: none !important; }
 
 /* One page, two methods: /fridrich (2-look) and /cfop (full OLL and PLL) — see build.js. */
 html[data-cfop="full"] [data-only="reduced"], html:not([data-cfop="full"]) [data-only="full"] { display: none !important; }
+
+/* Progreso: how many cases of each set you know and are learning */
+.fr-knows { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 12px; }
+.fr-know-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.fr-know-pct { font-family: var(--font-mono); font-weight: 600; }
+.fr-know-bar { display: flex; gap: 2px; height: 10px; margin: 6px 0 4px; border-radius: 5px; background: var(--raise); overflow: hidden; }
+.fr-know-bar i { display: block; height: 100%; }
+.fr-know-bar .k { background: var(--ok); }
+.fr-know-bar .l { background: var(--accent); }
+.fr-know .hint { margin: 0; }
+.fr-key-k, .fr-key-l { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 4px; vertical-align: baseline; }
+.fr-key-k { background: var(--ok); }
+.fr-key-l { background: var(--accent); }

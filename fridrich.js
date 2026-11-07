@@ -2717,6 +2717,9 @@
   // ================= Progreso (fridrich-progreso.js) =================
   const fridrichProgreso = window.FridrichProgreso({
     $, C, DAY_MS, K, S, STEP_NAME, deltaHtml, esc, fdate, fmt, learn, load, onView, recommendation, secs, showView,
+    // How many you know of each set of this page, in Progreso.
+    caseSets: FULL ? [{ name: 'OLL', cases: FU.OLL }, { name: 'PLL', cases: FU.PLL }, { name: 'F2L', cases: F2.CASES }]
+      : [{ name: '2 looks', cases: C.CASES }, { name: 'F2L', cases: F2.CASES }],
     get ltimes() { return ltimes; },
     get times() { return times; },
     get trlog() { return trlog; },

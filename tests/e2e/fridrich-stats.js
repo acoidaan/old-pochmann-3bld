@@ -118,7 +118,7 @@ const keys = (d) => ({ 'cfop:times:v1': d.times, 'cfop:trlog:v1': d.trlog, 'cfop
   const crossP = await p.evaluate(() => document.getElementById('progCross').innerText.replace(/\s+/g, ' '));
   check('progreso: the cross (trainer and solves)', /ENTRENADAS 12/i.test(crossP) && /la cruz te lleva 4\.68 s/.test(crossP), crossP.slice(0, 200));
   const casesP = await p.evaluate(() => document.getElementById('progCases').innerText.replace(/\s+/g, ' '));
-  check('progreso: what costs most among the cases', /Te sabes 6 de 16 y estás aprendiendo 3/.test(casesP) && /^PLL \(Ub\)/.test(await p.evaluate(() => document.querySelector('.fr-top-cases li').innerText)), casesP.slice(0, 200));
+  check('progreso: what costs most among the cases', /2 looks 38 %/.test(casesP) && /Me lo sé 6 de 16 · Aprendiendo 3 \(19 %\)/.test(casesP) && /F2L 0 %/.test(casesP) && /^PLL \(Ub\)/.test(await p.evaluate(() => document.querySelector('.fr-top-cases li').innerText)), casesP.slice(0, 200));
   await p.screenshot({ path: `${SHOTS}/fridrich-progreso-1280.png`, fullPage: true });
   await p.click('[data-prog-go="plan"]');
   check('progreso: «Ver el set recomendado» → Entrenar', await p.evaluate(() => window.Fridrich.currentView() === 'entrenar'));

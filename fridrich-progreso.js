@@ -35,6 +35,21 @@
       </table>
       <p class="hint">Cronometrado: lo que suman tus tiempos. Sesiones: su tiempo activo, con los casos entrenados en ellas. En la página: el tiempo real practicando aquí, con mezclar, inspeccionar y pensar (una pausa de más de 2 minutos no cuenta); se empezó a medir con esta versión.</p>`;
     }
+    // Of each set of the page: how many you know and how many you are learning, as a share of it.
+    function knowsHtml() {
+      const pct = (n, of) => Math.round((n / of) * 100);
+      return `<ul class="fr-knows">${ctx.caseSets.map((set) => {
+        const of = set.cases.length;
+        const k = set.cases.filter((c) => learn[c.id] === 'known').length;
+        const l = set.cases.filter((c) => learn[c.id] === 'learning').length;
+        const label = `${set.name}: te sabes ${k} de ${of} (${pct(k, of)} %), aprendiendo ${l} (${pct(l, of)} %)`;
+        return `<li class="fr-know">
+          <div class="fr-know-top"><b>${esc(set.name)}</b><span class="fr-know-pct">${pct(k, of)} %</span></div>
+          <span class="fr-know-bar" role="img" aria-label="${esc(label)}">${k ? `<i class="k" style="width:${(k / of) * 100}%"></i>` : ''}${l ? `<i class="l" style="width:${(l / of) * 100}%"></i>` : ''}</span>
+          <p class="hint"><span class="fr-key-k"></span>Me lo sé <b>${k}</b> de ${of} · <span class="fr-key-l"></span>Aprendiendo <b>${l}</b> (${pct(l, of)} %)${of - k - l ? ` · ${of - k - l} sin empezar` : ''}</p>
+        </li>`;
+      }).join('')}</ul>`;
+    }
     function renderProgress() {
       if (!$('progSummary')) return;
       const crossTr = load(K.crossTr, []);
@@ -43,6 +58,9 @@
       const act = S.activity([...ctx.times, ...ctx.ltimes].sort((a, b) => a.at - b.at), ctx.trlog, crossTr);
       const empty = !ctx.times.length && !ctx.ltimes.length && !ctx.trlog.length && !crossTr.length;
       ['progDaysPanel', 'progActPanel', 'progPracticePanel', 'progStepsPanel', 'progEffPanel', 'progCrossPanel', 'progCasesPanel'].forEach((id) => { $(id).hidden = empty; });
+      // What you know of each set shows even before any practice.
+      const marked = Object.keys(learn).length > 0;
+      if (empty && marked) { $('progCasesPanel').hidden = false; $('progCases').innerHTML = knowsHtml(); }
       if (empty) {
         $('progSummary').innerHTML = '<p class="empty-note">Aún no hay nada que contar. Haz unos solves en el cronómetro (mejor con el cubo inteligente: así veo cada paso) o entrena unos casos, y aquí verás cómo vas.</p>';
         return;
@@ -157,12 +175,10 @@
       // ---- Cases
       const p = recommendation();
       const top = p.scored.filter((x) => x.ms >= 15 && x.stats.practiced).slice(0, 3);
-      const known = C.CASES.filter((c) => learn[c.id] === 'known').length;
-      const learning = C.CASES.filter((c) => learn[c.id] === 'learning').length;
       const skips = { oll1: 0, oll2: 0, pll1: 0, pll2: 0 };
       ctx.times.forEach((r) => { if (r.sp) [2, 3, 4, 5].forEach((k) => { const x = r.sp.s[k]; if (x && x[4]) skips[C.LL[k - 2]]++; }); });
       const skipTxt = C.LL.filter((id) => skips[id]).map((id) => `${STEP_NAME[id]} ×${skips[id]}`).join(' · ');
-      $('progCases').innerHTML = `<p class="fr-note">Te sabes <b>${known}</b> de 16${learning ? ` y estás aprendiendo ${learning}` : ''}.${skipTxt ? ` Saltos que te han tocado: ${skipTxt}.` : ''}</p>
+      $('progCases').innerHTML = `${knowsHtml()}${skipTxt ? `<p class="fr-note">Saltos que te han tocado: ${skipTxt}.</p>` : ''}
         ${top.length ? `<h3 class="field-title">Lo que más te cuesta</h3><ol class="fr-top-cases">${top.map((x) => `<li><b>${esc(x.c.name)}</b> <span class="muted">${STEP_NAME[x.c.step]} · ${(x.ms / 1000).toFixed(2)} s por solve</span><br><span class="hint">${esc(x.why[0] || '')}</span></li>`).join('')}</ol>` : ''}
         <div class="actions"><button class="btn primary" type="button" data-prog-go="plan">Ver el set recomendado</button></div>`;
     }
