@@ -110,7 +110,8 @@ const keys = (d) => ({ 'cfop:times:v1': d.times, 'cfop:trlog:v1': d.trlog, 'cfop
   await p.mouse.move(box.x + box.width - 3, box.y + box.height / 2);
   check('progreso: hovering shows that day', /solves?[\s\S]*media [\d.]+[\s\S]*mejor [\d.]+/.test(await p.evaluate(() => document.getElementById('dayTip').innerText)));
   const hm = await p.evaluate(() => ({ cells: document.querySelectorAll('.fr-hm i').length, on: document.querySelectorAll('.fr-hm i:not(.h0)').length, label: document.querySelector('.fr-hm').getAttribute('aria-label') }));
-  check('progreso: a calendar of practice, with how many days', hm.cells === exp.cells && hm.on >= 45 && /Has practicado 30 de los últimos 30 días/.test(hm.label), JSON.stringify(hm));
+  // Near midnight the seeded solve of «today» (a few hours back) can land on yesterday: 29 then.
+  check('progreso: a calendar of practice, with how many days', hm.cells === exp.cells && hm.on >= 45 && /Has practicado (29|30) de los últimos 30 días/.test(hm.label), JSON.stringify(hm));
   const steps = await p.evaluate(() => [...document.querySelectorAll('.fr-step-card')].map((x) => x.innerText.replace(/\s+/g, ' ')));
   check('progreso: each step now, against before, with a line', steps.length === 4 && /^CRUZ 4\.68 s ▼ 0\.4 s mejor/i.test(steps[0]) && /F2L 21\.28 s ▼ 1\.6 s mejor 50 % del solve/i.test(steps[1]) && await p.evaluate(() => document.querySelectorAll('.fr-step-card .fr-spark').length === 4), JSON.stringify(steps));
   const eff = await p.evaluate(() => [...document.querySelectorAll('#progEff tbody tr')].map((x) => x.innerText.replace(/\s+/g, ' ')));
