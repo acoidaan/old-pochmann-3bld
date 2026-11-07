@@ -211,6 +211,20 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
   const fpic = await p.evaluate(() => { const live = document.getElementById('focusLive'); const kids = [...live.children].map((x) => x.className); return { kids: kids.join(), svg: !!live.querySelector('.focus-case svg') }; });
   check('focus: without the clock, competition mode shows the case of the cube (PLL Ua, and after turning, OLL 25), its picture and the algorithm below', /PLL · PLL \(Ua\)/.test(f1) && /OLL · OLL 25/.test(f2) && fpic.svg && fpic.kids === 'live-letters,focus-case,live-moves', JSON.stringify({ f1, f2, fpic }));
   await p.click('#focusExit');
+  // A case that needs the top turned first (OLL 43 from another side): the picture is the cube as it is now,
+  // and doing what it says (that turn, then the algorithm) orients it.
+  await turn(await p.evaluate(() => window.Cfop.caseById('oll-25').alg));
+  await turn(await p.evaluate(() => `z2 ${window.CubeModel.invertAlg(window.Cfop.caseById('oll-43').alg)} U z2`));
+  await p.waitForFunction(() => /OLL 43/.test(document.getElementById('liveNow').innerText), null, { timeout: 3000 }).catch(() => {});
+  const p43 = await p.evaluate(() => {
+    const F = window.Fridrich; const r = F._.liveTrack() && F._.liveTrack().rec;
+    const now = window.Cfop.canon(F.cube().state, F._.liveTrack() ? F._.liveTrack().face : 'U');
+    const top = (g) => [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 18, 19, 20, 36, 37, 38, 45, 46, 47].map((i) => window.CubeModel.faceOfSticker(g[i])).join('');
+    return { pre: r && r.pre, same: !!r && top(F._.nowPic(r)) === top(now),  moves: [...document.querySelectorAll('#liveNow .fr-moves .sm')].map((x) => x.textContent).join(' ') };
+  });
+  // The turns shown, done on the cube as it is (held with the cross colour down).
+  const oriented = await p.evaluate((m) => { const F = window.Fridrich; const g = window.Cfop.canon(F.cube().state, F._.liveTrack().face); return window.Cfop.stageOf(window.CubeModel.apply(g, m)).stage >= 4; }, p43.moves);
+  check('live: a case that needs the top turned first is drawn as the cube is now, and doing the turns shown orients it', !!p43.pre && p43.same && oriented, JSON.stringify({ ...p43, oriented }));
   await ctx.close();
 
   // ================= The phone =================

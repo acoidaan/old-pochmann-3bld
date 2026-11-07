@@ -931,6 +931,9 @@
       + '<p class="hint">Cada línea es la forma más corta de meter esa pareja sin romper lo que ya tienes, con su hueco delante a la derecha. Hay otras igual de cortas.</p>';
   }
   // The case, how to hold it, its turns (done, next) and how far along.
+  // The picture of the case as your cube is now (the side in front already as said), before the top turn that
+  // comes first: drawn after it, it looked turned already and doing that turn again left the wrong case.
+  const nowPic = (r) => (r.pre ? apply(r.g, invertAlg(r.pre)) : r.g);
   // The step a stage of the solve is in: in full CFOP, OLL (2–3) or PLL (4–5).
   const liveStep = (stage) => (FULL && stage >= 2 ? FU.STEPS[stage < 4 ? 0 : 1] : C.STEPS[stage]);
   function caseHtml(t, note) {
@@ -951,7 +954,7 @@
     const top = r.top ? r.top[0].toUpperCase() + r.top.slice(1) : 'Amarillo';
     const extra = [r.pre ? `antes <b>${esc(r.pre)}</b>` : '', r.post ? `al final <b>${esc(r.post)}</b>` : ''].filter(Boolean).join(', ');
     return `<div class="fr-case">
-      <div class="fr-case-pic">${topView(r.g, { mode: modeOf(c.step), arrows: isPll(c.step), label: `Tu ${step.name}: ${c.name}` })}</div>
+      <div class="fr-case-pic">${topView(nowPic(r), { mode: modeOf(c.step), arrows: isPll(c.step), label: `Tu ${step.name}: ${c.name}` })}</div>
       <div class="fr-case-text">
         <span class="field-title">${esc(step.name)} · ${esc(step.long)}</span>
         <b class="fr-case-name">${esc(c.name)}${c.es !== c.name ? ` <span class="muted">· ${esc(c.es)}</span>` : ''}</b>
@@ -3191,7 +3194,7 @@
       const t = info.track || (info.held && info.stage >= 2 ? prog.last : null);
       // With the clock stopped, its picture too, between the name and the algorithm.
       const pic = t && t.rec && t.rec.case && timer.phase !== 'run'
-        ? `<div class="focus-case">${topView(t.rec.g, { mode: modeOf(t.rec.case.step), arrows: isPll(t.rec.case.step), label: `${liveStep(t.stage).name}: ${t.rec.case.name}` })}</div>` : '';
+        ? `<div class="focus-case">${topView(nowPic(t.rec), { mode: modeOf(t.rec.case.step), arrows: isPll(t.rec.case.step), label: `${liveStep(t.stage).name}: ${t.rec.case.name}` })}</div>` : '';
       if (t && t.rec && t.rec.case) live = `<p class="live-letters">${esc(liveStep(t.stage).name)} · ${esc(t.rec.case.name)}</p>${pic}<p class="live-moves">${esc([t.rec.pre, t.rec.case.alg, t.rec.post].filter(Boolean).join(' '))}</p>`;
       else if ((timer.phase === 'run' || !settings.timed) && info.stage < 6) live = `<p class="live-letters">${esc(liveStep(info.stage).name)}${info.stage === 1 ? ` · ${(info.held ? (prog.pairs || []) : info.read.pairs).filter(Boolean).length}/4` : ''}</p>`;
     }
@@ -3527,7 +3530,7 @@
     paceFor: (r) => { const pf = settings.pace !== 'off' ? paceFor(r) : null; return pf ? { d: pf.rows.map((x) => Math.round(x.d)), gold: pf.rows.map((x) => x.gold), total: Math.round(pf.total), label: pf.label } : null; },
     recordsOf,
     // For tests.
-    _: { simSolution, caseTarget, tr, settings, logTr, celebrate, paceRef, bestsOf, paceTick, myBests, ligaPublish, player, loadLeague, lg, session: () => session, endSession, startSession, openPicker, follow: () => follow, makeFollow, partialKeys, setScramble, makeTry, ct, vibes, syncNow, syncPlan, mergeIn, syncData, offerUpdate, focus: () => focus.on },
+    _: { simSolution, caseTarget, nowPic, liveTrack: () => track, tr, settings, logTr, celebrate, paceRef, bestsOf, paceTick, myBests, ligaPublish, player, loadLeague, lg, session: () => session, endSession, startSession, openPicker, follow: () => follow, makeFollow, partialKeys, setScramble, makeTry, ct, vibes, syncNow, syncPlan, mergeIn, syncData, offerUpdate, focus: () => focus.on },
   };
 
   // ================= Start =================
