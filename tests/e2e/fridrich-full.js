@@ -93,7 +93,8 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
   const learnt = await p.evaluate(() => ({ learn: JSON.parse(localStorage.getItem('cfop:learn:v1'))['pll-Aa'], sync: (window.Fridrich._.syncData().learn || {})['pll-Aa'] }));
   check('casos: «Aprendiendo» on a full PLL is kept, and goes with the sync', learnt.learn === 'learning' && learnt.sync === 'learning', JSON.stringify(learnt));
   await p.evaluate(() => window.Fridrich.showView('progreso'));
-  const prog = await p.evaluate(() => ({ text: document.getElementById('progCases').innerText.replace(/\s+/g, ' '), bars: document.querySelectorAll('#progCases .fr-know-bar').length, lbar: !!document.querySelectorAll('#progCases .fr-know-bar')[1].querySelector('.l') }));
+  await p.waitForFunction(() => document.querySelectorAll('#progCases .fr-know-bar').length === 3, null, { timeout: 5000 }).catch(() => {});
+  const prog = await p.evaluate(() => ({ text: document.getElementById('progCases').innerText.replace(/\s+/g, ' '), bars: document.querySelectorAll('#progCases .fr-know-bar').length, lbar: !!document.querySelector('#progCases .fr-know:nth-child(2) .fr-know-bar .l') }));
   check('progreso: how many you know and are learning of OLL, PLL and F2L, in %', prog.bars === 3 && /^OLL 0 %/.test(prog.text) && /PLL 0 %/.test(prog.text) && /Aprendiendo 1 \(5 %\)/.test(prog.text) && prog.lbar && !/2 looks/.test(prog.text), JSON.stringify(prog).slice(0, 300));
   await p.evaluate(() => window.Fridrich.showView('casos'));
   await p.click('[data-case="pll-Aa"] [data-try]');

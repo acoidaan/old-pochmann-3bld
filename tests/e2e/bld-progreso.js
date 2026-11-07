@@ -66,9 +66,11 @@ function history(now) {
     const act = S.activity(times, { }, n, 18);
     const P = S.practiceTime(times, window.Practice.days(), n);
     const f = S.fails(JSON.parse(localStorage.getItem('op3bld:trainer:v1')), window.OP3.trainLetters);
-    return { wkN: wk.reduce((a, w) => a + w.n, 0), rates: wk.map((w) => w.rate), streak: act.streak, days: act.days, cells: act.cells.length, realToday: P.real.today, timedTotal: P.timed.total, fails: f.map((x) => x.L).join(','), mastered: f.some((x) => x.L === 'B') };
+    // Over all the weeks (one with only a few attempts, at the edge of a week, can be all right or all wrong).
+    const wn = wk.reduce((a, w) => a + w.n, 0);
+    return { wkN: wn, rates: wk.map((w) => w.rate), rate: wk.reduce((a, w) => a + (w.rate || 0) * w.n, 0) / wn, streak: act.streak, days: act.days, cells: act.cells.length, realToday: P.real.today, timedTotal: P.timed.total, fails: f.map((x) => x.L).join(','), mastered: f.some((x) => x.L === 'B') };
   }, now);
-  check('numbers: 28 attempts over the last weeks, every fourth a DNF', eng.wkN === 28 && eng.rates.every((r) => r == null || (r > 0.6 && r < 0.9)), JSON.stringify(eng));
+  check('numbers: 28 attempts over the last weeks, every fourth a DNF', eng.wkN === 28 && eng.rate > 0.6 && eng.rate < 0.9, JSON.stringify(eng));
   check('numbers: 14 days in a row, a calendar of 18 weeks', eng.streak === 14 && eng.days === 14 && eng.cells > 17 * 7, JSON.stringify(eng));
   check('numbers: time practised (25 min today) and timed (memo + execution of all)', eng.realToday === 25 * 60000 && eng.timedTotal === history(now).reduce((a, t) => a + t.memo + t.exec, 0), JSON.stringify(eng));
   check('numbers: where you fail, worst first (K broke two attempts, then V one), the one mastered left out', eng.fails === 'K,V,D' && !eng.mastered, eng.fails);
