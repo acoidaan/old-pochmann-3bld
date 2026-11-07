@@ -334,7 +334,9 @@
     PHASE_STEPS[mode].slice().reverse().forEach((step) => {
       const pool = phasePool(step);
       if (!pool.length) return;   // nothing to choose from: that step comes skipped
-      const c = rnd(pool);
+      // Not the same case as in the last scramble, when there are others to choose from.
+      const fresh = pool.filter((x) => !(scrMeta.c || []).includes(x.id));
+      const c = rnd(fresh.length ? fresh : pool);
       cases.unshift(c.id);
       seq.push(c.back ? `${invertAlg(c.back)} ${invertAlg(c.alg)}` : invertAlg(c.alg), rnd(C.AUF));
     });
