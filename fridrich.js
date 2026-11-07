@@ -319,10 +319,11 @@
   // A scramble that leaves the cross and the F2L done and, on top, one case of each step of the phase, chosen
   // among the cases asked for (the ones known, known and learning, or all), with a random top turn between
   // them. A normal-looking scramble (the solver's), so it does not give the cases away.
-  const PHASE_STEPS = { ll: ['oll1', 'oll2', 'pll1', 'pll2'], pll: ['pll1', 'pll2'] };
+  // In full CFOP, one OLL and one PLL of the 57 and 21.
+  const PHASE_STEPS = FULL ? { ll: ['foll', 'fpll'], pll: ['fpll'] } : { ll: ['oll1', 'oll2', 'pll1', 'pll2'], pll: ['pll1', 'pll2'] };
   function phasePool(step) {
     const ok = (id) => settings.scrCases === 'all' || learn[id] === 'known' || (settings.scrCases === 'kl' && learn[id] === 'learning');
-    return C.CASES.filter((c) => c.step === step && ok(c.id));
+    return (isFull(step) ? FU.CASES : C.CASES).filter((c) => c.step === step && ok(c.id));
   }
   async function llScramble(mode) {
     const rot = C.DOWN[settings.cross];
@@ -335,7 +336,7 @@
       if (!pool.length) return;   // nothing to choose from: that step comes skipped
       const c = rnd(pool);
       cases.unshift(c.id);
-      seq.push(invertAlg(c.alg), rnd(C.AUF));
+      seq.push(c.back ? `${invertAlg(c.back)} ${invertAlg(c.alg)}` : invertAlg(c.alg), rnd(C.AUF));
     });
     if (!cases.length) {
       toast(settings.scrCases === 'all' ? 'No hay casos para esa fase' : 'No tienes casos de esa fase marcados en «Casos»: te salen todos resueltos');
@@ -773,8 +774,9 @@
     return { rec, moves, keys, half, halfAt };
   }
   // Recognise the case of a last-layer step and keep the turns of every way to do it.
+  // Full CFOP follows one OLL (from stage 2 or 3) and one PLL (4 or 5); the step of the track is where it starts.
   function startTrack(read) {
-    const all = C.recognizeAll(read.g, read.stage);
+    const all = FULL ? FU.recognizeAll(read.g, read.stage) : C.recognizeAll(read.g, read.stage);
     if (!all.length) { track = null; return null; }
     const paths = all.map((rec) => pathFor(read.g, rec));
     track = { stage: read.stage, face: read.face, paths, cur: 0, pos: 0, rec: paths[0].rec, moves: paths[0].moves };
@@ -835,13 +837,15 @@
     // The steps, with the times reached in this solve.
     const reached = timer.phase === 'run' && timer.line ? liveSplits() : null;
     const solvedNow = stage === 6;
-    $('liveSteps').innerHTML = C.STEPS.map((s, i) => {
-      let cls = solvedNow || stage > i ? 'done' : stage === i ? 'cur' : '';
+    // Full CFOP: the four steps (OLL is stages 2–3, PLL 4–5; the time is when the last of its two ends).
+    const shown = FULL ? [[C.STEPS[0], 0, 0], [C.STEPS[1], 1, 1], [FU.STEPS[0], 2, 3], [FU.STEPS[1], 4, 5]] : C.STEPS.map((s, i) => [s, i, i]);
+    $('liveSteps').innerHTML = shown.map(([s, i, last]) => {
+      let cls = solvedNow || stage > last ? 'done' : stage >= i && stage <= last ? 'cur' : '';
       if (!scrambled && !solvedNow) cls = '';
       const pairs = info.held ? prog.pairs : read.pairs;
       const extra = s.id === 'f2l' && stage === 1 && scrambled && pairs
         ? ` <span class="fr-dots">${pairs.map((p) => `<i class="${p ? 'on' : ''}"></i>`).join('')}</span>` : '';
-      const t = reached && reached[i] != null ? `<span class="fr-st">${f1(reached[i])}</span>` : '';
+      const t = reached && reached[last] != null ? `<span class="fr-st">${f1(reached[last])}</span>` : '';
       return `<li class="${cls}"><span>${s.name}</span>${extra}${t}</li>`;
     }).join('');
     const nowBox = $('liveNow');
@@ -922,9 +926,11 @@
       + '<p class="hint">Cada línea es la forma más corta de meter esa pareja sin romper lo que ya tienes, con su hueco delante a la derecha. Hay otras igual de cortas.</p>';
   }
   // The case, how to hold it, its turns (done, next) and how far along.
+  // The step a stage of the solve is in: in full CFOP, OLL (2–3) or PLL (4–5).
+  const liveStep = (stage) => (FULL && stage >= 2 ? FU.STEPS[stage < 4 ? 0 : 1] : C.STEPS[stage]);
   function caseHtml(t, note) {
     const r = t.rec;
-    const step = C.STEPS[t.stage];
+    const step = liveStep(t.stage);
     if (!r.case) {
       return `<p class="fr-note"><b>${step.name}:</b> solo falta girar la capa de arriba: <span class="fr-alg-big">${algHtml(r.post)}</span></p>`;
     }
@@ -3176,8 +3182,8 @@
     if (cube && cube.on && (settings.help || timer.phase !== 'run')) {
       const info = liveInfo(cube.state);
       const t = info.track || (info.held && info.stage >= 2 ? prog.last : null);
-      if (t && t.rec && t.rec.case) live = `<p class="live-letters">${esc(C.STEPS[t.stage].name)} · ${esc(t.rec.case.name)}</p><p class="live-moves">${esc([t.rec.pre, t.rec.case.alg, t.rec.post].filter(Boolean).join(' '))}</p>`;
-      else if (timer.phase === 'run' && info.stage < 6) live = `<p class="live-letters">${esc(C.STEPS[info.stage].name)}${info.stage === 1 ? ` · ${(info.held ? (prog.pairs || []) : info.read.pairs).filter(Boolean).length}/4` : ''}</p>`;
+      if (t && t.rec && t.rec.case) live = `<p class="live-letters">${esc(liveStep(t.stage).name)} · ${esc(t.rec.case.name)}</p><p class="live-moves">${esc([t.rec.pre, t.rec.case.alg, t.rec.post].filter(Boolean).join(' '))}</p>`;
+      else if (timer.phase === 'run' && info.stage < 6) live = `<p class="live-letters">${esc(liveStep(info.stage).name)}${info.stage === 1 ? ` · ${(info.held ? (prog.pairs || []) : info.read.pairs).filter(Boolean).length}/4` : ''}</p>`;
     }
     const fl = $('focusLive');
     if (fl.dataset.h !== live) { fl.dataset.h = live; fl.innerHTML = live; }

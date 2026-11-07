@@ -164,6 +164,27 @@
     return null;
   }
 
+  // Every way to do the step from g (each top turn before it that works), the way the live help follows them;
+  // `stage` as Cfop.stageOf counts. A PLL that only needs the top turned gives that turn and no case.
+  function recognizeAll(g, stage) {
+    const step = stage < 4 ? 'foll' : 'fpll';
+    const colour = (h, i) => C.colour(h, i);
+    if (step === 'fpll') {
+      const auf = C.AUF.find((u) => u && allOk(run(g, u)));
+      if (auf) return [{ step, auf, front: colour(g, 22), top: colour(g, 4), view: '', pre: '', post: auf, g }];
+    }
+    const out = [];
+    const cases = step === 'foll' ? OLL : PLL;
+    for (const pre of C.AUF) {
+      const gp = run(g, pre);
+      for (const c of cases) {
+        const post = solves(c, gp);
+        if (post != null && post !== false) out.push({ step, case: c, view: '', pre, post: step === 'fpll' ? post : '', front: colour(g, 22), top: colour(g, 4), g: gp });
+      }
+    }
+    return out;
+  }
+
   // A case as J Perm draws it: the cross colour down, the algorithm undone from solved. A PLL is drawn with the
   // top turn that leaves the most pieces in place and still takes the algorithm straight away.
   const misplaced = (g) => [0, 1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 18, 19, 20, 36, 37, 38, 45, 46, 47].filter((i) => !ok(g, i)).length;
@@ -206,5 +227,5 @@
   const own = C.caseById;
   C.caseById = (id) => own(id) || caseById(id);
 
-  window.CfopFull = { OLL_GROUPS, PLL_GROUPS, OLL, PLL, CASES, STEPS, groupOf, recognize, caseState, caseById };
+  window.CfopFull = { OLL_GROUPS, PLL_GROUPS, OLL, PLL, CASES, STEPS, groupOf, recognize, recognizeAll, caseState, caseById };
 })();

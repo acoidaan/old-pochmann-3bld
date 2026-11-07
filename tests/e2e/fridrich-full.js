@@ -182,6 +182,25 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
   await p.waitForFunction(() => /✓/.test(document.getElementById('trBox').innerText), null, { timeout: 4000 }).catch(() => {});
   const res = await p.evaluate(() => ({ text: document.getElementById('trBox').innerText, rec: JSON.parse(localStorage.getItem('cfop:train:v1'))['pll-Aa'] }));
   check('train/cube: solved with J Perm\'s Aa → ✓, with recognising and doing it timed', /✓/.test(res.text) && /Reconocer [\d.]+ s · hacer [\d.]+ s/.test(res.text) && res.rec && res.rec.n === 1, res.text.slice(0, 160));
+
+  // ================= The live help, in full CFOP =================
+  await p.evaluate(() => window.Fridrich.showView('crono'));
+  await p.click('[data-timed="0"]');
+  await p.evaluate(() => document.getElementById('cubeSync').click());
+  await p.waitForTimeout(400);
+  const oll25 = await p.evaluate(() => window.CubeModel.invertAlg(window.Cfop.caseById('oll-25').alg));
+  await turn(`z2 ${oll25}`);   // white down: the bowtie, OLL 25 (2-look would call it «L» of OLL 2)
+  await p.waitForFunction(() => /OLL 25/.test(document.getElementById('liveNow').innerText), null, { timeout: 3000 }).catch(() => {});
+  const live = await p.evaluate(() => ({
+    now: document.getElementById('liveNow').innerText.replace(/\s+/g, ' '),
+    steps: [...document.querySelectorAll('#liveSteps li')].map((li) => `${li.querySelector('span').textContent}${li.className ? `:${li.className}` : ''}`).join(),
+  }));
+  check('live: in full CFOP the help names the whole OLL (OLL 25 and J Perm\'s algorithm), with four steps: cross, F2L, OLL, PLL', /OLL 25/.test(live.now) && /F' r U R' U' r' F R/.test(live.now) && !/Pajarita/.test(live.now) && live.steps === 'Cruz:done,F2L:done,OLL:cur,PLL', JSON.stringify(live).slice(0, 300));
+  await turn(await p.evaluate(() => window.Cfop.caseById('oll-25').alg));
+  await turn(await p.evaluate(() => window.CubeModel.invertAlg(window.Cfop.caseById('pll-Ua').alg)));
+  await p.waitForFunction(() => /PLL \(Ua\)/.test(document.getElementById('liveNow').innerText), null, { timeout: 3000 }).catch(() => {});
+  const live2 = await p.evaluate(() => document.getElementById('liveNow').innerText.replace(/\s+/g, ' '));
+  check('live: and then the whole PLL (Ua)', /PLL \(Ua\)/.test(live2) && /^PLL ·/i.test(live2.replace(/^.*?(PLL ·)/i, '$1')), live2.slice(0, 200));
   await ctx.close();
 
   // ================= The phone =================
