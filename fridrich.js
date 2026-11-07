@@ -24,11 +24,11 @@
   // ================= Storage (this browser only) =================
   const K = {
     times: 'cfop:times:v1', set: 'cfop:settings:v1', learn: 'cfop:learn:v1', train: 'cfop:train:v1',
-    view: 'cfop:view:v1', scr: 'cfop:scramble:v1', pick: FULL ? 'cfop:pick-full:v1' : 'cfop:pick:v1', theme: 'op3bld:theme:v1',
+    view: 'cfop:view:v1', scr: FULL ? 'cfop:scramble-full:v1' : 'cfop:scramble:v1', pick: FULL ? 'cfop:pick-full:v1' : 'cfop:pick:v1', theme: 'op3bld:theme:v1',
     crossTr: 'cfop:crosstr:v1', deleted: 'cfop:deleted:v1', learnAt: 'cfop:learn-at:v1', sync: 'op3bld:sync:v1', synced: 'cfop:synced:v1',
     trlog: 'cfop:trlog:v1', player: 'cfop:player:v1', ligas: 'cfop:ligas:v1', ligaPub: 'cfop:liga-pub:v1', ligaSeen: 'cfop:liga-seen:v1',
     name: 'op3bld:name:v1', session: FULL ? 'cfop:session-full:v1' : 'cfop:session:v1', sessions: 'cfop:sessions:v1',
-    ltimes: 'cfop:ltimes:v1', scrMeta: 'cfop:scrmeta:v1',
+    ltimes: 'cfop:ltimes:v1', scrMeta: FULL ? 'cfop:scrmeta-full:v1' : 'cfop:scrmeta:v1',   // each page its own scramble: its phases come from its own cases
   };
   const load = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; } catch (e) { return d; } };
   const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* this visit only */ } };
@@ -679,6 +679,7 @@
       if (ctActive()) ctMove(mv, st, t);
       renderScramble();
       renderLive();
+      renderFocus();
       renderClock();
       emit('cube', null);
     },
@@ -824,6 +825,7 @@
     }
     return { read, stage: prog.max, track: null, held: true };
   }
+  let lastLive = null;   // what the help worked out for the last turn, for competition mode
   function renderLive() {
     const box = $('live');
     box.hidden = !liveVisible();
@@ -832,6 +834,7 @@
     const scrambled = !follow || done(follow) || !settings.timed || timer.phase === 'run';
     if (!scrambled) { resetProg(); track = null; }
     const info = liveInfo(st);
+    lastLive = { st, info, scrambled };
     const read = info.read;
     const stage = info.stage;
     // The steps, with the times reached in this solve.
@@ -3178,12 +3181,14 @@
     $('focusStats').innerHTML = parts.join(' · ');
     $('focusNew').disabled = $('newScr').disabled;
     // With the cube and the help on: the step and the case, in one line.
+    // Without the clock (or before a solve), the case of the cube as it is, the same as the help shows.
     let live = '';
-    if (cube && cube.on && (settings.help || timer.phase !== 'run')) {
-      const info = liveInfo(cube.state);
+    const L = lastLive && cube && lastLive.st === cube.state ? lastLive : null;
+    if (cube && cube.on && (settings.help || timer.phase !== 'run') && (!L || L.scrambled)) {
+      const info = L ? L.info : liveInfo(cube.state);
       const t = info.track || (info.held && info.stage >= 2 ? prog.last : null);
       if (t && t.rec && t.rec.case) live = `<p class="live-letters">${esc(liveStep(t.stage).name)} · ${esc(t.rec.case.name)}</p><p class="live-moves">${esc([t.rec.pre, t.rec.case.alg, t.rec.post].filter(Boolean).join(' '))}</p>`;
-      else if (timer.phase === 'run' && info.stage < 6) live = `<p class="live-letters">${esc(liveStep(info.stage).name)}${info.stage === 1 ? ` · ${(info.held ? (prog.pairs || []) : info.read.pairs).filter(Boolean).length}/4` : ''}</p>`;
+      else if ((timer.phase === 'run' || !settings.timed) && info.stage < 6) live = `<p class="live-letters">${esc(liveStep(info.stage).name)}${info.stage === 1 ? ` · ${(info.held ? (prog.pairs || []) : info.read.pairs).filter(Boolean).length}/4` : ''}</p>`;
     }
     const fl = $('focusLive');
     if (fl.dataset.h !== live) { fl.dataset.h = live; fl.innerHTML = live; }

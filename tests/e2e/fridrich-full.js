@@ -201,6 +201,15 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
   await p.waitForFunction(() => /PLL \(Ua\)/.test(document.getElementById('liveNow').innerText), null, { timeout: 3000 }).catch(() => {});
   const live2 = await p.evaluate(() => document.getElementById('liveNow').innerText.replace(/\s+/g, ' '));
   check('live: and then the whole PLL (Ua)', /PLL \(Ua\)/.test(live2) && /^PLL ·/i.test(live2.replace(/^.*?(PLL ·)/i, '$1')), live2.slice(0, 200));
+  // Competition mode without the clock: the case of the cube too, and it follows the turns.
+  await p.click('#focusOpen');
+  const f1 = await p.evaluate(() => document.getElementById('focusLive').innerText.replace(/\s+/g, ' '));
+  await turn(await p.evaluate(() => window.Cfop.caseById('pll-Ua').alg));   // solved, and then the OLL 25
+  await turn(await p.evaluate(() => window.CubeModel.invertAlg(window.Cfop.caseById('oll-25').alg)));
+  await p.waitForFunction(() => /OLL 25/.test(document.getElementById('focusLive').innerText), null, { timeout: 3000 }).catch(() => {});
+  const f2 = await p.evaluate(() => document.getElementById('focusLive').innerText.replace(/\s+/g, ' '));
+  check('focus: without the clock, competition mode shows the case of the cube (PLL Ua, and after turning, OLL 25)', /PLL · PLL \(Ua\)/.test(f1) && /OLL · OLL 25/.test(f2), JSON.stringify({ f1, f2 }));
+  await p.click('#focusExit');
   await ctx.close();
 
   // ================= The phone =================
