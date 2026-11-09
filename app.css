@@ -411,7 +411,7 @@ body.focus .view[data-view="crono"] > .panel {
 body.focus .view[data-view="crono"] > .panel::before,
 body.focus .view[data-view="crono"] > .panel::after {
   content: ''; position: absolute; z-index: -1; border-radius: 50%; filter: blur(70px); pointer-events: none;
-  animation: cb-drift 38s ease-in-out infinite alternate;
+  animation: cb-drift 38s ease-in-out infinite alternate; will-change: transform; contain: strict;
 }
 body.focus .view[data-view="crono"] > .panel::before {
   width: 62vmax; height: 52vmax; left: -14vmax; top: -18vmax;
@@ -433,11 +433,11 @@ body.focus .view[data-view="crono"] > .panel::after {
 body.focus:not([data-timer="idle"]) .view[data-view="crono"] > .panel::before,
 body.focus:not([data-timer="idle"]) .view[data-view="crono"] > .panel::after { opacity: .45; transition: opacity .4s; }
 body.focus .focus-top .btn, body.focus .focus-bottom .btn {
-  background: var(--cb-glass); color: var(--cb-ink); border: 1px solid var(--cb-line); backdrop-filter: blur(8px);
+  background: var(--cb-glass); color: var(--cb-ink); border: 1px solid var(--cb-line);
 }
 body.focus .focus-scr {
   position: relative; max-width: min(60ch, 100%); padding: 22px 18px 12px; border: 1px solid var(--cb-line); border-radius: 12px;
-  background: var(--cb-glass); backdrop-filter: blur(10px); color: var(--cb-ink); font-weight: 600; letter-spacing: .04em;
+  background: rgba(40, 40, 40, .7); color: var(--cb-ink); font-weight: 600; letter-spacing: .04em;
 }
 body.focus .focus-scr::before {
   content: 'Scramble'; position: absolute; top: 7px; left: 0; right: 0; text-align: center;
@@ -467,7 +467,7 @@ body.focus .focus-hint kbd {
 body.focus .focus-moves .live-letters { color: var(--cb-ink); }
 body.focus .focus-moves .live-moves { color: var(--cb-muted); }
 body.focus .verdict { color: var(--cb-ink); }
-body.focus .verdict .btn { background: var(--cb-glass); color: var(--cb-ink); border: 1px solid var(--cb-line); backdrop-filter: blur(8px); }
+body.focus .verdict .btn { background: var(--cb-glass); color: var(--cb-ink); border: 1px solid var(--cb-line); }
 body.focus .verdict .btn.primary { background: var(--cb-ink); color: var(--cb-bg); border-color: var(--cb-ink); }
 @media (max-height: 500px) and (orientation: landscape) {
   body.focus .focus-scr { padding: 16px 12px 6px; }
@@ -1141,7 +1141,7 @@ body.focus .memo-ask input { width: 100%; font-size: 18px; }
    shapes drifting behind, panels of frosted glass and white for the accent. It starts from the dark theme
    (every dark rule also matches it) and changes only this. */
 :root[data-theme="carbon"] {
-  --bg: #141414; --surface: rgba(32, 32, 32, .72); --raise: rgba(48, 48, 48, .78); --ink: #ECECEC; --muted: #A3A3A3;
+  --bg: #141414; --surface: rgba(30, 30, 30, .86); --raise: rgba(46, 46, 46, .9); --ink: #ECECEC; --muted: #A3A3A3;
   --line: rgba(255, 255, 255, .12); --accent: #ECECEC; --accent-soft: rgba(255, 255, 255, .1); --on-accent: #141414;
   --plastic: #050505; --ok: #6EE7A0;
   color-scheme: dark;
@@ -1150,7 +1150,7 @@ body.focus .memo-ask input { width: 100%; font-size: 18px; }
 :root[data-theme="carbon"] body::before,
 :root[data-theme="carbon"] body::after {
   content: ''; position: fixed; z-index: -1; border-radius: 50%; filter: blur(80px); pointer-events: none;
-  animation: cb-drift 44s ease-in-out infinite alternate;
+  animation: cb-drift 44s ease-in-out infinite alternate; will-change: transform; contain: strict;
 }
 :root[data-theme="carbon"] body::before {
   width: 70vmax; height: 56vmax; left: -18vmax; top: -22vmax;
@@ -1161,9 +1161,14 @@ body.focus .memo-ask input { width: 100%; font-size: 18px; }
   background: radial-gradient(closest-side, rgba(180, 180, 180, .36), rgba(120, 120, 120, .14) 60%, transparent);
 }
 @media (prefers-reduced-motion: reduce) { :root[data-theme="carbon"] body::before, :root[data-theme="carbon"] body::after { animation: none; } }
-/* Frosted glass where the page used flat panels. */
-:root[data-theme="carbon"] .panel, :root[data-theme="carbon"] .tabs, :root[data-theme="carbon"] .sheet-card {
-  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+/* Glass panels without a live blur behind them: a backdrop blur over moving shapes is worked out again on
+   every frame and made the page stutter; slightly see-through panels look nearly the same for free. */
+/* The menu on top, a rounded bar like the tab in it (it was a full-width strip with a pill inside). */
+@media (min-width: 861px) {
+  :root[data-theme="carbon"] .tabs, :root[data-theme="carbon"] body.fr[data-mode="learn"] .tabs {
+    top: 8px; margin-top: -12px; padding: 6px; border: 1px solid var(--line); border-radius: 999px;
+    background: rgba(26, 26, 26, .92); box-shadow: 0 8px 24px rgba(0, 0, 0, .35);
+  }
 }
 :root[data-theme="carbon"] .btn.primary { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 :root[data-theme="carbon"] .clock-time { font-family: var(--font-mono); font-weight: 600; }
