@@ -2563,6 +2563,7 @@
   $('modePill').addEventListener('keydown', (ev) => { if ((ev.key === 'Enter' || ev.key === ' ') && session && view !== 'entrenar') { ev.preventDefault(); showView('entrenar'); } });
   function endSession() {
     if (!session) return;
+    setTrFull(false);
     const s2 = session;
     session = null;
     save(K.session, null);
@@ -3266,7 +3267,29 @@
       if (!fromHistory) { try { if (history.state && history.state.frFocus) history.back(); } catch (e) { /* sandboxed */ } }
     }
   }
-  window.addEventListener('popstate', () => { if (focus.on) setFocus(false, true); });
+  window.addEventListener('popstate', () => { if (focus.on) setFocus(false, true); if (trFull) setTrFull(false, true); });
+  // A training session at full screen: only its bar (with the set) and the case, in the competition look.
+  let trFull = false;
+  function setTrFull(on, fromHistory) {
+    if (trFull === on || (on && !session)) return;
+    trFull = on;
+    document.body.classList.toggle('trfocus', on);
+    $('sessFull').querySelector('span').textContent = on ? 'Salir' : 'Pantalla completa';
+    $('sessFull').setAttribute('aria-pressed', String(on));
+    try {
+      if (on && document.documentElement.requestFullscreen && !document.fullscreenElement) document.documentElement.requestFullscreen({ navigationUI: 'hide' }).catch(() => {});
+      if (!on && document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {});
+    } catch (e) { /* the layout alone is enough */ }
+    if (on) { try { history.pushState({ frTrFull: true }, ''); } catch (e) { /* sandboxed */ } } else if (!fromHistory) { try { if (history.state && history.state.frTrFull) history.back(); } catch (e) { /* sandboxed */ } }
+    window.scrollTo(0, 0);
+  }
+  $('sessFull').addEventListener('click', () => setTrFull(!trFull));
+  document.addEventListener('keydown', (ev) => {
+    if (typing(ev.target) || ev.ctrlKey || ev.metaKey || ev.altKey || view !== 'entrenar') return;
+    if ((ev.key === 'f' || ev.key === 'F') && session && !ev.repeat) { ev.preventDefault(); setTrFull(!trFull); return; }
+    if (ev.key === 'Escape' && trFull && $('pickSheet').hidden) { ev.preventDefault(); setTrFull(false); }
+  });
+  document.addEventListener('fr:view', () => { if (trFull && view !== 'entrenar') setTrFull(false); });
   $('focusOpen').addEventListener('click', () => setFocus(true));
   $('focusExit').addEventListener('click', () => setFocus(false));
   $('focusNew').addEventListener('click', () => { if (timer.phase !== 'run') newScramble(); });

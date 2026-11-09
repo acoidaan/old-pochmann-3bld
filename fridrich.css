@@ -609,3 +609,37 @@ html[data-cfop="full"] [data-only="reduced"], html:not([data-cfop="full"]) [data
 
 /* «Carbón» (see app.css): the mode colour goes white too, so the page stays black and white. */
 :root[data-theme="carbon"] { --fr-blank: #3A3A3A; --fr-mode: #E6E6E6; --fr-mode-ink: #E6E6E6; --fr-mode-soft: rgba(255, 255, 255, .08); --fr-on-mode: #141414; --fr-learn-bg: #1A1A1A; }
+
+/* ---------- A training session at full screen («Pantalla completa» in its bar) ---------- */
+/* Only the bar and the case, over the competition-mode charcoal (its own colours, set on the view so that
+   every part inside takes them, whatever the page theme). */
+body.trfocus { overflow: hidden; }
+body.trfocus .fr-head, body.trfocus .tabs, body.trfocus .cube-fab,
+body.trfocus .view[data-view="entrenar"] > :not(#sessBar):not(#trPanel),
+body.trfocus #trPanel .fr-pick, body.trfocus #trSetNote, body.trfocus #trPanel .panel-head h2 { display: none !important; }
+body.trfocus .view[data-view="entrenar"] {
+  --bg: #151515; --surface: rgba(34, 34, 34, .78); --raise: rgba(48, 48, 48, .85); --ink: #ECECEC; --muted: #A3A3A3;
+  --line: rgba(255, 255, 255, .13); --accent: #ECECEC; --accent-soft: rgba(255, 255, 255, .1); --on-accent: #151515; --ok: #6EE7A0;
+  --fr-mode: #E6E6E6; --fr-mode-ink: #E6E6E6; --fr-mode-soft: rgba(255, 255, 255, .08); --fr-on-mode: #151515; --fr-blank: #3A3A3A;
+  position: fixed; inset: 0; z-index: 50; overflow: auto; overscroll-behavior: contain;
+  display: grid !important; grid-template-columns: minmax(0, 1fr) !important; grid-template-rows: auto minmax(0, 1fr); align-content: stretch; gap: 16px;
+  padding: max(14px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  background: var(--bg); color: var(--ink); color-scheme: dark; isolation: isolate;
+}
+body.trfocus .view[data-view="entrenar"]::before, body.trfocus .view[data-view="entrenar"]::after {
+  content: ''; position: fixed; z-index: -1; border-radius: 50%; filter: blur(80px); pointer-events: none;
+  animation: cb-drift 44s ease-in-out infinite alternate; will-change: transform; contain: strict;
+}
+body.trfocus .view[data-view="entrenar"]::before { width: 62vmax; height: 52vmax; left: -16vmax; top: -20vmax; background: radial-gradient(closest-side, rgba(165, 165, 165, .55), rgba(120, 120, 120, .24) 60%, transparent); }
+body.trfocus .view[data-view="entrenar"]::after { width: 58vmax; height: 48vmax; right: -18vmax; bottom: -22vmax; animation-duration: 52s; animation-direction: alternate-reverse; background: radial-gradient(closest-side, rgba(185, 185, 185, .5), rgba(125, 125, 125, .2) 60%, transparent); }
+@media (prefers-reduced-motion: reduce) { body.trfocus .view[data-view="entrenar"]::before, body.trfocus .view[data-view="entrenar"]::after { animation: none; } }
+body.trfocus .fr-sess-bar { position: static; background: rgba(40, 40, 40, .8); color: var(--ink); border: 1px solid var(--line); box-shadow: none; }
+body.trfocus .fr-sess-bar .btn { background: rgba(255, 255, 255, .08); color: var(--ink); border: 1px solid var(--line); }
+body.trfocus .fr-sess-mini { display: flex; }
+body.trfocus #trPanel { position: static; width: min(100%, 980px); justify-self: center; align-self: center; border-color: var(--line); box-shadow: none; }
+body.trfocus #trPanel .panel-head { justify-content: center; }
+body.trfocus .fr-big { font-size: clamp(26px, 4.6vw, 44px); }
+body.trfocus .fr-train-card .fr-top, body.trfocus .fr-quiz-pic .fr-top, body.trfocus .fr-try-pic .fr-top,
+body.trfocus .fr-peek .fr-top, body.trfocus .fr-quiz-pic .fr-iso { width: clamp(140px, 30vmin, 240px); height: auto; }
+.fr-sess-bar .fr-sess-full { display: inline-flex; align-items: center; gap: 6px; }
+.fr-sess-bar .fr-sess-full + .btn { margin-left: 0; }

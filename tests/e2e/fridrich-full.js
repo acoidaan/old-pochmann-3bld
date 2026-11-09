@@ -163,6 +163,18 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
   await p.waitForFunction(() => window.Fridrich._.session() && window.Fridrich._.tr.c, null, { timeout: 5000 }).catch(() => {});
   const ses = await p.evaluate(() => ({ set: window.Fridrich._.session().set, cards: document.querySelectorAll('#sessSet .fr-sc').length, text: document.getElementById('sessSet').innerText.replace(/\s+/g, ' ') }));
   check('session: the picker has the full OLL («OLL completo» picks the 57) → a session with OLL 27 and OLL 45', all57 === 57 && /OLL completo/.test(autoText) && ses.set.join() === 'oll-27,oll-45' && ses.cards === 2 && /OLL 27/.test(ses.text), JSON.stringify({ all57, autoText, ...ses }));
+  // «Pantalla completa»: only the session bar and the case, over charcoal; Esc leaves it.
+  await p.click('#sessFull');
+  await p.waitForTimeout(300);
+  const tf = await p.evaluate(() => {
+    const vis = (id) => { const el = document.getElementById(id); return !!el && getComputedStyle(el).display !== 'none' && el.getBoundingClientRect().height > 0; };
+    const v = document.querySelector('.view[data-view="entrenar"]');
+    return { on: document.body.classList.contains('trfocus'), bar: vis('sessBar'), tr: vis('trPanel'), set: vis('sessPanel'), plan: getComputedStyle(document.querySelector('.fr-plan')).display, tabs: getComputedStyle(document.querySelector('.tabs')).display, fixed: getComputedStyle(v).position, bg: getComputedStyle(v).backgroundColor, label: document.getElementById('sessFull').innerText.trim() };
+  });
+  await p.screenshot({ path: `${SHOTS}/fridrich-full-session-full-1280.png` });
+  await p.keyboard.press('Escape');
+  const tfOff = await p.evaluate(() => document.body.classList.contains('trfocus'));
+  check('session: «Pantalla completa» leaves only the session bar and the case, over charcoal; Esc goes back', tf.on && tf.bar && tf.tr && !tf.set && tf.plan === 'none' && tf.tabs === 'none' && tf.fixed === 'fixed' && tf.bg === 'rgb(21, 21, 21)' && tf.label === 'Salir' && !tfOff, JSON.stringify({ ...tf, tfOff }));
   await p.click('#sessEnd');
   await p.keyboard.press('Escape');
 
