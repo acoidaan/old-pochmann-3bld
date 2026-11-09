@@ -150,7 +150,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     return s;
   });
   const cubeOv = await ov(() => [...document.querySelectorAll('#net2d i')].map((c) => c.className.slice(2)).join(''));
-  const cube3 = await ov(() => ({ s: [...document.querySelectorAll('#c3dCube i')].map((c) => c.className.slice(2)).join(''), shown: getComputedStyle(document.getElementById('c3d')).display !== 'none', flat: getComputedStyle(document.getElementById('net2d')).display }));
+  const cube3 = await ov(() => ({ s: [...document.querySelectorAll('#c3dCube i')].map((c) => c.className.replace(/.*\bc-(\w).*/, '$1')).join(''), shown: getComputedStyle(document.getElementById('c3d')).display !== 'none', flat: getComputedStyle(document.getElementById('net2d')).display }));
   check('scramble text follows the app', shown === newScr, shown);
   check('cube net matches the app model, drawn in 3D (the flat net only with ?net=2d)', cubeApp === cubeOv && cubeOv.length === 54 && cube3.s === cubeOv && cube3.shown && cube3.flat === 'none', JSON.stringify({ cubeOv, cube3 }));
   check('scramble before was shown too', scr.length > 0);

@@ -120,14 +120,10 @@ body:not(.net-2d) .net2d, body.net-2d .c3d { display: none; }
 .c3d-cube { position: relative; width: var(--s); height: var(--s); transform-style: preserve-3d; transform: rotateX(-26deg) rotateY(-38deg); animation: c3d-sway 14s ease-in-out infinite alternate; }
 @keyframes c3d-sway { from { transform: rotateX(-26deg) rotateY(-50deg); } to { transform: rotateX(-22deg) rotateY(-24deg); } }
 @media (prefers-reduced-motion: reduce) { .c3d-cube { animation: none; } }
-.c3d .face { position: absolute; inset: 0; box-sizing: border-box; backface-visibility: hidden; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); }
-.c3d .face i { transition: background-color .12s linear; }
-.c3d-F { transform: translateZ(calc(var(--s) / 2)); }
-.c3d-B { transform: rotateY(180deg) translateZ(calc(var(--s) / 2)); }
-.c3d-R { transform: rotateY(90deg) translateZ(calc(var(--s) / 2)); }
-.c3d-L { transform: rotateY(-90deg) translateZ(calc(var(--s) / 2)); }
-.c3d-U { transform: rotateX(90deg) translateZ(calc(var(--s) / 2)); }
-.c3d-D { transform: rotateX(-90deg) translateZ(calc(var(--s) / 2)); }
+/* Each sticker on its own (placed from JS), so that the layer being turned can turn: the black of the plastic
+   is each sticker's border. */
+.c3d .st { position: absolute; left: 0; top: 0; box-sizing: border-box; border: calc(var(--s) / 60) solid var(--plastic); border-radius: calc(var(--s) / 22); backface-visibility: hidden; }
+.c3d .st.turning { transition: transform var(--turn, 110ms) ease-out; }
 .face { display: grid; grid-template-columns: repeat(3, var(--cell)); grid-template-rows: repeat(3, var(--cell)); gap: 3px; padding: 4px; background: var(--plastic); border-radius: 8px; }
 .face i { border-radius: 4px; }
 .c-U { background: var(--st-U); } .c-R { background: var(--st-R); } .c-F { background: var(--st-F); }
@@ -454,20 +450,87 @@ body.carbon .stage[data-learn] .scr-text .mv.next { color: #141414; }
     face.style.gridColumn = NET[f][1];
     for (let i = 0; i < 9; i++) { const c = document.createElement('i'); face.appendChild(c); cells.push(c); }
     $('net2d').appendChild(face);
-    // The same stickers on a cube in 3D (each face as seen from outside, the top row at the back for U and at
-    // the front for D: the order the app sends them in).
-    const f3 = document.createElement('div');
-    f3.className = `face c3d-${f}`;
-    for (let i = 0; i < 9; i++) { const c = document.createElement('i'); f3.appendChild(c); cells3.push(c); }
-    $('c3dCube').appendChild(f3);
+    for (let i = 0; i < 9; i++) { const c = document.createElement('i'); c.className = 'st'; $('c3dCube').appendChild(c); cells3.push(c); }
   });
+  // ---- The cube in 3D. Stickers in the order the app sends them (U L F R B D, each face as seen from outside,
+  // the top row at the back for U and at the front for D), each with where it is on the cube (x right, y up, z
+  // to the front) and how its face is turned on screen.
+  const V = (a, b, k) => a.map((x, i) => x + b[i] * k);
+  const F3 = {
+    U: { n: [0, 1, 0], r: [1, 0, 0], d: [0, 0, 1], css: 'rotateX(90deg)' },
+    L: { n: [-1, 0, 0], r: [0, 0, 1], d: [0, -1, 0], css: 'rotateY(-90deg)' },
+    F: { n: [0, 0, 1], r: [1, 0, 0], d: [0, -1, 0], css: '' },
+    R: { n: [1, 0, 0], r: [0, 0, -1], d: [0, -1, 0], css: 'rotateY(90deg)' },
+    B: { n: [0, 0, -1], r: [-1, 0, 0], d: [0, -1, 0], css: 'rotateY(180deg)' },
+    D: { n: [0, -1, 0], r: [1, 0, 0], d: [0, 0, -1], css: 'rotateX(-90deg)' },
+  };
+  const ST3 = [];
+  ORDER.forEach((f) => { for (let i = 0; i < 9; i++) { const g = F3[f]; ST3.push({ f, row: Math.floor(i / 3), col: i % 3, p: V(V(g.n, g.r, (i % 3) - 1), g.d, Math.floor(i / 3) - 1), n: g.n }); } });
+  const keyOf = (p, n) => `${p.join()}|${n.join()}`;
+  const AT = new Map(ST3.map((x, i) => [keyOf(x.p, x.n), i]));
+  const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  // A quarter turn the way the face turns when you look at it (clockwise), or back (k = -1), or a half turn.
+  const rot = (a, v, q) => (q === 2 ? V(v.map((x) => -x), a, 2 * dot(a, v)) : V(cross(a, v).map((x) => -q * x), a, dot(a, v)));
+  // For each turn (U, U', U2 …): where each sticker goes.
+  const TURNS = {};
+  ORDER.forEach((f) => [['', 1], ["'", -1], ['2', 2]].forEach(([suf, q]) => {
+    const a = F3[f].n;
+    TURNS[f + suf] = { f, q, map: ST3.map((x, i) => (dot(x.p, a) >= 1 ? AT.get(keyOf(rot(a, x.p, q), rot(a, x.n, q))) : i)) };
+  }));
+  let shown3 = null;
+  let turning3 = null;
+  const size3 = () => $('c3dCube').offsetWidth || 150;
+  function place3(i, layer) {
+    const s = size3(); const k = s / 3; const h = s / 2; const x = ST3[i];
+    const el = cells3[i];
+    el.style.width = `${k}px`; el.style.height = `${k}px`;
+    el.style.transformOrigin = `${h}px ${h}px`;
+    el.style.transform = `${layer || ''} ${F3[x.f].css} translateZ(${h}px) translate(${x.col * k}px, ${x.row * k}px)`;
+  }
+  function draw3(cube) {
+    for (let i = 0; i < 54; i++) { cells3[i].className = `st c-${cube[i]}`; place3(i); }
+    shown3 = cube;
+  }
+  // The turn that takes one state to the next, if a single one does.
+  function turnBetween(a, b) {
+    for (const name of Object.keys(TURNS)) {
+      const t = TURNS[name];
+      let ok = true;
+      for (let i = 0; i < 54 && ok; i++) if (b[t.map[i]] !== a[i]) ok = false;
+      if (ok) return t;
+    }
+    return null;
+  }
+  // The layer turns into place on screen (on its axis, about the middle of the cube), then the stickers take their
+  // new colours where they now are.
+  function paint3(cube) {
+    if (turning3) { clearTimeout(turning3.timer); turning3 = null; draw3(turning3Target || cube); }
+    const t = shown3 && shown3 !== cube && !REDUCED ? turnBetween(shown3, cube) : null;
+    if (!t) { draw3(cube); return; }
+    const a = F3[t.f].n;
+    const css = `rotate3d(${a[0]}, ${-a[1]}, ${a[2]}, ${t.q === 2 ? 180 : 90 * t.q * TURN_SIGN}deg)`;
+    const layer = ST3.map((x, i) => (dot(x.p, a) >= 1 ? i : -1)).filter((i) => i >= 0);
+    // The same list of transforms at both ends (the turn from 0), so that it really turns.
+    layer.forEach((i) => place3(i, `rotate3d(${a[0]}, ${-a[1]}, ${a[2]}, 0deg)`));
+    void $('c3dCube').offsetWidth;
+    layer.forEach((i) => { cells3[i].classList.add('turning'); place3(i, css); });
+    turning3Target = cube;
+    turning3 = { timer: setTimeout(() => { turning3 = null; layer.forEach((i) => cells3[i].classList.remove('turning')); draw3(cube); }, TURN_MS + 20) };
+  }
+  let turning3Target = null;
+  let TURN_MS = 110;
+  const TURN_SIGN = 1;
+  const REDUCED = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  window.OverlayCube = { paint: (c) => paintNet(c), turnMs: (ms) => { TURN_MS = ms; $('c3d').style.setProperty('--turn', `${ms}ms`); }, turnBetween: (a, b) => { const t = turnBetween(a, b); return t && Object.keys(TURNS).find((k) => TURNS[k] === t); } };   // for tests
   // 3D by default; ?net=2d for the flat net.
   document.body.classList.toggle('net-2d', q.get('net') === '2d');
   function paintNet(cube) {
     const ok = typeof cube === 'string' && cube.length === 54;
     $('net').hidden = !ok;
     if (!ok) return;
-    for (let i = 0; i < 54; i++) { const cls = 'c-' + cube[i]; if (cells[i].className !== cls) { cells[i].className = cls; cells3[i].className = cls; } }
+    for (let i = 0; i < 54; i++) { const cls = 'c-' + cube[i]; if (cells[i].className !== cls) cells[i].className = cls; }
+    if (cube !== shown3) paint3(cube);
   }
 
   const ICON = {

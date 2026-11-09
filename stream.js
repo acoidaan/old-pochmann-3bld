@@ -250,7 +250,7 @@
   ['fr:timer'].forEach((ev) => document.addEventListener(ev, (e) => { touch(); push(e.detail && e.detail.cancelled ? { cancelled: true } : null); }));
   ['fr:result', 'fr:scramble', 'fr:record', 'fr:train', 'fr:view'].forEach((ev) => document.addEventListener(ev, soon));
   ['op3:cube', 'fr:cube'].forEach((ev) => document.addEventListener(ev, () => {
-    const wait = 150 - (Date.now() - cubeAt);
+    const wait = 90 - (Date.now() - cubeAt);   // often enough for the 3D cube of the overlay to turn each layer
     if (wait <= 0) { cubeAt = Date.now(); push(); return; }
     if (!cubeT) cubeT = setTimeout(() => { cubeT = 0; cubeAt = Date.now(); push(); }, wait);
   }));

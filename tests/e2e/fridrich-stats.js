@@ -6,6 +6,7 @@ const { chromium, devices } = require('playwright');
 const { SITE, SHOTS } = require('../env');
 const { seed } = require('../fixtures/cfop-seed');
 const results = [];
+const CM = (() => { const g = { window: {} }; new Function('window', require('fs').readFileSync(require('path').join(__dirname, '..', '..', 'cubemodel.js'), 'utf8'))(g.window); return g.window.CubeModel; })();
 const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}${extra ? ' — ' + extra : ''}`);
 const FIXED = seed();   // a fixed «now» for the engine's own numbers
 const keys = (d) => ({ 'cfop:times:v1': d.times, 'cfop:trlog:v1': d.trlog, 'cfop:train:v1': d.train, 'cfop:crosstr:v1': d.crossTr, 'cfop:learn:v1': d.learn });
@@ -278,6 +279,16 @@ const keys = (d) => ({ 'cfop:times:v1': d.times, 'cfop:trlog:v1': d.trlog, 'cfop
   const ovFullDone = await ov.evaluate(() => ({ carbon: document.body.classList.contains('carbon'), live: document.getElementById('liveLine').innerText.replace(/\s+/g, ' '), prog: document.getElementById('prog').innerText.replace(/\s+/g, ' ') }));
   check('overlay: full CFOP says so, names the whole OLL while solving and the OLL and PLL after; «Carbón» only when asked', ovFull.carbon && /57 OLL y 21 PLL/.test(ovFull.method) && /^OLL OLL 27/.test(ovFull.live) && /Martian Mono/.test(ovFull.font)
     && !ovFullDone.carbon && /OLL 27 · PLL \(T\)/.test(ovFullDone.live) && /12\/57/.test(ovFullDone.prog) && /9\/21/.test(ovFullDone.prog), JSON.stringify({ ovFull, ovFullDone }));
+  // The 3D cube: each of the 18 face turns is told apart from the state before and after (so that the layer can
+  // be turned on screen), against the app's own cube model; and a turn shows as the layer turning.
+  const netOf = (st) => { let o = ''; for (const f of ['U', 'L', 'F', 'R', 'B', 'D']) { const b = 9 * CM.FACE_ORDER.indexOf(f); for (let i = 0; i < 9; i++) o += CM.faceOfSticker(st[b + i]); } return o; };
+  const from = netOf(CM.apply(CM.solved(), "R U F' L2 D B'"));
+  const pairs = ['U', "U'", 'U2', 'D', "D'", 'D2', 'R', "R'", 'R2', 'L', "L'", 'L2', 'F', "F'", 'F2', 'B', "B'", 'B2'].map((m) => [m, netOf(CM.apply(CM.apply(CM.solved(), "R U F' L2 D B'"), m))]);
+  await ov.goto(`${SITE}/overlay.html?demo=1&modo=cfop`);
+  await ov.waitForTimeout(300);
+  const turns = await ov.evaluate(([a, ps]) => ps.map(([m, b]) => [m, window.OverlayCube.turnBetween(a, b)]), [from, pairs]);
+  const anim = await ov.evaluate(([a, b]) => { window.OverlayCube.turnMs(2000); window.OverlayCube.paint(a); window.OverlayCube.paint(b); return [...document.querySelectorAll('#c3dCube .st.turning')].length; }, [from, pairs[6][1]]);
+  check('overlay 3D: each face turn recognised from the cube before and after, and the layer turns on screen (21 stickers)', turns.every(([m, t]) => m === t) && anim === 21, JSON.stringify({ turns: turns.filter(([m, t]) => m !== t), anim }));
   await ovc.close();
 
   // ================= Nothing yet =================
