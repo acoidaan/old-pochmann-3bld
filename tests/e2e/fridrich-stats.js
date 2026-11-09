@@ -269,6 +269,15 @@ const keys = (d) => ({ 'cfop:times:v1': d.times, 'cfop:trlog:v1': d.trlog, 'cfop
   await ov.waitForTimeout(300);
   const ovRun = await ov.evaluate(() => [...document.querySelectorAll('#cfSplits .pd')].map((x) => x.textContent));
   check('overlay: while solving, the parts done against the reference', ovRun.slice(0, 3).every((x) => /^−\d\.\d$/.test(x)) && ovRun[3] === '', JSON.stringify(ovRun));
+  // Full CFOP (?completo=1, as from /cfop) in the «Carbón» look: its name, one OLL and one PLL, charcoal cards.
+  await ov.goto(`${SITE}/overlay.html?demo=1&modo=cfop&completo=1&tema=carbon&phase=run&ms=19500`);
+  await ov.waitForTimeout(300);
+  const ovFull = await ov.evaluate(() => ({ carbon: document.body.classList.contains('carbon'), method: document.getElementById('method').textContent, live: document.getElementById('liveLine').innerText.replace(/\s+/g, ' '), font: getComputedStyle(document.querySelector('.time')).fontFamily }));
+  await ov.goto(`${SITE}/overlay.html?demo=1&modo=cfop&completo=1&phase=done`);
+  await ov.waitForTimeout(300);
+  const ovFullDone = await ov.evaluate(() => ({ carbon: document.body.classList.contains('carbon'), live: document.getElementById('liveLine').innerText.replace(/\s+/g, ' '), prog: document.getElementById('prog').innerText.replace(/\s+/g, ' ') }));
+  check('overlay: full CFOP says so, names the whole OLL while solving and the OLL and PLL after; «Carbón» only when asked', ovFull.carbon && /57 OLL y 21 PLL/.test(ovFull.method) && /^OLL OLL 27/.test(ovFull.live) && /Martian Mono/.test(ovFull.font)
+    && !ovFullDone.carbon && /OLL 27 · PLL \(T\)/.test(ovFullDone.live) && /12\/57/.test(ovFullDone.prog) && /9\/21/.test(ovFullDone.prog), JSON.stringify({ ovFull, ovFullDone }));
   await ovc.close();
 
   // ================= Nothing yet =================

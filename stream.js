@@ -19,6 +19,8 @@
   })();
   if (!LAYOUTS.includes(cfg.layout)) cfg.layout = 'esquinas';
   const saveCfg = () => { try { localStorage.setItem(CFG_KEY, JSON.stringify(cfg)); } catch (e) { /* not kept */ } };
+  // The page's theme, so the overlay can take the «Carbón» look too (stored as plain text).
+  const theme = () => { try { return localStorage.getItem('op3bld:theme:v1') || ''; } catch (e) { return ''; } };
   const readJson = (key, fallback) => { try { const v = JSON.parse(localStorage.getItem(key)); return v == null ? fallback : v; } catch (e) { return fallback; } };
 
   // Several app tabs can be connected at once (another window, the installed app…).
@@ -93,7 +95,16 @@
     const okToday = today.filter((t) => t.pen !== 'dnf');
     const okAll = times.filter((t) => t.pen !== 'dnf');
     const groups = (sp) => (sp ? [[0], [1], [2, 3], [4, 5]].map((idx) => (idx.every((i) => sp.s[i]) ? idx.reduce((a, i) => a + sp.s[i][0], 0) : null)) : null);
-    const caseNames = (sp) => (sp ? [2, 3, 4, 5].map((i) => {
+    // Full CFOP (/cfop): one OLL and one PLL of the 57 and 21, a skip only if both 2-look steps were.
+    const full = !!FR.full;
+    const fullNames = (sp) => [[2, 3], [4, 5]].map(([a, b], k) => {
+      if (!sp.s[a] || !sp.s[b]) return null;
+      if (sp.s[a][4] && sp.s[b][4]) return 'salto';
+      const id = sp.fc && sp.fc[k];
+      const c = id && window.Cfop && window.Cfop.caseById(id);
+      return c ? c.name : null;
+    }).filter(Boolean).join(' · ');
+    const caseNames = (sp) => (sp && full ? fullNames(sp) : sp ? [2, 3, 4, 5].map((i) => {
       const x = sp.s[i];
       if (!x) return null;
       if (x[4]) return 'salto';
@@ -118,7 +129,8 @@
       let n = 0;
       let all = 0;
       const learn = readJson('cfop:learn:v1', {});
-      (window.Cfop ? window.Cfop.CASES : []).forEach((k) => { if (k.step.startsWith(prefix)) { all++; if (learn[k.id] === 'known') n++; } });
+      const cases = full && window.CfopFull ? window.CfopFull.CASES.filter((k) => k.step === `f${prefix}`) : (window.Cfop ? window.Cfop.CASES : []).filter((k) => k.step.startsWith(prefix));
+      cases.forEach((k) => { all++; if (learn[k.id] === 'known') n++; });
       return [n, all];
     };
     let smart = null;
@@ -135,7 +147,7 @@
     }
     const fin = (x) => (x === Infinity ? -1 : x);
     return {
-      v: 1, mode: 'cfop', at: Date.now(), src: SRC, act,
+      v: 1, mode: 'cfop', full, theme: theme(), at: Date.now(), src: SRC, act,
       name: String(readJson('op3bld:name:v1', '') || '').slice(0, 24),
       scr, moves: c.moves, cube: c.cube, timer, last: lastOut, smart,
       today: {
@@ -192,6 +204,7 @@
       reto = r ? String(r.by || '').slice(0, 24) : null;
     }
     return {
+      theme: theme(),
       v: 1, at: Date.now(), src: SRC, act,
       name: String(readJson('op3bld:name:v1', '') || '').slice(0, 24),
       reto, scr, moves: c.moves, cube: c.cube, timer, last: lastOut,

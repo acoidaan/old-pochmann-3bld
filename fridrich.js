@@ -3591,6 +3591,7 @@
     return out;
   }
   window.Fridrich = {
+    full: FULL,
     learnState,
     timerState,
     times: () => times,
@@ -3608,7 +3609,7 @@
       const rec = t ? t.rec : null;
       return {
         facelets: toFacelets(cube.state),
-        stage: info.stage, pairs: read.n, cross: read.cross, colour: read.colour,
+        stage: info.stage, pairs: read.n, cross: read.cross, colour: read.colour, full: FULL,
         splits: timer.phase === 'run' && timer.line ? liveSplits() : null,
         skips: timer.phase === 'run' && timer.line && liveSplits() ? liveSplits().skip : null,
         case: rec && rec.case ? { id: rec.case.id, name: rec.case.name, alg: rec.case.alg, step: rec.case.step, front: rec.front, pre: rec.pre, post: rec.post } : null,
