@@ -503,11 +503,14 @@
       const sp = C.splits(timer.line, settings.cross);
       if (sp && sp.steps[0].done) {
         r.sp = { f: sp.face, s: sp.steps.map((s) => (s.done ? [Math.round(s.time), s.moves, s.recog == null ? null : Math.round(s.recog), s.case || null, s.skip ? 1 : 0] : null)) };
+        // In full CFOP, the OLL and the PLL as one step each: which of the 57 and 21 it was, and its turns.
+        const fl = FULL ? fullLL(timer.line, sp) : null;
+        if (fl) r.sp.fc = fl.map((x) => (x && x.id) || null);
         r.rc = reconstruction(timer.line, sp);
         // How good each step was: worked out just after (the pair searches take a moment).
         const line = timer.line;
         setTimeout(() => {
-          try { r.an = packAnalysis(C.analyze(line, sp)); } catch (e) { r.an = null; }
+          try { r.an = packAnalysis(C.analyze(line, sp), fl); } catch (e) { r.an = null; }
           if (!r.an) return;
           save(K.times, times);
           save(K.ltimes, ltimes);
@@ -1171,16 +1174,15 @@
     const rot = C.DOWN[r.sp.f];
     const lines = [];
     if (rot) lines.push(`${rot} // inspección`);
-    C.STEPS.forEach((st, i) => { if (r.rc[i] != null) lines.push(`${r.rc[i] || '—'} // ${st.name}`); });
+    viewSteps(r).forEach(([st, , rc]) => { if (rc != null) lines.push(`${rc || '—'} // ${st.name}`); });
     return lines.join('\n');
   }
   function reconHtml(r) {
     if (!r || !r.rc) return '';
     const rot = C.DOWN[r.sp.f];
-    const rows = C.STEPS.map((st, i) => {
-      const x = r.sp.s[i];
-      if (!x || r.rc[i] == null) return '';
-      return `<li><b>${st.name}</b> <span class="muted">${f1(x[0])} s · ${r.rc[i] ? r.rc[i].split(' ').length : 0} giros</span><span class="fr-recon-moves">${r.rc[i] ? algHtml(r.rc[i]) : '<i>nada</i>'}</span></li>`;
+    const rows = viewSteps(r).map(([st, x, rc]) => {
+      if (!x || rc == null) return '';
+      return `<li><b>${st.name}</b> <span class="muted">${f1(x[0])} s · ${rc ? rc.split(' ').length : 0} giros</span><span class="fr-recon-moves">${rc ? algHtml(rc) : '<i>nada</i>'}</span></li>`;
     }).join('');
     return `<ol class="fr-recon">${rot ? `<li><b>Inspección</b> <span class="muted">${esc(C.crossName(r.sp.f))} abajo</span><span class="fr-recon-moves">${algHtml(rot)}</span></li>` : ''}${rows}</ol>`
       + `<div class="actions"><button class="btn" type="button" data-copy-rc="${times.indexOf(r)}">Copiar reconstrucción</button></div>`;
@@ -1197,14 +1199,56 @@
   // Kept small in the solve: c [mine, shortest]; p per pair [slots, mine, shortest, best slot, its length,
   // time to start, pauses, paused ms, time]; l per last-layer step [mine, shortest, pauses, paused ms], 0 if
   // skipped; z ms paused; m all turns; i the ideal.
-  function packAnalysis(a) {
+  // Full CFOP: the OLL (stages 2–3) and the PLL (4–5) of a timed solve, each as one step: its case of the 57 or
+  // 21 (from the side and top turn it took fewest turns), your turns and the fewest with its algorithm.
+  function fullLL(line, sp) {
+    const at = (k) => C.canon(line[k].st, sp.face);
+    const turns = (from, to) => line.slice(from + 1, to + 1).map((e) => e.m).filter(Boolean);
+    return [[2, 3], [4, 5]].map(([a, b]) => {
+      const A = sp.steps[a]; const B = sp.steps[b];
+      if (!A.done || !B.done) return null;
+      if (A.skip && B.skip) return { skip: true };
+      const from = A.skip ? B.from : A.from;
+      const all = FU.recognizeAll(at(from), a);
+      const cost = (x) => C.algHtm([x.pre, x.case ? x.case.alg : '', x.post].filter(Boolean).join(' '));
+      const best = all.length ? all.reduce((m, x) => (cost(x) < cost(m) ? x : m)) : null;
+      return { id: best && best.case ? best.case.id : null, mine: C.htm(turns(from, B.to)), opt: best ? cost(best) : null };
+    });
+  }
+  function packAnalysis(a, fl) {
     if (!a) return null;
+    // Full CFOP: f [OLL, PLL] as l is for 2-look, and the ideal with the one-look algorithms.
+    const full = fl ? fl.map((x, k) => {
+      if (!x) return null;
+      if (x.skip) return 0;
+      const two = [a.ll[2 * k], a.ll[2 * k + 1]].filter((y) => y && !y.skip);
+      return [x.mine, x.opt == null ? x.mine : x.opt, two.reduce((n, y) => n + y.pauses, 0), Math.round(two.reduce((n, y) => n + y.pauseMs, 0))];
+    }) : null;
+    const twoOpt = a.ll.reduce((n, y) => n + (y && !y.skip ? y.opt : 0), 0);
+    const fullOpt = full ? full.reduce((n, y) => n + (y ? y[1] : 0), 0) : 0;
     return {
+      ...(full ? { f: full, fi: a.ideal - twoOpt + fullOpt } : {}),
       c: [a.cross.mine, a.cross.opt],
       p: a.pairs.map((x) => [x.slots.join(''), x.mine, x.opt, x.best ? x.best.slot : -1, x.best ? x.best.length : null, Math.round(x.look), x.pauses, Math.round(x.pauseMs), Math.round(x.time)]),
       l: a.ll.map((x) => (x === null ? null : x.skip ? 0 : [x.mine, x.opt, x.pauses, Math.round(x.pauseMs)])),
       z: Math.round(a.pause), m: a.mine, i: a.ideal,
     };
+  }
+  // The steps of a solve as this page shows them: the six of 2-look, or in full CFOP cross, F2L, OLL and PLL
+  // (each one the two 2-look steps together; a skip only if both were). [step, [time, moves, recog, case, skip],
+  // its turns as done] each.
+  function viewSteps(r) {
+    const s = r.sp.s;
+    const rc = r.rc || [];
+    if (!FULL) return C.STEPS.map((st, i) => [st, s[i], rc[i]]);
+    const join = (a, b, k) => {
+      const x = s[a]; const y = s[b];
+      if (!x || !y) return null;
+      const skip = x[4] && y[4];
+      return [x[0] + y[0], x[1] + y[1], skip ? null : (!x[4] ? x[2] : y[2]), (r.sp.fc && r.sp.fc[k]) || null, skip ? 1 : 0];
+    };
+    const both = (a, b) => (rc[a] == null || rc[b] == null ? null : [rc[a], rc[b]].filter(Boolean).join(' '));
+    return [[C.STEPS[0], s[0], rc[0]], [C.STEPS[1], s[1], rc[1]], [FU.STEPS[0], join(2, 3, 0), both(2, 3)], [FU.STEPS[1], join(4, 5, 1), both(4, 5)]];
   }
   const slotNames = (face) => SLOT_NAMES(C.canon(solved(), face));
   const extra = (mine, opt) => (opt == null ? '' : mine - opt > 0 ? ` <b class="fr-extra">+${mine - opt}</b>` : ' <span class="fr-perfect" aria-label="lo más corto">✓</span>');
@@ -1213,7 +1257,8 @@
     const a = r.an;
     if (!a || !r.sp) return '';
     const names = slotNames(r.sp.f);
-    const eff = a.m ? Math.round((a.i / a.m) * 100) : 100;
+    const ideal = FULL && a.fi != null ? a.fi : a.i;
+    const eff = a.m ? Math.round((ideal / a.m) * 100) : 100;
     const rows = [];
     rows.push(anRow('Cruz', a.c[0], a.c[1], a.c[0] > a.c[1] ? `Se podía en ${a.c[1]}.` : 'La más corta.'));
     a.p.forEach((x, k) => {
@@ -1228,9 +1273,11 @@
       const note = notes.length ? notes.join(' · ') : 'La más corta';
       rows.push(anRow(`Pareja ${k + 1} <span class="muted">${esc(who)}</span>`, mine, opt, esc(note.charAt(0).toUpperCase() + note.slice(1)) + '.'));
     });
-    a.l.forEach((x, k) => {
-      const st = C.STEPS[k + 2];
-      const sp = r.sp.s[k + 2];
+    const vs = viewSteps(r);
+    const ll = FULL ? (a.f || [2, 3].map(() => null)) : a.l;
+    ll.forEach((x, k) => {
+      const st = vs[k + 2][0];
+      const sp = vs[k + 2][1];
       const c = sp && sp[3] ? C.caseById(sp[3]) : null;
       if (x === null) return;
       if (x === 0) { rows.push(`<tr><th scope="row">${st.name}</th><td class="fr-an-n muted" colspan="2">salto</td><td class="fr-an-note">Te lo saltaste: suerte.</td></tr>`); return; }
@@ -1245,21 +1292,21 @@
     // What to work on: the biggest losses first.
     const tips = [];
     const pairExtra = a.p.reduce((s2, x) => s2 + (x[2] == null ? 0 : Math.max(0, x[1] - x[2])), 0);
-    const llExtra = a.l.reduce((s2, x) => s2 + (x ? Math.max(0, x[0] - x[1]) : 0), 0);
+    const llExtra = ll.reduce((s2, x) => s2 + (x ? Math.max(0, x[0] - x[1]) : 0), 0);
     const f2lPause = a.p.reduce((s2, x) => s2 + x[7] + (x[5] >= 1000 ? x[5] : 0), 0);
     const missed = a.p.filter((x) => x[3] >= 0 && !x[0].includes(String(x[3])) && x[4] != null && x[2] != null && x[4] + 2 <= x[2]).length;
     if (f2lPause >= 2000) tips.push(`En el F2L estuviste parado ${f1(f2lPause)} s en total (antes de empezar cada pareja y a mitad de ellas): gira algo más despacio pero sin pararte, y busca la siguiente pareja mientras metes la anterior.`);
     if (pairExtra >= 6) tips.push(`El F2L se llevó ${pairExtra} giros de más. Con el cubo conectado, «Practicar sin crono» te enseña la forma más corta de cada pareja.`);
     if (missed >= 2) tips.push(`En ${missed} parejas había otra mucho más corta: antes de cada pareja, mira las cuatro y empieza por la más fácil.`);
     if (a.c[0] - a.c[1] >= 2) tips.push(`La cruz se podía en ${a.c[1]} y usaste ${a.c[0]}: practícala en «Entrenar la cruz».`);
-    const slowRec = r.sp.s.slice(2).map((x, k) => (x && x[2] >= 1500 ? [C.STEPS[k + 2].name, x[2]] : null)).filter(Boolean);
+    const slowRec = vs.slice(2).map(([st, x]) => (x && x[2] >= 1500 ? [st.name, x[2]] : null)).filter(Boolean);
     if (slowRec.length) tips.push(`Tardaste en reconocer ${slowRec.map(([n, t]) => `${n} (${f1(t)} s)`).join(', ')}: entrénalo en «Entrenar» → «Reconocer».`);
     if (llExtra >= 4) tips.push(`La última capa se llevó ${llExtra} giros de más: mira desde qué lado empiezas cada algoritmo (la ayuda en directo te lo dice).`);
     return `<div class="fr-an">
-      <p class="fr-an-sum"><b class="fr-eff ${eff >= 90 ? 'ok' : eff >= 75 ? 'mid' : 'low'}">${eff} %</b> <span>de eficiencia: <b>${a.m}</b> giros; con lo más corto de cada paso (y tus mismas parejas) serían <b>${a.i}</b>.${a.z >= 1000 ? ` Pausas de más de 1 s a mitad de un paso: <b>${f1(a.z)} s</b>.` : ''}</span></p>
+      <p class="fr-an-sum"><b class="fr-eff ${eff >= 90 ? 'ok' : eff >= 75 ? 'mid' : 'low'}">${eff} %</b> <span>de eficiencia: <b>${a.m}</b> giros; con lo más corto de cada paso (y tus mismas parejas) serían <b>${ideal}</b>.${a.z >= 1000 ? ` Pausas de más de 1 s a mitad de un paso: <b>${f1(a.z)} s</b>.` : ''}</span></p>
       <table class="fr-an-table"><thead><tr><th scope="col">Paso</th><th scope="col">Tus giros</th><th scope="col">Lo más corto</th><th scope="col">Nota</th></tr></thead><tbody>${rows.join('')}</tbody></table>
       ${tips.length ? `<p class="fr-an-h">Qué mejorar</p><ul class="fr-tips">${tips.slice(0, 3).map((t) => `<li>${esc(t)}</li>`).join('')}</ul>`
-        : `<p class="fr-note">${a.m <= a.i ? 'Nada que mejorar en giros: ahora, más rápido.' : `Solo ${a.m - a.i} ${a.m - a.i === 1 ? 'giro' : 'giros'} de más: muy bien. Lo que queda es ir más rápido.`}</p>`}
+        : `<p class="fr-note">${a.m <= ideal ? 'Nada que mejorar en giros: ahora, más rápido.' : `Solo ${a.m - ideal} ${a.m - ideal === 1 ? 'giro' : 'giros'} de más: muy bien. Lo que queda es ir más rápido.`}</p>`}
       <p class="hint">Giros contados como los nota el cubo: un giro de cara, también los dobles; las capas del medio cuentan dos. «Lo más corto»: la cruz más corta, cada pareja por el camino más corto sin romper lo hecho, y los algoritmos de J Perm desde el mejor lado.</p>
     </div>`;
   }
@@ -1276,8 +1323,7 @@
       const t = idx.reduce((a, i) => a + (s[i] ? s[i][0] : 0), 0);
       return `<span class="fr-seg fr-seg-${name.toLowerCase()}" style="flex-grow:${Math.max(1, t)}" title="${name} ${f1(t)} s"><b>${name}</b> ${f1(t)}</span>`;
     }).join('');
-    const rows = C.STEPS.map((st, i) => {
-      const x = s[i];
+    const rows = viewSteps(r).map(([st, x]) => {
       if (!x) return `<tr><th scope="row">${st.name}</th><td colspan="4" class="muted">sin acabar</td></tr>`;
       const [t, moves, recog, caseId, skip] = x;
       const tps = t > 0 ? (moves / (t / 1000)).toFixed(1) : '—';
@@ -1353,7 +1399,7 @@
     const step = (r, idx) => (r.sp && idx.every((i) => r.sp.s[i]) ? f1(idx.reduce((a, i) => a + r.sp.s[i][0], 0)) : '—');
     const short = (c) => c.name.replace('PLL (', '').replace(')', '');
     const cases = (r) => {
-      if (r.sp) return [2, 3, 4, 5].map((i) => { const x = r.sp.s[i]; if (!x) return null; if (x[4]) return 'salto'; const c = x[3] && C.caseById(x[3]); return c ? short(c) : null; }).filter(Boolean).join(' · ');
+      if (r.sp) return viewSteps(r).slice(2).map(([, x]) => { if (!x) return null; if (x[4]) return 'salto'; const c = x[3] && C.caseById(x[3]); return c ? short(c) : null; }).filter(Boolean).join(' · ');
       return (r.lc || []).map((id) => C.caseById(id)).filter(Boolean).map(short).join(' · ');
     };
     const cols = full ? 9 : 7;
@@ -2731,6 +2777,7 @@
   // ================= Progreso (fridrich-progreso.js) =================
   const fridrichProgreso = window.FridrichProgreso({
     $, C, DAY_MS, K, S, STEP_NAME, deltaHtml, esc, fdate, fmt, learn, load, onView, recommendation, secs, showView,
+    full: FULL,
     // How many you know of each set of this page, in Progreso.
     caseSets: FULL ? [{ name: 'OLL', cases: FU.OLL }, { name: 'PLL', cases: FU.PLL }, { name: 'F2L', cases: F2.CASES }]
       : [{ name: '2 looks', cases: C.CASES }, { name: 'F2L', cases: F2.CASES }],
@@ -2889,14 +2936,14 @@
     const s2 = x.sp.s;
     const groups = PACE_GROUPS.map(([name, idx]) => [name, idx.every((i) => s2[i]) ? idx.reduce((a, i) => a + s2[i][0], 0) : null]);
     const bar = `<div class="fr-bar">${groups.map(([name, t]) => `<span class="fr-seg fr-seg-${name.toLowerCase()}" style="flex-grow:${Math.max(1, t || 1)}"><b>${name}</b> ${f1(t)}</span>`).join('')}</div>`;
-    const rows = C.STEPS.map((st, i) => {
-      const y = s2[i];
+    const rows = viewSteps(x).map(([st, y]) => {
       if (!y) return '';
       const c = y[3] ? C.caseById(y[3]) : null;
       return `<tr><th scope="row">${st.name}</th><td>${f1(y[0])}</td><td>${y[1]} giros</td><td>${y[4] ? '<span class="muted">salto</span>' : c ? esc(c.name) : ''}</td><td class="muted">${y[2] != null && !y[4] ? `${f1(y[2])} + ${f1(y[0] - y[2])}` : ''}</td></tr>`;
     }).join('');
-    const eff = x.an ? `<p class="fr-note">Eficiencia <b>${Math.round((x.an.i / x.an.m) * 100)} %</b>: ${x.an.m} giros (lo más corto, ${x.an.i}).</p>` : '';
-    const rc = x.rc ? `<details class="fr-recon-box"><summary>Sus giros, paso a paso</summary><ol class="fr-recon">${C.DOWN[x.sp.f] ? `<li><b>Inspección</b><span class="fr-recon-moves">${algHtml(C.DOWN[x.sp.f])}</span></li>` : ''}${C.STEPS.map((st, i) => (x.rc[i] == null ? '' : `<li><b>${st.name}</b><span class="fr-recon-moves">${x.rc[i] ? algHtml(x.rc[i]) : '<i>nada</i>'}</span></li>`)).join('')}</ol></details>` : '';
+    const ideal = x.an && FULL && x.an.fi != null ? x.an.fi : x.an && x.an.i;
+    const eff = x.an ? `<p class="fr-note">Eficiencia <b>${Math.round((ideal / x.an.m) * 100)} %</b>: ${x.an.m} giros (lo más corto, ${ideal}).</p>` : '';
+    const rc = x.rc ? `<details class="fr-recon-box"><summary>Sus giros, paso a paso</summary><ol class="fr-recon">${C.DOWN[x.sp.f] ? `<li><b>Inspección</b><span class="fr-recon-moves">${algHtml(C.DOWN[x.sp.f])}</span></li>` : ''}${viewSteps(x).map(([st, , rc]) => (rc == null ? '' : `<li><b>${st.name}</b><span class="fr-recon-moves">${rc ? algHtml(rc) : '<i>nada</i>'}</span></li>`)).join('')}</ol></details>` : '';
     return `${bar}<div class="fr-table" tabindex="0" role="region" aria-label="Sus tiempos de cada paso"><table><tbody>${rows}</tbody></table></div>${eff}${rc}`;
   }
   const tryBtn = (x, who, what) => (x.scr ? `<button class="btn" type="button" data-rk-try="${esc(x.scr)}" data-rk-who="${esc(who)}" data-rk-t="${value(x)}" data-rk-what="${esc(what)}">Probar este scramble</button><button class="btn" type="button" data-rk-copy="${esc(x.scr)}">Copiar</button>` : '');

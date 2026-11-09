@@ -177,7 +177,10 @@
       const top = p.scored.filter((x) => x.ms >= 15 && x.stats.practiced).slice(0, 3);
       const skips = { oll1: 0, oll2: 0, pll1: 0, pll2: 0 };
       ctx.times.forEach((r) => { if (r.sp) [2, 3, 4, 5].forEach((k) => { const x = r.sp.s[k]; if (x && x[4]) skips[C.LL[k - 2]]++; }); });
-      const skipTxt = C.LL.filter((id) => skips[id]).map((id) => `${STEP_NAME[id]} ×${skips[id]}`).join(' · ');
+      // Full CFOP: an OLL or PLL skip is both of its 2-look steps skipped.
+      const fskip = [[2, 3, 'OLL'], [4, 5, 'PLL']].map(([a, b, name]) => [name, ctx.times.filter((r) => r.sp && r.sp.s[a] && r.sp.s[b] && r.sp.s[a][4] && r.sp.s[b][4]).length]);
+      const skipTxt = ctx.full ? fskip.filter(([, n]) => n).map(([name, n]) => `${name} ×${n}`).join(' · ')
+        : C.LL.filter((id) => skips[id]).map((id) => `${STEP_NAME[id]} ×${skips[id]}`).join(' · ');
       $('progCases').innerHTML = `${knowsHtml()}${skipTxt ? `<p class="fr-note">Saltos que te han tocado: ${skipTxt}.</p>` : ''}
         ${top.length ? `<h3 class="field-title">Lo que más te cuesta</h3><ol class="fr-top-cases">${top.map((x) => `<li><b>${esc(x.c.name)}</b> <span class="muted">${STEP_NAME[x.c.step]} · ${(x.ms / 1000).toFixed(2)} s por solve</span><br><span class="hint">${esc(x.why[0] || '')}</span></li>`).join('')}</ol>` : ''}
         <div class="actions"><button class="btn primary" type="button" data-prog-go="plan">Ver el set recomendado</button></div>`;

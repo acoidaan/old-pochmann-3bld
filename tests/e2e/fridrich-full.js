@@ -225,6 +225,32 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
   // The turns shown, done on the cube as it is (held with the cross colour down).
   const oriented = await p.evaluate((m) => { const F = window.Fridrich; const g = window.Cfop.canon(F.cube().state, F._.liveTrack().face); return window.Cfop.stageOf(window.CubeModel.apply(g, m)).stage >= 4; }, p43.moves);
   check('live: a case that needs the top turned first is drawn as the cube is now, and doing the turns shown orients it', !!p43.pre && p43.same && oriented, JSON.stringify({ ...p43, oriented }));
+  // ================= A timed solve in full CFOP: its steps are cross, F2L, OLL and PLL =================
+  // A scramble that leaves the Sune (OLL 27) and the T-perm, solved with the two algorithms.
+  await p.evaluate(() => window.Fridrich.showView('crono'));
+  await p.click('[data-timed="1"]');
+  await p.evaluate(() => document.getElementById('cubeSync').click());
+  await turn('z2');   // held as solved in the standard frame again (white up)
+  await p.waitForTimeout(200);
+  const plan = await p.evaluate(() => {
+    const M = window.CubeModel; const C = window.Cfop;
+    const flip = (alg) => M.parseAlg(alg).map((m) => ({ U: 'D', D: 'U', R: 'L', L: 'R', F: 'F', B: 'B' }[m.base] + m.text.slice(1))).join(' ');   // the same turns, white up
+    const sune = C.caseById('oll-27').alg; const t = C.caseById('pll-T').alg;
+    const scr = flip(M.invertAlg(`${sune} ${t}`));
+    window.Fridrich._.setScramble(scr);
+    return { scr, solve: flip(`${sune} ${t}`) };
+  });
+  await turn(plan.scr);
+  await p.waitForTimeout(300);
+  for (const m of plan.solve.split(' ')) { await turn(m); await p.waitForTimeout(25); }
+  await p.waitForFunction(() => !document.getElementById('splits').hidden && /OLL/.test(document.getElementById('splits').innerText), null, { timeout: 5000 }).catch(() => {});
+  await p.waitForTimeout(600);
+  const sp = await p.evaluate(() => ({
+    rows: [...document.querySelectorAll('#splits .fr-table tbody th')].map((th) => th.textContent).join(','),
+    text: document.getElementById('splits').innerText.replace(/\s+/g, ' '),
+    an: [...document.querySelectorAll('#splits .fr-an-table tbody th')].map((th) => th.textContent).join(','),
+  }));
+  check('solve: in full CFOP the steps are cross, F2L, OLL and PLL (no OLL 2 or PLL 1), with the whole OLL and PLL named, in the splits and the analysis', sp.rows === 'Cruz,F2L,OLL,PLL' && /OLL 27/.test(sp.text) && /PLL \(T\)/.test(sp.text) && !/OLL 2 |PLL 1|PLL 2/.test(sp.text) && /OLL OLL 27/.test(sp.an) && /PLL PLL \(T\)/.test(sp.an), JSON.stringify({ rows: sp.rows, an: sp.an, text: sp.text.slice(0, 300) }));
   await ctx.close();
 
   // ================= The phone =================
