@@ -2344,6 +2344,26 @@
     setTrMode(mode);
     try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) { /* no layout */ }
   }
+  // The target follows you: near it, it stays; when your last few are far off it (say you average 4 s on one
+  // of 2 s, or you are well under it), it moves half way towards a bit under your average, so that it is
+  // reachable but still asks for your best.
+  function retarget(id, p) {
+    if (p.base == null) p.base = p.target;
+    p.ts = [...(p.ts || []), e2t(p)].slice(-5);
+    if (p.ts.length < 2) return;
+    const avg = p.ts.reduce((a, b) => a + b, 0) / p.ts.length;
+    const aim = avg * 0.9;
+    let t = p.target;
+    if (avg > p.target * 1.4) t = p.target + (aim - p.target) / 2;
+    else if (avg < p.target * 0.7) t = p.target - (p.target - aim) / 2;
+    else return;
+    t = Math.max(1000, Math.round(t / 100) * 100);
+    if (t === p.target) return;
+    const up = t > p.target;
+    p.target = t;
+    toast(`${C.caseById(id).name}: objetivo ${up ? 'ajustado' : 'más exigente'}, ${secs(t)}`);
+  }
+  const e2t = (p) => p.last[p.last.length - 1].t;
   // Each attempt (from the training log).
   const qualifies = (x, p) => !x.x && !x.a && !!x.ok && (x.m === 'c' ? x.t != null && x.t <= p.target : x.m === 'q' ? x.t != null && x.t <= session.look : true);
   // Attempts in a row that count, from the last one back. One done with the algorithm in view is practice:
@@ -2376,6 +2396,7 @@
     if (e.m === 'q') { p.qn++; if (e.t != null) p.qsum += e.t; }
     p.last.push({ m: e.m, ok: e.ok ? 1 : 0, t: e.t != null ? e.t : null, x: e.x ? 1 : 0, a: e.a ? 1 : 0 });
     if (p.last.length > 8) p.last = p.last.slice(-8);
+    if (e.m === 'c' && e.ok && e.t != null && !e.a && !e.x) retarget(e.id, p);
     let won = null;
     if (!p.mastered && session.set.includes(e.id) && streakOf(p) >= NEED[{ c: 'cube', h: 'hand', q: 'look' }[e.m]]) won = e.id;
     session.since++;
@@ -2480,7 +2501,7 @@
       const peeked = p.peek || p.last.filter((x) => x.a && !x.x).length;
       line = p.timed ? `media <b>${secs(p.sum / p.timed, 2)}</b>${p.before.cube != null ? ` ${deltaHtml(p.sum / p.timed, p.before.cube)}` : ''} · mejor ${secs(p.best, 2)}`
         : peeked ? `${peeked} con el algoritmo a la vista <span>(${peeked === 1 ? 'no cuenta' : 'no cuentan'})</span>` : 'aún sin hacer';
-      line += ` · objetivo <b>${secs(p.target)}</b>`;
+      line += ` · objetivo <b>${secs(p.target)}</b>${p.base != null && p.base !== p.target ? ` <span>(era ${secs(p.base)}, ajustado a tu ritmo)</span>` : ''}`;
     } else {
       line = p.n || p.lost ? `<b>${p.ok}</b> de ${p.n} bien${p.lost ? ` · perdido ${p.lost}` : ''}` : 'aún sin hacer';
     }
@@ -2508,7 +2529,7 @@
     const need = NEED[session.mode];
     $('sessClock').textContent = clockText();
     $('sessNums').innerHTML = `<b>${session.n}</b> ${session.n === 1 ? 'caso' : 'casos'} · <b>${pct(session.ok, session.n)} %</b> bien${session.lost ? ` · ${session.lost} perdido${session.lost === 1 ? '' : 's'}` : ''} · <b>${session.done.length}</b> ${session.done.length === 1 ? 'dominado' : 'dominados'}`;
-    $('sessRule').textContent = (session.mode === 'cube' ? `Dominas un caso con ${need} seguidos por debajo de su objetivo (tu buen nivel para ese caso), sin el algoritmo a la vista.`
+    $('sessRule').textContent = (session.mode === 'cube' ? `Dominas un caso con ${need} seguidos por debajo de su objetivo (tu buen nivel para ese caso), sin el algoritmo a la vista. Si te quedas lejos (o vas muy por debajo), el objetivo se ajusta a tu ritmo.`
       : session.mode === 'look' ? `Dominas un caso con ${need} seguidos bien y en menos de ${secs(session.look)}.`
         : `Dominas un caso con ${need} seguidos bien, sin perderte.`)
       + (session.auto !== false ? ' Entonces sale del set y entra el siguiente que más te cuesta.' : ' Entonces sale del set y no entra otro.');

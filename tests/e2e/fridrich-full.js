@@ -273,6 +273,24 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
     an: [...document.querySelectorAll('#splits .fr-an-table tbody th')].map((th) => th.textContent).join(','),
   }));
   check('solve: in full CFOP the steps are cross, F2L, OLL and PLL (no OLL 2 or PLL 1), with the whole OLL and PLL named, in the splits and the analysis', sp.rows === 'Cruz,F2L,OLL,PLL' && /OLL 27/.test(sp.text) && /PLL \(T\)/.test(sp.text) && !/OLL 2 |PLL 1|PLL 2/.test(sp.text) && /OLL OLL 27/.test(sp.an) && /PLL PLL \(T\)/.test(sp.an), JSON.stringify({ rows: sp.rows, an: sp.an, text: sp.text.slice(0, 300) }));
+  // ================= A session's target follows you =================
+  const tg = await p.evaluate(() => {
+    const F = window.Fridrich._;
+    F.startSession('cube', ['oll-27'], false);
+    const p0 = F.session().per['oll-27'].target;
+    const log = (t) => F.logTr({ id: 'oll-27', m: 'c', ok: 1, t, r: 300 });
+    log(p0 * 1.1);
+    const near = F.session().per['oll-27'].target;
+    log(p0 * 2.4); log(p0 * 2.6); log(p0 * 2.5);
+    const up = F.session().per['oll-27'].target;
+    const card = document.querySelector('#sessSet [data-sc="oll-27"]').innerText.replace(/\s+/g, ' ');
+    for (let i = 0; i < 5; i++) log(Math.max(1200, up * 0.4));
+    const down = F.session().per['oll-27'].target;
+    F.endSession();
+    return { p0, near, up, down, card };
+  });
+  await p.keyboard.press('Escape');
+  check('session: the target follows you — near it, it stays; far over it, it moves up (not all the way); well under it, down again', tg.near === tg.p0 && tg.up > tg.p0 && tg.up < tg.p0 * 2.5 && /ajustado a tu ritmo/.test(tg.card) && tg.down < tg.up, JSON.stringify(tg));
   await ctx.close();
 
   // ================= The phone =================
