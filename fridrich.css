@@ -2,7 +2,7 @@
    column: the timer, the live help with the case and its algorithm, splits, stats and history. */
 :root { --fr-blank: #5B6271; --fr-cross: #5E6B85; --fr-f2l: #2D69BD; --fr-oll: #E0A100; --fr-pll: #C2367B; --fr-a5: #3E7FD6; --fr-a12: #C2367B; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --fr-blank: #3A414E; --fr-a5: #4F8BE6; --fr-a12: #D4478C; } }
-:root[data-theme="dark"] { --fr-blank: #3A414E; --fr-a5: #4F8BE6; --fr-a12: #D4478C; }
+:root[data-theme="dark"], :root[data-theme="carbon"] { --fr-blank: #3A414E; --fr-a5: #4F8BE6; --fr-a12: #D4478C; }
 
 .fr-app { max-width: 1040px; margin: 0 auto; display: grid; gap: 18px; }
 .fr-app main { display: grid; gap: 22px; min-width: 0; }
@@ -133,7 +133,7 @@
 .fr-perfect { color: var(--ok); font-weight: 700; }
 .fr-tips { margin: 0; padding-left: 20px; display: grid; gap: 4px; font-size: 14px; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .fr-eff.mid { color: #F0C24B; } }
-:root[data-theme="dark"] .fr-eff.mid { color: #F0C24B; }
+:root[data-theme="dark"] .fr-eff.mid, :root[data-theme="carbon"] .fr-eff.mid { color: #F0C24B; }
 
 /* ---------- The next F2L pair ---------- */
 .fr-pairs { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
@@ -268,7 +268,7 @@ body.fr .install { padding: 4px 12px; font-size: 13px; }
    the two you are in; the timer keeps the usual look. */
 :root { --fr-mode: #0B7A72; --fr-mode-ink: #075E58; --fr-mode-soft: #D7EFEC; --fr-on-mode: #FFFFFF; --fr-learn-bg: #E5EFEE; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --fr-mode: #4FD1C5; --fr-mode-ink: #4FD1C5; --fr-mode-soft: #123331; --fr-on-mode: #062320; --fr-learn-bg: #0C1517; } }
-:root[data-theme="dark"] { --fr-mode: #4FD1C5; --fr-mode-ink: #4FD1C5; --fr-mode-soft: #123331; --fr-on-mode: #062320; --fr-learn-bg: #0C1517; }
+:root[data-theme="dark"], :root[data-theme="carbon"] { --fr-mode: #4FD1C5; --fr-mode-ink: #4FD1C5; --fr-mode-soft: #123331; --fr-on-mode: #062320; --fr-learn-bg: #0C1517; }
 body.fr { transition: background-color .35s ease; }
 body.fr[data-mode="learn"] { background: var(--fr-learn-bg); }
 body.fr[data-mode="learn"] .tabs { background: var(--fr-learn-bg); }
@@ -378,7 +378,7 @@ body.training #trPanel { position: sticky; top: 124px; border-color: var(--fr-mo
 /* ---------- Pace and records ---------- */
 :root { --fr-gold: #8A5A00; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --fr-gold: #F0C24B; } }
-:root[data-theme="dark"] { --fr-gold: #F0C24B; }
+:root[data-theme="dark"], :root[data-theme="carbon"] { --fr-gold: #F0C24B; }
 .clock-pace { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 16px; margin-top: 6px; font-size: 14px; font-variant-numeric: tabular-nums; }
 .clock-pace:empty { display: none; }
 .pc { display: inline-flex; align-items: baseline; gap: 5px; color: var(--muted); white-space: nowrap; }
@@ -410,7 +410,7 @@ body.focus .clock-pb b { font-size: 24px; }
 @media (prefers-reduced-motion: reduce) { .clock-pb.pop { animation: none; } .fr-confetti { display: none; } }
 .fr-pbtag { display: inline-block; margin-left: 4px; padding: 0 5px; border-radius: 4px; font-size: 10.5px; font-weight: 700; letter-spacing: .04em; background: var(--fr-gold); color: #fff; vertical-align: 1px; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .fr-pbtag { color: #1C1300; } }
-:root[data-theme="dark"] .fr-pbtag, :root[data-theme="dark"] .clock-pb { color: #1C1300; }
+:root[data-theme="dark"] .fr-pbtag, :root[data-theme="carbon"] .fr-pbtag, :root[data-theme="dark"] .clock-pb, :root[data-theme="carbon"] .clock-pb { color: #1C1300; }
 
 /* ---------- Ranking ---------- */
 #rankBox { display: grid; gap: 14px; }
@@ -464,7 +464,7 @@ body.focus .clock-pb b { font-size: 24px; }
 /* ---------- What to train today ---------- */
 :root { --fr-h0: #E6EAF0; --fr-h1: #C6D8F5; --fr-h2: #8FB4EC; --fr-h3: #4F86D9; --fr-h4: #2459A8; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --fr-h0: #252C37; --fr-h1: #1F3B66; --fr-h2: #2C5A9C; --fr-h3: #4479CC; --fr-h4: #7FA9EE; } }
-:root[data-theme="dark"] { --fr-h0: #252C37; --fr-h1: #1F3B66; --fr-h2: #2C5A9C; --fr-h3: #4479CC; --fr-h4: #7FA9EE; }
+:root[data-theme="dark"], :root[data-theme="carbon"] { --fr-h0: #252C37; --fr-h1: #1F3B66; --fr-h2: #2C5A9C; --fr-h3: #4479CC; --fr-h4: #7FA9EE; }
 #planBox { display: grid; gap: 18px; }
 .fr-gain { display: grid; gap: 10px; }
 .fr-gain > summary { cursor: pointer; }
@@ -606,3 +606,6 @@ html[data-cfop="full"] [data-only="reduced"], html:not([data-cfop="full"]) [data
 .fr-key-k, .fr-key-l { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 4px; vertical-align: baseline; }
 .fr-key-k { background: var(--ok); }
 .fr-key-l { background: var(--accent); }
+
+/* «Carbón» (see app.css): the mode colour goes white too, so the page stays black and white. */
+:root[data-theme="carbon"] { --fr-blank: #3A3A3A; --fr-mode: #E6E6E6; --fr-mode-ink: #E6E6E6; --fr-mode-soft: rgba(255, 255, 255, .08); --fr-on-mode: #141414; --fr-learn-bg: #1A1A1A; }

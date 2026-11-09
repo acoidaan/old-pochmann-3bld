@@ -50,6 +50,7 @@ npm run lint                          # ESLint de todo el repo (config en eslint
 
 - `app.css` (las tres páginas) define los tokens en `:root`: fondos `--bg`, `--surface`, `--raise`; texto `--ink`, `--muted`; `--line`; `--accent` (frambuesa, a propósito no es color de pegatina) y `--accent-soft`; `--ok`; pegatinas `--st-U`…`--st-B`; fuentes `--font-display` (Unbounded), `--font-body` (Atkinson Hyperlegible), `--font-mono` (Martian Mono); radio `--r`. Para colores nuevos, usa estas variables.
 - El modo oscuro se redefine dos veces (con `prefers-color-scheme` y con `[data-theme="dark"]`): cambia las dos.
+- El tema «Carbón» (`data-theme="carbon"`, Ajustes → Tema) parte del oscuro: cada regla `[data-theme="dark"]` lleva también su `[data-theme="carbon"]` (añádelo a las nuevas), y al final de `app.css` y `fridrich.css` va lo suyo (gris carbón, paneles de cristal, manchas que se mueven). El modo competición tiene ese aspecto siempre, con sus propios colores `--cb-*`.
 - `fridrich.css` lo cargan Fridrich y principiante; `principiante.css`, solo principiante. No definen variables propias.
 
 ## Ideas pendientes

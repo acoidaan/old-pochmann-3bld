@@ -1412,7 +1412,7 @@
     $('setSound').checked = settings.sound;
     $('setVibrate').checked = settings.vibrate;
     $('setVibrateRow').hidden = !canVibrate;
-    const th = load(K.theme, 'auto') || 'auto';
+    const th = (() => { try { return localStorage.getItem(K.theme) || 'auto'; } catch (e) { return 'auto'; } })();   // stored as plain text
     document.querySelectorAll('[data-theme-set]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.themeSet === th)));
   }
   $('setSound').addEventListener('change', (e) => { settings.sound = e.target.checked; saveSettings(); if (settings.sound && window.SmartCube) window.SmartCube.unlockAudio(); });

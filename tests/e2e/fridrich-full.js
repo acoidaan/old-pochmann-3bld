@@ -79,6 +79,16 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
     back: !!document.querySelector('a.fr-switch[href="fridrich"]'),
   }));
   check('page: /cfop is «CFOP completo», with only OLL, PLL and F2L (no 2-look) and a link back to Fridrich reducido', head.title === 'CFOP completo' && head.h1 === 'CFOP completo' && head.full === 'full' && head.sets === 'f2l,foll,fpll' && head.picks === 'f2l,foll,fpll,learning' && head.back, JSON.stringify(head));
+  // The «Carbón» theme (Ajustes → Tema): the competition-mode look for the whole page, kept per device.
+  await p.evaluate(() => document.querySelector('[data-theme-set="carbon"]').click());
+  await p.waitForTimeout(800);   // the page background fades
+  const carbon = await p.evaluate(() => {
+    const out = { theme: document.documentElement.dataset.theme, saved: localStorage.getItem('op3bld:theme:v1'), bg: getComputedStyle(document.body).backgroundColor, pressed: document.querySelector('[data-theme-set="carbon"]').getAttribute('aria-pressed') };
+    document.querySelector('[data-theme-set="auto"]').click();
+    out.back = document.documentElement.dataset.theme || 'auto';
+    return out;
+  });
+  check('theme: «Carbón» in Ajustes makes the whole page charcoal and is kept; «Automático» goes back', carbon.theme === 'carbon' && carbon.saved === 'carbon' && ['rgb(20, 20, 20)', 'rgb(26, 26, 26)'].includes(carbon.bg) && carbon.pressed === 'true' && carbon.back === 'auto', JSON.stringify(carbon));
   await p.click('[data-case-set="foll"]');
   let cs = await p.evaluate(() => ({
     n: document.querySelectorAll('#caseGroups .fr-card').length, groups: document.querySelectorAll('#caseGroups section').length,

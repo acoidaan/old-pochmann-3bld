@@ -3367,7 +3367,7 @@
     $('setCelebrate').checked = settings.celebrate !== false;
     $('setPace').value = ['avg', 'pb', 'off'].includes(settings.pace) ? settings.pace : 'avg';
     $('setCross').value = settings.cross;
-    const th = load(K.theme, 'auto') || 'auto';
+    const th = (() => { try { return localStorage.getItem(K.theme) || 'auto'; } catch (e) { return 'auto'; } })();   // stored as plain text
     document.querySelectorAll('[data-theme-set]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.themeSet === th)));
   }
   $('setInspect').addEventListener('change', (e) => { settings.inspect = e.target.checked; saveSettings(); renderClock(); });

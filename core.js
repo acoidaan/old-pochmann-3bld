@@ -1916,9 +1916,9 @@
   const themeMetas = [...document.querySelectorAll('meta[name=theme-color]')].map((m) => [m, m.content]);
   function applyTheme(t) {
     const root = document.documentElement;
-    if (t === 'light' || t === 'dark') root.setAttribute('data-theme', t);
+    if (t === 'light' || t === 'dark' || t === 'carbon') root.setAttribute('data-theme', t);
     else root.removeAttribute('data-theme');
-    themeMetas.forEach(([m, original]) => { m.content = t === 'light' ? '#ECEFF3' : t === 'dark' ? '#0F1319' : original; });
+    themeMetas.forEach(([m, original]) => { m.content = t === 'light' ? '#ECEFF3' : t === 'dark' ? '#0F1319' : t === 'carbon' ? '#141414' : original; });
     document.querySelectorAll('[data-theme-set]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.themeSet === (t || 'auto'))));
   }
   applyTheme((() => { try { return localStorage.getItem(THEME_KEY); } catch (e) { return null; } })());

@@ -31,7 +31,7 @@
     color-scheme: dark;
   }
 }
-:root[data-theme="dark"] {
+:root[data-theme="dark"], :root[data-theme="carbon"] {
   --bg: #0F1319; --surface: #161B23; --raise: #1C222C; --ink: #E6EAF0; --muted: #98A3B5;
   --line: #2B3341; --accent: #F0699C; --accent-soft: #3B2030; --on-accent: #1B0811;
   --plastic: #05070A; --mark: #FFFFFF;
@@ -1019,7 +1019,7 @@ body.focus .memo-ask input { width: 100%; font-size: 18px; }
 /* ---------- 3BLD «Progreso» (bldprogress.js) ---------- */
 :root { --bp-h0: #E6EAF0; --bp-h1: #F6C9DA; --bp-h2: #EE95B8; --bp-h3: #D9578A; --bp-h4: #A82D5E; --bp-exec: #2D69BD; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bp-h0: #252C37; --bp-h1: #4A2235; --bp-h2: #7A2E52; --bp-h3: #B8457A; --bp-h4: #F08DB5; --bp-exec: #7FA9EE; } }
-:root[data-theme="dark"] { --bp-h0: #252C37; --bp-h1: #4A2235; --bp-h2: #7A2E52; --bp-h3: #B8457A; --bp-h4: #F08DB5; --bp-exec: #7FA9EE; }
+:root[data-theme="dark"], :root[data-theme="carbon"] { --bp-h0: #252C37; --bp-h1: #4A2235; --bp-h2: #7A2E52; --bp-h3: #B8457A; --bp-h4: #F08DB5; --bp-exec: #7FA9EE; }
 .bp-lead { margin: 0 0 12px; }
 .bp-tiles .stat small { display: block; font-size: 12px; color: var(--muted); margin-top: 2px; }
 .bp-two { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; }
@@ -1135,3 +1135,36 @@ body.focus .memo-ask input { width: 100%; font-size: 18px; }
 .at-dots { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; max-width: 100%; }
 .at-dots i { width: 12px; height: 12px; border-radius: 50%; background: var(--line); }
 .at-dots i.on { background: var(--accent); }
+
+/* ================= «Carbón» theme (Ajustes → Tema) =================
+   The look of competition mode for the whole page, after Tagda Timer's Carbon: charcoal with big soft grey
+   shapes drifting behind, panels of frosted glass and white for the accent. It starts from the dark theme
+   (every dark rule also matches it) and changes only this. */
+:root[data-theme="carbon"] {
+  --bg: #141414; --surface: rgba(32, 32, 32, .72); --raise: rgba(48, 48, 48, .78); --ink: #ECECEC; --muted: #A3A3A3;
+  --line: rgba(255, 255, 255, .12); --accent: #ECECEC; --accent-soft: rgba(255, 255, 255, .1); --on-accent: #141414;
+  --plastic: #050505; --ok: #6EE7A0;
+  color-scheme: dark;
+}
+:root[data-theme="carbon"] body { background: var(--bg); isolation: isolate; }
+:root[data-theme="carbon"] body::before,
+:root[data-theme="carbon"] body::after {
+  content: ''; position: fixed; z-index: -1; border-radius: 50%; filter: blur(80px); pointer-events: none;
+  animation: cb-drift 44s ease-in-out infinite alternate;
+}
+:root[data-theme="carbon"] body::before {
+  width: 70vmax; height: 56vmax; left: -18vmax; top: -22vmax;
+  background: radial-gradient(closest-side, rgba(160, 160, 160, .42), rgba(110, 110, 110, .18) 60%, transparent);
+}
+:root[data-theme="carbon"] body::after {
+  width: 64vmax; height: 52vmax; right: -20vmax; bottom: -24vmax; animation-duration: 52s; animation-direction: alternate-reverse;
+  background: radial-gradient(closest-side, rgba(180, 180, 180, .36), rgba(120, 120, 120, .14) 60%, transparent);
+}
+@media (prefers-reduced-motion: reduce) { :root[data-theme="carbon"] body::before, :root[data-theme="carbon"] body::after { animation: none; } }
+/* Frosted glass where the page used flat panels. */
+:root[data-theme="carbon"] .panel, :root[data-theme="carbon"] .tabs, :root[data-theme="carbon"] .sheet-card {
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+}
+:root[data-theme="carbon"] .btn.primary { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+:root[data-theme="carbon"] .clock-time { font-family: var(--font-mono); font-weight: 600; }
+:root[data-theme="carbon"] p a, :root[data-theme="carbon"] .hint a { color: var(--ink); text-decoration-color: var(--muted); }
