@@ -615,7 +615,7 @@ html[data-cfop="full"] [data-only="reduced"], html:not([data-cfop="full"]) [data
    every part inside takes them, whatever the page theme). */
 body.trfocus { overflow: hidden; }
 body.trfocus .fr-head, body.trfocus .tabs, body.trfocus .cube-fab,
-body.trfocus .view[data-view="entrenar"] > :not(#sessBar):not(#trPanel),
+body.trfocus .view[data-view="entrenar"] > :not(#sessBar):not(#trPanel):not(#sessPanel),
 body.trfocus #trPanel .fr-pick, body.trfocus #trSetNote, body.trfocus #trPanel .panel-head h2 { display: none !important; }
 body.trfocus .view[data-view="entrenar"] {
   --bg: #151515; --surface: rgba(34, 34, 34, .78); --raise: rgba(48, 48, 48, .85); --ink: #ECECEC; --muted: #A3A3A3;
@@ -637,6 +637,16 @@ body.trfocus .fr-sess-bar { position: static; background: rgba(40, 40, 40, .8); 
 body.trfocus .fr-sess-bar .btn { background: rgba(255, 255, 255, .08); color: var(--ink); border: 1px solid var(--line); }
 body.trfocus .fr-sess-mini { display: flex; }
 body.trfocus #trPanel { position: static; width: min(100%, 980px); justify-self: center; align-self: center; border-color: var(--line); box-shadow: none; }
+/* Your set with its eyes: on the right on a wide screen (scrolling on its own), below the case on a phone. */
+body.trfocus #sessPanel { border-color: var(--line); box-shadow: none; align-content: start; }
+body.trfocus #sessSet { align-content: start; }
+@media (min-width: 1000px) {
+  body.trfocus .view[data-view="entrenar"] { grid-template-columns: minmax(0, 1fr) minmax(280px, 360px) !important; }
+  body.trfocus .view[data-view="entrenar"] > #sessBar { grid-column: 1 / -1; }
+  body.trfocus #trPanel { grid-column: 1; grid-row: 2; }
+  body.trfocus #sessPanel { grid-column: 2; grid-row: 2; align-self: stretch; overflow: auto; min-height: 0; }
+}
+@media (max-width: 999.98px) { body.trfocus .view[data-view="entrenar"] { grid-template-rows: auto auto auto; } body.trfocus #trPanel { align-self: start; } }
 body.trfocus #trPanel .panel-head { justify-content: center; }
 body.trfocus .fr-big { font-size: clamp(26px, 4.6vw, 44px); }
 body.trfocus .fr-train-card .fr-top, body.trfocus .fr-quiz-pic .fr-top, body.trfocus .fr-try-pic .fr-top,

@@ -169,12 +169,12 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
   const tf = await p.evaluate(() => {
     const vis = (id) => { const el = document.getElementById(id); return !!el && getComputedStyle(el).display !== 'none' && el.getBoundingClientRect().height > 0; };
     const v = document.querySelector('.view[data-view="entrenar"]');
-    return { on: document.body.classList.contains('trfocus'), bar: vis('sessBar'), tr: vis('trPanel'), set: vis('sessPanel'), plan: getComputedStyle(document.querySelector('.fr-plan')).display, tabs: getComputedStyle(document.querySelector('.tabs')).display, fixed: getComputedStyle(v).position, bg: getComputedStyle(v).backgroundColor, label: document.getElementById('sessFull').innerText.trim() };
+    return { on: document.body.classList.contains('trfocus'), bar: vis('sessBar'), tr: vis('trPanel'), set: vis('sessPanel'), eyes: document.querySelectorAll('#sessPanel .fr-sc').length, plan: getComputedStyle(document.querySelector('.fr-plan')).display, tabs: getComputedStyle(document.querySelector('.tabs')).display, fixed: getComputedStyle(v).position, bg: getComputedStyle(v).backgroundColor, label: document.getElementById('sessFull').innerText.trim() };
   });
   await p.screenshot({ path: `${SHOTS}/fridrich-full-session-full-1280.png` });
   await p.keyboard.press('Escape');
   const tfOff = await p.evaluate(() => document.body.classList.contains('trfocus'));
-  check('session: «Pantalla completa» leaves only the session bar and the case, over charcoal; Esc goes back', tf.on && tf.bar && tf.tr && !tf.set && tf.plan === 'none' && tf.tabs === 'none' && tf.fixed === 'fixed' && tf.bg === 'rgb(21, 21, 21)' && tf.label === 'Salir' && !tfOff, JSON.stringify({ ...tf, tfOff }));
+  check('session: «Pantalla completa» leaves only the session bar, the case and your set (its cards, with the eyes in cube mode), over charcoal; Esc goes back', tf.on && tf.bar && tf.tr && tf.set && tf.eyes > 0 && tf.plan === 'none' && tf.tabs === 'none' && tf.fixed === 'fixed' && tf.bg === 'rgb(21, 21, 21)' && tf.label === 'Salir' && !tfOff, JSON.stringify({ ...tf, tfOff }));
   await p.click('#sessEnd');
   await p.keyboard.press('Escape');
 
