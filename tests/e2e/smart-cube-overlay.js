@@ -28,7 +28,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
       hint: document.getElementById('scrHint').hidden ? '' : document.getElementById('scrHint').textContent,
       live: document.getElementById('liveLine').hidden ? '' : document.getElementById('liveLine').innerText,
       pill: document.getElementById('phase').textContent,
-      net: [...document.querySelectorAll('#net i')].map((c) => c.className.slice(2)).join(''),
+      net: [...document.querySelectorAll('#net2d i')].map((c) => c.className.slice(2)).join(''),
     }));
     const settle = () => wait(350);
     const setScr = (s) => app.evaluate((x) => { const el = document.getElementById('scr'); el.value = x; el.dispatchEvent(new Event('input')); }, s);

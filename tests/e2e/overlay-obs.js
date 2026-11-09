@@ -149,9 +149,10 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const f of ['U', 'L', 'F', 'R', 'B', 'D']) { const b = 9 * O.FACE_ORDER.indexOf(f); for (let i = 0; i < 9; i++) s += O.faceOfSticker(st[b + i]); }
     return s;
   });
-  const cubeOv = await ov(() => [...document.querySelectorAll('#net i')].map((c) => c.className.slice(2)).join(''));
+  const cubeOv = await ov(() => [...document.querySelectorAll('#net2d i')].map((c) => c.className.slice(2)).join(''));
+  const cube3 = await ov(() => ({ s: [...document.querySelectorAll('#c3dCube i')].map((c) => c.className.slice(2)).join(''), shown: getComputedStyle(document.getElementById('c3d')).display !== 'none', flat: getComputedStyle(document.getElementById('net2d')).display }));
   check('scramble text follows the app', shown === newScr, shown);
-  check('cube net matches the app model', cubeApp === cubeOv && cubeOv.length === 54, cubeOv);
+  check('cube net matches the app model, drawn in 3D (the flat net only with ?net=2d)', cubeApp === cubeOv && cubeOv.length === 54 && cube3.s === cubeOv && cube3.shown && cube3.flat === 'none', JSON.stringify({ cubeOv, cube3 }));
   check('scramble before was shown too', scr.length > 0);
 
   // Reload the OBS source: it should come back with the cached state, then live again.

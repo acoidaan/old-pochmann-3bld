@@ -112,13 +112,29 @@ body.no-prog .prog, body.no-prog .total { display: none; }
 /* Scramble */
 .scr-text { margin: 12px 0 0; font-family: var(--font-mono); font-size: 25px; line-height: 1.55; word-spacing: .08em; }
 .scr-text .mv { white-space: nowrap; }
-.net { display: grid; grid-template-columns: repeat(4, auto); gap: 6px; justify-content: center; margin-top: 18px; --cell: 28px; }
+.net { margin-top: 18px; --cell: 28px; }
+.net2d { display: grid; grid-template-columns: repeat(4, auto); gap: 6px; justify-content: center; }
+body:not(.net-2d) .net2d, body.net-2d .c3d { display: none; }
+/* The cube in 3D: U, F and R in view, swaying a little to show some of L and B; it changes with each turn. */
+.c3d { --s: calc(var(--cell) * 5.6); height: calc(var(--s) * 1.75); display: grid; place-items: center; perspective: 1200px; }
+.c3d-cube { position: relative; width: var(--s); height: var(--s); transform-style: preserve-3d; transform: rotateX(-26deg) rotateY(-38deg); animation: c3d-sway 14s ease-in-out infinite alternate; }
+@keyframes c3d-sway { from { transform: rotateX(-26deg) rotateY(-50deg); } to { transform: rotateX(-22deg) rotateY(-24deg); } }
+@media (prefers-reduced-motion: reduce) { .c3d-cube { animation: none; } }
+.c3d .face { position: absolute; inset: 0; box-sizing: border-box; backface-visibility: hidden; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); }
+.c3d .face i { transition: background-color .12s linear; }
+.c3d-F { transform: translateZ(calc(var(--s) / 2)); }
+.c3d-B { transform: rotateY(180deg) translateZ(calc(var(--s) / 2)); }
+.c3d-R { transform: rotateY(90deg) translateZ(calc(var(--s) / 2)); }
+.c3d-L { transform: rotateY(-90deg) translateZ(calc(var(--s) / 2)); }
+.c3d-U { transform: rotateX(90deg) translateZ(calc(var(--s) / 2)); }
+.c3d-D { transform: rotateX(-90deg) translateZ(calc(var(--s) / 2)); }
 .face { display: grid; grid-template-columns: repeat(3, var(--cell)); grid-template-rows: repeat(3, var(--cell)); gap: 3px; padding: 4px; background: var(--plastic); border-radius: 8px; }
 .face i { border-radius: 4px; }
 .c-U { background: var(--st-U); } .c-R { background: var(--st-R); } .c-F { background: var(--st-F); }
 .c-D { background: var(--st-D); } .c-L { background: var(--st-L); } .c-B { background: var(--st-B); }
 body.no-net .net { display: none; }
-.stage[data-layout=derecha] .net, .stage[data-layout=izquierda] .net { --cell: 18px; margin-top: 14px; gap: 5px; }
+.stage[data-layout=derecha] .net, .stage[data-layout=izquierda] .net { --cell: 18px; margin-top: 14px; }
+.stage[data-layout=derecha] .net2d, .stage[data-layout=izquierda] .net2d { gap: 5px; }
 .stage[data-layout=derecha] .face, .stage[data-layout=izquierda] .face { gap: 2px; padding: 3px; border-radius: 6px; }
 .stage[data-layout=derecha] .face i, .stage[data-layout=izquierda] .face i { border-radius: 3px; }
 .stage[data-layout=derecha] .scr-text, .stage[data-layout=izquierda] .scr-text { font-size: 21px; margin-top: 10px; }
@@ -328,7 +344,7 @@ body.carbon .stage[data-learn] .scr-text .mv.next { color: #141414; }
     <p class="scr-text" id="scrText"></p>
     <p class="scrhint" id="scrHint" hidden></p>
     <div class="learnpic" id="learnPic" hidden></div>
-    <div class="net" id="net" aria-hidden="true"></div>
+    <div class="net" id="net" aria-hidden="true"><div class="net2d" id="net2d"></div><div class="c3d" id="c3d"><div class="c3d-cube" id="c3dCube"></div></div></div>
   </section>
 
   <section class="card stats" id="statsCard" hidden>
@@ -430,19 +446,28 @@ body.carbon .stage[data-learn] .scr-text .mv.next { color: #141414; }
   const NET = { U: [1, 2], L: [2, 1], F: [2, 2], R: [2, 3], B: [2, 4], D: [3, 2] };
   const ORDER = ['U', 'L', 'F', 'R', 'B', 'D'];
   const cells = [];
+  const cells3 = [];
   ORDER.forEach((f) => {
     const face = document.createElement('div');
     face.className = 'face';
     face.style.gridRow = NET[f][0];
     face.style.gridColumn = NET[f][1];
     for (let i = 0; i < 9; i++) { const c = document.createElement('i'); face.appendChild(c); cells.push(c); }
-    $('net').appendChild(face);
+    $('net2d').appendChild(face);
+    // The same stickers on a cube in 3D (each face as seen from outside, the top row at the back for U and at
+    // the front for D: the order the app sends them in).
+    const f3 = document.createElement('div');
+    f3.className = `face c3d-${f}`;
+    for (let i = 0; i < 9; i++) { const c = document.createElement('i'); f3.appendChild(c); cells3.push(c); }
+    $('c3dCube').appendChild(f3);
   });
+  // 3D by default; ?net=2d for the flat net.
+  document.body.classList.toggle('net-2d', q.get('net') === '2d');
   function paintNet(cube) {
     const ok = typeof cube === 'string' && cube.length === 54;
     $('net').hidden = !ok;
     if (!ok) return;
-    for (let i = 0; i < 54; i++) cells[i].className = 'c-' + cube[i];
+    for (let i = 0; i < 54; i++) { const cls = 'c-' + cube[i]; if (cells[i].className !== cls) { cells[i].className = cls; cells3[i].className = cls; } }
   }
 
   const ICON = {
