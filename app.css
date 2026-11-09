@@ -400,6 +400,82 @@ body.focus:not([data-timer="idle"]) .focus-bottom { visibility: hidden; }
   body.focus[data-timer="idle"] .focus-moves { bottom: calc(max(8px, env(safe-area-inset-bottom, 0px)) + 44px); }
   .focus-case { display: none; }   /* no room for it on a phone on its side */
 }
+/* Competition mode, «carbón» look (after Tagda Timer's Carbon theme): always dark, whatever the page theme —
+   charcoal with big soft grey shapes drifting behind, the time huge in mono, the scramble on a glass card. Its
+   own colours on purpose: the page tokens change with light/dark, this does not. */
+body.focus .view[data-view="crono"] > .panel {
+  --cb-bg: #151515; --cb-ink: #ececec; --cb-muted: #9b9b9b; --cb-line: rgba(255, 255, 255, .13);
+  --cb-glass: rgba(255, 255, 255, .055); --cb-amber: #fbbf24; --cb-hold: #f87171; --cb-ready: #4ade80;
+  background: var(--cb-bg); color: var(--cb-ink); overflow: hidden; isolation: isolate;
+}
+body.focus .view[data-view="crono"] > .panel::before,
+body.focus .view[data-view="crono"] > .panel::after {
+  content: ''; position: absolute; z-index: -1; border-radius: 50%; filter: blur(70px); pointer-events: none;
+  animation: cb-drift 38s ease-in-out infinite alternate;
+}
+body.focus .view[data-view="crono"] > .panel::before {
+  width: 62vmax; height: 52vmax; left: -14vmax; top: -18vmax;
+  background: radial-gradient(closest-side, rgba(165, 165, 165, .7), rgba(120, 120, 120, .32) 60%, transparent);
+}
+body.focus .view[data-view="crono"] > .panel::after {
+  width: 58vmax; height: 48vmax; right: -16vmax; bottom: -20vmax; animation-duration: 46s; animation-direction: alternate-reverse;
+  background: radial-gradient(closest-side, rgba(185, 185, 185, .62), rgba(125, 125, 125, .28) 60%, transparent);
+}
+@keyframes cb-drift {
+  0% { transform: translate(0, 0) scale(1) rotate(0deg); }
+  50% { transform: translate(9vmax, 6vmax) scale(1.12) rotate(18deg); }
+  100% { transform: translate(-4vmax, 11vmax) scale(.94) rotate(-10deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  body.focus .view[data-view="crono"] > .panel::before, body.focus .view[data-view="crono"] > .panel::after { animation: none; }
+}
+/* While timing the shapes dim, so only the time is left. */
+body.focus:not([data-timer="idle"]) .view[data-view="crono"] > .panel::before,
+body.focus:not([data-timer="idle"]) .view[data-view="crono"] > .panel::after { opacity: .45; transition: opacity .4s; }
+body.focus .focus-top .btn, body.focus .focus-bottom .btn {
+  background: var(--cb-glass); color: var(--cb-ink); border: 1px solid var(--cb-line); backdrop-filter: blur(8px);
+}
+body.focus .focus-scr {
+  position: relative; max-width: min(60ch, 100%); padding: 22px 18px 12px; border: 1px solid var(--cb-line); border-radius: 12px;
+  background: var(--cb-glass); backdrop-filter: blur(10px); color: var(--cb-ink); font-weight: 600; letter-spacing: .04em;
+}
+body.focus .focus-scr::before {
+  content: 'Scramble'; position: absolute; top: 7px; left: 0; right: 0; text-align: center;
+  font-family: var(--font-body); font-size: 10px; font-weight: 700; letter-spacing: .22em; text-transform: uppercase; color: var(--cb-muted);
+}
+body.focus .focus-scr .sm { color: inherit; }
+body.focus .clock-time {
+  font-family: var(--font-mono); font-weight: 600; letter-spacing: .02em; color: var(--cb-ink);
+  font-size: clamp(64px, min(21vw, 34vh), 240px);
+}
+/* The phase under the time, small and spaced out, as «INSPECCIÓN». */
+body.focus .clock-phase { order: 2; font-size: 12px; letter-spacing: .3em; color: var(--cb-muted); }
+body.focus .clock-time { order: 1; }
+body.focus .clock-split, body.focus .clock-pace, body.focus .clock-pb { order: 3; color: var(--cb-muted); }
+body.focus .clock[data-phase="inspect"] .clock-time, body.focus .clock[data-phase="ihold"] .clock-time,
+body.focus .clock[data-phase="iready"] .clock-time { color: var(--cb-amber); text-shadow: 0 0 28px rgba(251, 191, 36, .45); }
+body.focus .clock[data-phase="inspect"] .clock-phase { color: var(--cb-amber); }
+body.focus .clock[data-phase="hold"] .clock-time { color: var(--cb-hold); }
+body.focus .clock[data-phase="ready"] .clock-time, body.focus .clock[data-phase="ready"] .clock-phase { color: var(--cb-ready); text-shadow: 0 0 24px rgba(74, 222, 128, .35); }
+/* Inspection: a thin glowing frame round the screen. */
+body.focus .view[data-view="crono"] > .panel:has(.clock[data-phase="inspect"]) { box-shadow: inset 0 0 0 2px rgba(251, 191, 36, .55); }
+body.focus .focus-stats, body.focus .focus-hint { color: var(--cb-muted); }
+body.focus .focus-stats b { color: var(--cb-ink); }
+body.focus .focus-hint kbd {
+  background: var(--cb-glass); color: var(--cb-ink); border: 1px solid var(--cb-line); border-radius: 6px; padding: 1px 6px; box-shadow: none;
+}
+body.focus .focus-moves .live-letters { color: var(--cb-ink); }
+body.focus .focus-moves .live-moves { color: var(--cb-muted); }
+body.focus .verdict { color: var(--cb-ink); }
+body.focus .verdict .btn { background: var(--cb-glass); color: var(--cb-ink); border: 1px solid var(--cb-line); backdrop-filter: blur(8px); }
+body.focus .verdict .btn.primary { background: var(--cb-ink); color: var(--cb-bg); border-color: var(--cb-ink); }
+@media (max-height: 500px) and (orientation: landscape) {
+  body.focus .focus-scr { padding: 16px 12px 6px; }
+  body.focus .focus-scr::before { top: 3px; font-size: 9px; }
+  body.focus .clock-time { font-size: clamp(44px, 25vh, 120px); }
+  body.focus .clock { padding-top: 96px; }
+}
+
 /* Smart cube: setup trainer and guided execution */
 .tr-how { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
 .tr-cubeline { display: grid; gap: 8px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--raise); }

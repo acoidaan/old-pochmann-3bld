@@ -41,6 +41,8 @@ const SOLVE = ["D R' F2 L", "U R U' R'", "U' F' U F", "L' U' L", "U B U' B'", "F
   await p.click('#focusOpen');
   check('focus: «Salir» and the scramble show straight away, before any solve', await p.evaluate(() => getComputedStyle(document.getElementById('focusExit')).visibility === 'visible' && getComputedStyle(document.getElementById('focusScr')).visibility === 'visible'));
   check('focus: only the clock, full screen', await p.evaluate(() => document.body.classList.contains('focus') && !document.getElementById('focusTop').hidden && getComputedStyle(document.getElementById('history')).display === 'none'));
+  const carbon = await p.evaluate(() => { const panel = document.querySelector('.view[data-view="crono"] > .panel'); const t = getComputedStyle(document.getElementById('clockTime')); return { bg: getComputedStyle(panel).backgroundColor, font: t.fontFamily, label: getComputedStyle(document.getElementById('focusScr'), '::before').content }; });
+  check('focus: the «carbón» look, dark whatever the theme, the time in mono and the scramble on its card', carbon.bg === 'rgb(21, 21, 21)' && /Martian Mono/.test(carbon.font) && /Scramble/.test(carbon.label), JSON.stringify(carbon));
   const vp = p.viewportSize();
   await p.mouse.move(vp.width / 2, vp.height * 0.8);
   await p.mouse.down(); await p.waitForTimeout(380); await p.mouse.up();
