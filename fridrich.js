@@ -2197,7 +2197,17 @@
     const learning = FU.CASES.filter((c) => statusOf(c.id) === 'learning');
     const list = learning.length ? learning : FU.CASES.filter((c) => statusOf(c.id) !== 'known');
     const set = (list.length ? list : FU.OLL).slice(0, 5).map((c) => ({ id: c.id, c, ms: 0, why: [statusOf(c.id) === 'learning' ? 'Lo estás aprendiendo' : statusOf(c.id) === 'known' ? 'Para repasarlo' : 'Aún no lo has marcado como sabido'] }));
-    return { ...base, parts: [], scored: [], set };
+    // Where the time goes, from the steps of your solves (cross, F2L, recognising): those are the same here.
+    // Not the 2-look parts: the slow 2-look algorithms, and the U turns of more measured against them; instead,
+    // the turns of more against the one-look algorithms of your OLL and PLL (kept with each solve here).
+    const parts = base.parts.filter((x) => x.id !== 'exec' && x.id !== 'llExtra');
+    const withF = times.filter((r) => r.an && r.an.f && r.pen !== 'dnf').slice(-15);
+    if (withF.length >= 3 && base.refTps) {
+      const extra = withF.reduce((n, r) => n + r.an.f.reduce((m, y) => m + (y ? Math.max(0, y[0] - y[1]) : 0), 0), 0) / withF.length;
+      if (extra >= 1.5) parts.push({ id: 'llExtra', ms: (extra * 1000) / base.refTps, name: 'Giros de más en OLL y PLL', how: `${extra.toFixed(1)} giros de más por solve contra el algoritmo de una vez: mira desde qué lado empezarlo (la ayuda en directo te lo dice) o si haces otro más largo.`, go: 'help' });
+      parts.sort((a, b) => b.ms - a.ms);
+    }
+    return { ...base, parts, scored: [], set };
   }
   const recommendation = () => (FULL ? fullPlan() : recommend2());
   function goButton(go) {
@@ -2219,8 +2229,7 @@
     const parts = plan.parts.slice(0, 4);
     const max = Math.max(1, ...parts.map((p) => p.ms));
     let html = '';
-    if (FULL) html += '<p class="fr-note">Un set con los OLL y PLL que marcaste como «Aprendiendo» en Casos (o, si no hay, los primeros que aún no te sabes).</p>';
-    else if (parts.length) {
+    if (parts.length) {
       const shown = new Set();
       const once = (go) => { const k = go === 'help' ? 'slow' : go; if (shown.has(k)) return ''; shown.add(k); return goButton(go); };
       html += `<details class="fr-gain" id="gainBox"${settings.gainOpen === false ? '' : ' open'}><summary><span class="field-title">Dónde puedes ganar tiempo <span class="muted">· tus últimos ${plan.solves} solves con el cubo</span></span></summary>
@@ -2231,7 +2240,9 @@
           ${once(p.go)}
         </li>`).join('')}</ol>
         <p class="hint">Cuentas aproximadas: cada parte contra tu propio nivel bueno (tus casos más rápidos, tu ritmo al girar).</p></details>`;
-    } else {
+    }
+    if (FULL) html += '<p class="fr-note">El set de abajo son los OLL y PLL que marcaste como «Aprendiendo» en Casos (o, si no hay, los primeros que aún no te sabes).</p>';
+    else if (!parts.length) {
       html += `<p class="fr-note">${plan.solves ? 'En tus últimos solves con el cubo no veo nada que te cueste mucho: sigue así.' : 'Haz unos solves con el cubo inteligente en el cronómetro y te diré en qué paso se te va el tiempo.'} El set de abajo sale de ${times.some((r) => r.sp) ? 'tus solves y ' : ''}lo que entrenas${trlog.length || times.some((r) => r.sp) ? '' : ' (aún nada: empiezo por los casos que más salen)'}.</p>`;
     }
     const rec = modeFor(plan.setMode);

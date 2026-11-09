@@ -273,6 +273,16 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
     an: [...document.querySelectorAll('#splits .fr-an-table tbody th')].map((th) => th.textContent).join(','),
   }));
   check('solve: in full CFOP the steps are cross, F2L, OLL and PLL (no OLL 2 or PLL 1), with the whole OLL and PLL named, in the splits and the analysis', sp.rows === 'Cruz,F2L,OLL,PLL' && /OLL 27/.test(sp.text) && /PLL \(T\)/.test(sp.text) && !/OLL 2 |PLL 1|PLL 2/.test(sp.text) && /OLL OLL 27/.test(sp.an) && /PLL PLL \(T\)/.test(sp.an), JSON.stringify({ rows: sp.rows, an: sp.an, text: sp.text.slice(0, 300) }));
+  // ================= «Dónde puedes ganar tiempo» in full CFOP =================
+  const gain = await p.evaluate(() => {
+    const T = window.Fridrich.times();
+    const last = T[T.length - 1];
+    for (let i = 0; i < 4; i++) T.push({ ...JSON.parse(JSON.stringify(last)), at: last.at + 1000 * (i + 1), an: { ...last.an, f: [[14, 9, 0, 0], [18, 14, 0, 0]] } });
+    window.Fridrich.showView('entrenar');
+    const box = document.getElementById('gainBox');
+    return { box: !!box, text: box ? box.innerText.replace(/\s+/g, ' ') : document.getElementById('planBox').innerText.slice(0, 200) };
+  });
+  check('plan: «Dónde puedes ganar tiempo» works in full CFOP — the turns of more against the one-look OLL and PLL, not the 2-look algorithms', gain.box && /Giros de más en OLL y PLL/.test(gain.text) && /\d+\.\d giros de más por solve contra el algoritmo de una vez/.test(gain.text) && !/Algoritmos lentos/.test(gain.text), gain.text.slice(0, 300));
   // ================= A session's target follows you =================
   const tg = await p.evaluate(() => {
     const F = window.Fridrich._;
