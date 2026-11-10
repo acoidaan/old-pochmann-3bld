@@ -250,6 +250,20 @@ const keys = (d) => ({ 'cfop:times:v1': d.times, 'cfop:trlog:v1': d.trlog, 'cfop
     F.logTr({ id: 'antisune', m: 'h', ok: 1, t: ht - 200 });
     return { ht, over, under: card() };
   });
+  // A case done with a normal cube only with its algorithm in view (no right or lost ones that count) must
+  // not take over the draw: every case of the set still comes up, never the same twice in a row.
+  const draw = await pk.p.evaluate(() => {
+    const F = window.Fridrich._;
+    const mode = F.settings.trMode;
+    F.settings.trMode = 'hand';
+    F.trainRec().antisune = Object.assign(F.trainRec().antisune || {}, { mn: 7, mok: undefined, mfail: undefined });
+    const seen = {};
+    let prev = null; let twice = 0;
+    for (let i = 0; i < 300; i++) { const c = F.nextCase(prev); if (c.id === prev) twice++; seen[c.id] = (seen[c.id] || 0) + 1; prev = c.id; }
+    F.settings.trMode = mode;
+    return { seen, twice, set: F.session().set.length };
+  });
+  check('hand: a case seen only with its eye does not take over the draw (all come up, never twice in a row)', Object.keys(draw.seen).length === draw.set && draw.twice === 0 && Math.max(...Object.values(draw.seen)) < 200, JSON.stringify(draw));
   check('hand: a target per case; right but slower than it is shown apart and does not count, under it does', slow.ht >= 1500 && /^0 de 3/.test(slow.over.pips) && slow.over.slow === 1 && /^1 de 3/.test(slow.under.pips), JSON.stringify(slow));
   await pk.ctx.close();
 

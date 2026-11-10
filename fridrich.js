@@ -1690,7 +1690,7 @@
       const m = settings.trMode;
       const n = m === 'cube' ? t.n || 0 : m === 'hand' ? t.mn || 0 : t.qn || 0;
       const slow = m === 'cube' ? (t.n ? t.sum / t.n / 1000 : 4)
-        : m === 'hand' ? (t.mn ? 1 + (1 - t.mok / t.mn) * 4 : 3)
+        : m === 'hand' ? ((t.mok || 0) + (t.mfail || 0) ? 1 + (t.mfail || 0) / ((t.mok || 0) + (t.mfail || 0)) * 4 : 3)
           : (t.qn ? (t.qsum / t.qn) / 1000 + (1 - t.qok / t.qn) * 3 : 3);
       // In a session the set takes turns: never the same case twice in a row, and the ones it has
       // tried least come first (what the case did before the session only nudges it).
@@ -1702,6 +1702,8 @@
       }
       return (c.id === avoid && pool.length > 1 ? 0.15 : 1) * (1 + 3 / (1 + n)) * (0.5 + slow);
     });
+    // A weight that is not a number would leave every draw on the last case.
+    w.forEach((v, i) => { if (!Number.isFinite(v)) w[i] = 1; });
     let x = Math.random() * w.reduce((a, b) => a + b, 0);
     for (let i = 0; i < pool.length; i++) { x -= w[i]; if (x <= 0) return pool[i]; }
     return pool[pool.length - 1];
@@ -3707,7 +3709,7 @@
     paceFor: (r) => { const pf = settings.pace !== 'off' ? paceFor(r) : null; return pf ? { d: pf.rows.map((x) => Math.round(x.d)), gold: pf.rows.map((x) => x.gold), total: Math.round(pf.total), label: pf.label } : null; },
     recordsOf,
     // For tests.
-    _: { simSolution, caseTarget, nowPic, liveTrack: () => track, tr, settings, logTr, celebrate, paceRef, bestsOf, paceTick, myBests, ligaPublish, player, loadLeague, lg, session: () => session, endSession, startSession, openPicker, follow: () => follow, makeFollow, partialKeys, setScramble, makeTry, ct, vibes, syncNow, syncPlan, mergeIn, syncData, offerUpdate, focus: () => focus.on },
+    _: { simSolution, caseTarget, nextCase, trainRec: () => train, nowPic, liveTrack: () => track, tr, settings, logTr, celebrate, paceRef, bestsOf, paceTick, myBests, ligaPublish, player, loadLeague, lg, session: () => session, endSession, startSession, openPicker, follow: () => follow, makeFollow, partialKeys, setScramble, makeTry, ct, vibes, syncNow, syncPlan, mergeIn, syncData, offerUpdate, focus: () => focus.on },
   };
 
   // ================= Start =================
