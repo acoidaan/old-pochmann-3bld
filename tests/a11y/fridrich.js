@@ -67,8 +67,14 @@ const SOLVE = ["D R' F2 L", "U R U' R'", "U' F' U F", "L' U' L", "U B U' B'", "F
     await p.click('#trModeHand');
     await p.waitForFunction(() => window.Fridrich._.tr.hand, null, { timeout: 30000 });
     await run('entrenar · cubo normal');
-    await p.click('[data-answer]');
-    await run('entrenar · cubo normal (respuesta)');
+    // Its clock: hold and let go, then stop → the case and «✓ Bien».
+    await p.locator('#trHClock').dispatchEvent('pointerdown');
+    await p.waitForTimeout(400);
+    await p.locator('#trHClock').dispatchEvent('pointerup');
+    await p.waitForTimeout(200);
+    await p.locator('#trHClock').dispatchEvent('pointerdown');
+    await p.waitForSelector('#trHandOk');
+    await run('entrenar · cubo normal (al parar)');
     await p.click('#trModeCube');
     await p.waitForFunction(() => window.Fridrich._.tr.follow || window.Fridrich._.tr.err, null, { timeout: 30000 });
     await run('entrenar · con el cubo');
