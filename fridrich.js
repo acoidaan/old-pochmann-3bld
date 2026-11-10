@@ -2046,7 +2046,7 @@
       ${ph !== 'done' ? peekBox(c, 'Ese intento es práctica: se guarda aparte, no entra en tus tiempos ni sirve para dominarlo.') : ''}
       <button type="button" class="fr-hclock" id="trHClock" data-phase="${ph}" aria-label="Cronómetro del caso"><span class="fr-hclock-t" id="trHTime">${ph === 'done' ? f2(tr.hms) : ph === 'run' ? f2(now() - tr.ht0) : '0.00'}</span>${msg ? `<span class="hint">${msg}</span>` : ''}</button>`;
     if (ph === 'done') {
-      html += `<div class="fr-train-card">${pictureOf(c, t.g, `Así estaba: ${c.name}`)}<div><b class="fr-case-name">${esc(c.name)}</b><p class="fr-note">${tryHow(t)}</p>${tr.hPeek ? '<p class="hint">Con el algoritmo a la vista: cuenta como práctica, aparte de tus tiempos.</p>' : ''}<p class="hint">${esc(c.look)}</p></div></div>
+      html += `<div class="fr-train-card">${pictureOf(c, t.g, `Así estaba: ${c.name}`)}<div><b class="fr-case-name">${esc(c.name)}</b><p class="fr-note">${tryHow(t)}</p>${tr.hPeek ? '<p class="hint">Con el algoritmo a la vista: cuenta como práctica, aparte de tus tiempos.</p>' : ''}${!tr.hPeek && session && session.per[c.id] && tr.hms > htOf(c.id, session.per[c.id]) ? `<p class="hint">Más que su objetivo (${secs(session.per[c.id].ht)}): si te ha salido bien, cuenta para tus tiempos, pero no suma a la racha.</p>` : ''}<p class="hint">${esc(c.look)}</p></div></div>
         <div class="actions"><button class="btn primary" type="button" id="trHandOk">✓ Bien <kbd>Espacio</kbd></button><button class="btn" type="button" id="trHandLost">✗ Me he perdido <kbd>X</kbd></button></div>
         <p class="hint">«Me he perdido» (o X) lo apunta como fallo: resuelve el cubo como sea y sigue con otro.</p>`;
     }
@@ -2383,12 +2383,20 @@
     const t = (session.refRec + (C.algHtm(c.alg) * 1000) / session.refTps) * 1.15;
     return Math.max(1500, Math.round(t / 100) * 100);
   }
+  // With a normal cube the clock also takes in picking the cube up and the key: a bit over your average with
+  // it (some leeway while it is short), or, the first times, a bit over the smart-cube target.
+  function handTarget(id) {
+    const t = train[id] || {};
+    const t0 = t.hn >= 3 ? Math.max((t.hsum / t.hn) * 1.25, t.hsum / t.hn + 700) : targetFor(id) + 1000;
+    return Math.max(1500, Math.round(t0 / 100) * 100);
+  }
+  const htOf = (id, p) => (p.ht != null ? p.ht : (p.ht = handTarget(id)));
   function initPer(id, stats) {
     const st = stats[id] || {};
     session.per[id] = {
       n: 0, ok: 0, lost: 0, sum: 0, timed: 0, qn: 0, qsum: 0, best: null, last: [], mastered: null,
       before: { cube: st.cubeAvg != null ? st.cubeAvg : null, qacc: st.quizAcc != null ? st.quizAcc : null, qtime: st.quizTime != null ? st.quizTime : null },
-      target: targetFor(id),
+      target: targetFor(id), ht: handTarget(id),
     };
   }
   const caseNow = () => S.caseStats(times, train, trlog, learn);
@@ -2419,25 +2427,27 @@
   // The target follows you: near it, it stays; when your last few are far off it (say you average 4 s on one
   // of 2 s, or you are well under it), it moves half way towards a bit under your average, so that it is
   // reachable but still asks for your best.
-  function retarget(id, p) {
-    if (p.base == null) p.base = p.target;
-    p.ts = [...(p.ts || []), e2t(p)].slice(-5);
-    if (p.ts.length < 2) return;
-    const avg = p.ts.reduce((a, b) => a + b, 0) / p.ts.length;
+  function retarget(id, p, hand) {
+    const [k, kb, kt] = hand ? ['ht', 'hbase', 'hts'] : ['target', 'base', 'ts'];
+    if (hand) htOf(id, p);
+    if (p[kb] == null) p[kb] = p[k];
+    p[kt] = [...(p[kt] || []), e2t(p)].slice(-5);
+    if (p[kt].length < 2) return;
+    const avg = p[kt].reduce((a, b) => a + b, 0) / p[kt].length;
     const aim = avg * 0.9;
-    let t = p.target;
-    if (avg > p.target * 1.4) t = p.target + (aim - p.target) / 2;
-    else if (avg < p.target * 0.7) t = p.target - (p.target - aim) / 2;
+    let t = p[k];
+    if (avg > p[k] * 1.4) t = p[k] + (aim - p[k]) / 2;
+    else if (avg < p[k] * 0.7) t = p[k] - (p[k] - aim) / 2;
     else return;
     t = Math.max(1000, Math.round(t / 100) * 100);
-    if (t === p.target) return;
-    const up = t > p.target;
-    p.target = t;
+    if (t === p[k]) return;
+    const up = t > p[k];
+    p[k] = t;
     toast(`${C.caseById(id).name}: objetivo ${up ? 'ajustado' : 'más exigente'}, ${secs(t)}`);
   }
   const e2t = (p) => p.last[p.last.length - 1].t;
   // Each attempt (from the training log).
-  const qualifies = (x, p) => !x.x && !x.a && !!x.ok && (x.m === 'c' ? x.t != null && x.t <= p.target : x.m === 'q' ? x.t != null && x.t <= session.look : true);
+  const qualifies = (x, p) => !x.x && !x.a && !!x.ok && (x.m === 'c' ? x.t != null && x.t <= p.target : x.m === 'q' ? x.t != null && x.t <= session.look : x.t == null || p.ht == null || x.t <= p.ht);
   // Attempts in a row that count, from the last one back. One done with the algorithm in view is practice:
   // it neither adds to the streak nor breaks it.
   function streakOf(p) {
@@ -2468,7 +2478,7 @@
     if (e.m === 'q') { p.qn++; if (e.t != null) p.qsum += e.t; }
     p.last.push({ m: e.m, ok: e.ok ? 1 : 0, t: e.t != null ? e.t : null, x: e.x ? 1 : 0, a: e.a ? 1 : 0 });
     if (p.last.length > 8) p.last = p.last.slice(-8);
-    if (e.m === 'c' && e.ok && e.t != null && !e.a && !e.x) retarget(e.id, p);
+    if ((e.m === 'c' || e.m === 'h') && e.ok && e.t != null && !e.a && !e.x) retarget(e.id, p, e.m === 'h');
     let won = null;
     if (!p.mastered && session.set.includes(e.id) && streakOf(p) >= NEED[{ c: 'cube', h: 'hand', q: 'look' }[e.m]]) won = e.id;
     session.since++;
@@ -2577,12 +2587,14 @@
     } else {
       const ht = p.last.filter((x) => x.m === 'h' && x.ok && x.t != null && !x.a);
       line = p.n || p.lost ? `<b>${p.ok}</b> de ${p.n} bien${ht.length ? ` · media ${secs(ht.reduce((a, x) => a + x.t, 0) / ht.length, 2)}` : ''}${p.lost ? ` · perdido ${p.lost}` : ''}` : 'aún sin hacer';
+      line += ` · objetivo <b>${secs(htOf(id, p))}</b>${p.hbase != null && p.hbase !== p.ht ? ` <span>(era ${secs(p.hbase)}, ajustado a tu ritmo)</span>` : ''}`;
     }
     // An attempt with the algorithm in view, with an eye: it does not count for the streak.
     const EYE = EYE_ON.replace('width="18" height="18"', 'width="12" height="12"');
     const last = p.last.map((x) => (x.x ? '<span class="ko">perdido</span>'
       : x.a ? `<span class="pk" title="Con el algoritmo a la vista: no cuenta">${EYE}${x.t != null ? ` ${f1(x.t)}` : ''}<span class="sr-only"> (con el algoritmo a la vista, no cuenta)</span></span>`
-        : x.ok ? `<span class="ok">✓${x.t != null && x.m !== 'h' ? ` ${f1(x.t)}` : ''}</span>` : '<span class="ko">✗</span>')).join('');
+        : x.ok && !qualifies(x, p) && x.t != null ? `<span class="slow" title="Bien, pero por encima del objetivo: no suma a la racha">✓ ${f1(x.t)}<span class="sr-only"> (más lento que el objetivo)</span></span>`
+          : x.ok ? `<span class="ok">✓${x.t != null ? ` ${f1(x.t)}` : ''}</span>` : '<span class="ko">✗</span>')).join('');
     const cur = !!(tr.c && tr.c.id === id);
     const won = !!p.mastered;
     const eyeOn = peekOn(id);
@@ -2604,7 +2616,7 @@
     $('sessNums').innerHTML = `<b>${session.n}</b> ${session.n === 1 ? 'caso' : 'casos'} · <b>${pct(session.ok, session.n)} %</b> bien${session.lost ? ` · ${session.lost} perdido${session.lost === 1 ? '' : 's'}` : ''} · <b>${session.done.length}</b> ${session.done.length === 1 ? 'dominado' : 'dominados'}`;
     $('sessRule').textContent = (session.mode === 'cube' ? `Dominas un caso con ${need} seguidos por debajo de su objetivo (tu buen nivel para ese caso), sin el algoritmo a la vista. Si te quedas lejos (o vas muy por debajo), el objetivo se ajusta a tu ritmo.`
       : session.mode === 'look' ? `Dominas un caso con ${need} seguidos bien y en menos de ${secs(session.look)}.`
-        : `Dominas un caso con ${need} seguidos bien, sin perderte.`)
+        : `Dominas un caso con ${need} seguidos bien y por debajo de su objetivo, sin perderte.`)
       + (session.auto !== false ? ' Entonces sale del set y entra el siguiente que más te cuesta.' : ' Entonces sale del set y no entra otro.');
     const peekNote = $('sessPeek');
     peekNote.hidden = !(session.mode !== 'look' && session.set.some(peekOn));

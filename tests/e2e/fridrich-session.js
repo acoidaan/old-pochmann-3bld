@@ -240,6 +240,17 @@ const keys = (d) => ({ 'cfop:times:v1': d.times, 'cfop:trlog:v1': d.trlog, 'cfop
   await pk.p.click('[data-eye="sune"]');
   const e2 = await eyes();
   check('eye: pressing it again hides it (and the note goes)', e2.sune === 'false' && !e2.note && !e2.saved.sune, JSON.stringify(e2));
+  // With a normal cube, a right one over the case's target does not add to the streak.
+  const slow = await pk.p.evaluate(() => {
+    const F = window.Fridrich._;
+    const ht = F.session().per.antisune.ht;
+    const card = () => { const c = document.querySelector('#sessSet [data-sc="antisune"]'); return { pips: c.querySelector('.fr-pips').getAttribute('aria-label'), slow: c.querySelectorAll('.fr-sc-last .slow').length }; };
+    F.logTr({ id: 'antisune', m: 'h', ok: 1, t: ht + 6000 });
+    const over = card();
+    F.logTr({ id: 'antisune', m: 'h', ok: 1, t: ht - 200 });
+    return { ht, over, under: card() };
+  });
+  check('hand: a target per case; right but slower than it is shown apart and does not count, under it does', slow.ht >= 1500 && /^0 de 3/.test(slow.over.pips) && slow.over.slow === 1 && /^1 de 3/.test(slow.under.pips), JSON.stringify(slow));
   await pk.ctx.close();
 
   // ================= The overlay's demo: with the smart cube =================
