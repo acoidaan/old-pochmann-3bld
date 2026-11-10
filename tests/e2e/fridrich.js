@@ -338,6 +338,18 @@ const SOLVE = ["D R' F2 L", "U R U' R'", "U' F' U F", "L' U' L", "U B U' B'", "F
   await p.click('#trHandLost');
   const trh = await p.evaluate(() => JSON.parse(localStorage.getItem('cfop:train:v1')));
   check('train/hand: touch works too; «✓ Bien» counts the time, «✗ Me he perdido» a miss', trh[h1.id].mn >= 1 && trh[h1.id].mok >= 1 && trh[h1.id].hn >= 1 && trh[h1.id].hsum > 300 && trh[h3].mfail >= 1, JSON.stringify({ a: trh[h1.id], b: trh[h3] }));
+  // X while the clock runs: stops it and marks a miss straight away.
+  await p.waitForFunction(() => window.Fridrich._.tr.hand && (window.Fridrich._.tr.hp || 'scr') === 'scr', null, { timeout: 30000 });
+  const hx = await p.evaluate(() => window.Fridrich._.tr.hand.c.id);
+  const hxf = await p.evaluate((id) => (JSON.parse(localStorage.getItem('cfop:train:v1'))[id] || {}).mfail || 0, hx);
+  await p.keyboard.down(' ');
+  await p.waitForTimeout(400);
+  await p.keyboard.up(' ');
+  await p.waitForTimeout(200);
+  await p.keyboard.press('x');
+  await p.waitForFunction(() => window.Fridrich._.tr.hand && (window.Fridrich._.tr.hp || 'scr') === 'scr', null, { timeout: 30000 });
+  const hxr = await p.evaluate((id) => ({ f: JSON.parse(localStorage.getItem('cfop:train:v1'))[id].mfail, last: JSON.parse(localStorage.getItem('cfop:trlog:v1')).slice(-1)[0] }), hx);
+  check('train/hand: X with the clock running stops it and counts a miss', hxr.f === hxf + 1 && hxr.last.m === 'h' && hxr.last.x === 1, JSON.stringify(hxr));
   // Its eye: «Ver el algoritmo» shows the case and its algorithm with the scramble; that attempt is practice.
   await p.waitForFunction(() => window.Fridrich._.tr.hand && (window.Fridrich._.tr.hp || 'scr') === 'scr', null, { timeout: 30000 });
   const h4 = await p.evaluate(() => window.Fridrich._.tr.hand.c);

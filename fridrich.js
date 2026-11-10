@@ -2029,7 +2029,7 @@
     if (!t) { box.innerHTML = '<p class="fr-note">Preparando una mezcla…</p>'; return; }
     const ph = handPhase();
     const fam = c.step === 'f2l' ? 'F2L' : isFull(c.step) ? STEP_NAME[c.step] : STEP_NAME[c.step];
-    const msg = { scr: 'Mezcla y, cuando lo tengas, mantén pulsado (o Espacio) y suelta para empezar', hold: 'Mantén…', ready: 'Suelta para empezar', run: 'Toca (o Espacio) para parar', done: '' }[ph];
+    const msg = { scr: 'Mezcla y, cuando lo tengas, mantén pulsado (o Espacio) y suelta para empezar', hold: 'Mantén…', ready: 'Suelta para empezar', run: 'Toca (o Espacio) para parar · X si te has perdido', done: '' }[ph];
     // Its eye: seen at any point before the clock stops, the attempt is practice.
     if (ph !== 'done' && peekOn(c.id)) tr.hPeek = true;
     let html = `<div class="fr-train-head fr-hand">
@@ -2039,8 +2039,8 @@
       <button type="button" class="fr-hclock" id="trHClock" data-phase="${ph}" aria-label="Cronómetro del caso"><span class="fr-hclock-t" id="trHTime">${ph === 'done' ? f2(tr.hms) : ph === 'run' ? f2(now() - tr.ht0) : '0.00'}</span>${msg ? `<span class="hint">${msg}</span>` : ''}</button>`;
     if (ph === 'done') {
       html += `<div class="fr-train-card">${pictureOf(c, t.g, `Así estaba: ${c.name}`)}<div><b class="fr-case-name">${esc(c.name)}</b><p class="fr-note">${tryHow(t)}</p>${tr.hPeek ? '<p class="hint">Con el algoritmo a la vista: cuenta como práctica, aparte de tus tiempos.</p>' : ''}<p class="hint">${esc(c.look)}</p></div></div>
-        <div class="actions"><button class="btn primary" type="button" id="trHandOk">✓ Bien <kbd>Espacio</kbd></button><button class="btn" type="button" id="trHandLost">✗ Me he perdido</button></div>
-        <p class="hint">«Me he perdido» lo apunta como fallo: resuelve el cubo como sea y sigue con otro.</p>`;
+        <div class="actions"><button class="btn primary" type="button" id="trHandOk">✓ Bien <kbd>Espacio</kbd></button><button class="btn" type="button" id="trHandLost">✗ Me he perdido <kbd>X</kbd></button></div>
+        <p class="hint">«Me he perdido» (o X) lo apunta como fallo: resuelve el cubo como sea y sigue con otro.</p>`;
     }
     html += `</div><p class="hint">${esc(trainLine(c.id))}</p>${sessHtml()}`;
     box.innerHTML = html;
@@ -2100,7 +2100,15 @@
       if (ev.repeat) return;
       if (handPhase() === 'done') { handResult(true); return; }
       if (ev.key === ' ') handDown();
-    } else if ((ev.key === 'x' || ev.key === 'X') && handPhase() === 'done') { ev.preventDefault(); handResult(false); }
+    } else if (ev.key === 'x' || ev.key === 'X' || ev.key === 'Backspace') {
+      // X marks the attempt as a miss: on the result card, or straight from the running clock
+      const ph = handPhase();
+      if (ph !== 'done' && ph !== 'run') return;
+      ev.preventDefault();
+      if (ev.repeat) return;
+      if (ph === 'run') handDown();
+      handResult(false);
+    }
   });
   document.addEventListener('keyup', (ev) => {
     if (view !== 'entrenar' || settings.trMode !== 'hand' || typing(ev.target) || ev.key !== ' ') return;
