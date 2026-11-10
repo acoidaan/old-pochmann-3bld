@@ -1544,7 +1544,7 @@
     if (t.an) bits.push(`con el algoritmo a la vista: ${t.an} ${t.an === 1 ? 'vez' : 'veces'}`);
     if (t.fail || t.mfail) bits.push(`te perdiste ${(t.fail || 0) + (t.mfail || 0)} ${(t.fail || 0) + (t.mfail || 0) === 1 ? 'vez' : 'veces'}`);
     if (t.qn) bits.push(`reconociendo: ${Math.round((t.qok / t.qn) * 100)} % · ${f1(t.qsum / t.qn)} s`);
-    if (t.mn) bits.push(`con tu cubo: ${t.hn ? `media ${f1(t.hsum / t.hn)} s · mejor ${f1(t.hbest)} s · ` : ''}${Math.round((t.mok / t.mn) * 100)} % bien (${t.mn})`);
+    if (t.mn) bits.push(`con tu cubo: ${t.hn ? `media ${f1(t.hsum / t.hn)} s · mejor ${f1(t.hbest)} s · ` : ''}${(t.mok || 0) + (t.mfail || 0) ? `${Math.round(((t.mok || 0) / ((t.mok || 0) + (t.mfail || 0))) * 100)} % bien` : 'solo con el algoritmo a la vista'} (${t.mn})`);
     return bits.join(' · ');
   }
   const caseTile = (c) => `<article class="fr-card${c.step === 'f2l' ? ' f2l' : ''}" data-case="${c.id}">
