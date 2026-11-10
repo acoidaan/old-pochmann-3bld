@@ -104,6 +104,17 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
   await p.click('[data-case="pll-Aa"] [data-learn="learning"]');
   const learnt = await p.evaluate(() => ({ learn: JSON.parse(localStorage.getItem('cfop:learn:v1'))['pll-Aa'], sync: (window.Fridrich._.syncData().learn || {})['pll-Aa'] }));
   check('casos: «Aprendiendo» on a full PLL is kept, and goes with the sync', learnt.learn === 'learning' && learnt.sync === 'learning', JSON.stringify(learnt));
+  // The recommended set here comes from training: never practised first, then the ones you get lost in; the
+  // ones that went clean last make way.
+  const rank = await p.evaluate(() => {
+    const F = window.Fridrich._;
+    for (let i = 0; i < 3; i++) F.logTr({ id: 'oll-50', m: 'h', ok: 1, t: 2000 });
+    F.logTr({ id: 'oll-51', m: 'h', ok: 0, t: null, x: 1 });
+    F.logTr({ id: 'oll-51', m: 'h', ok: 1, t: 2500, a: 1 });
+    const r = F.rankByTraining(['oll-50', 'oll-51', 'oll-52'].map((id) => window.Cfop.caseById(id)));
+    return { order: r.map((x) => x.id).join(), why: r.map((x) => x.why[0]) };
+  });
+  check('entrenar: the recommended set ranks by training (not done, lost in or with the eye, then the clean ones)', rank.order === 'oll-52,oll-51,oll-50' && /no lo has practicado/.test(rank.why[0]) && /Te perdiste/.test(rank.why[1]), JSON.stringify(rank));
   await p.evaluate(() => window.Fridrich.showView('progreso'));
   await p.waitForFunction(() => document.querySelectorAll('#progCases .fr-know-bar').length === 3, null, { timeout: 5000 }).catch(() => {});
   const prog = await p.evaluate(() => ({ text: document.getElementById('progCases').innerText.replace(/\s+/g, ' '), bars: document.querySelectorAll('#progCases .fr-know-bar').length, lbar: !!document.querySelector('#progCases .fr-know:nth-child(2) .fr-know-bar .l') }));

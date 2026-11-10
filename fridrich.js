@@ -2256,11 +2256,43 @@
   const recommend2 = () => S.recommend({ times, train, trlog, learn, crossTr: load(K.crossTr, []) });
   // Full CFOP: nothing to weigh the 78 against yet, so the set is the ones you are learning (or else the first
   // ones you don't know yet, in the order of Casos).
+  // The full OLL/PLL and F2L cases have no solves to weigh them by: what they cost comes from training them.
+  // Never practised first; then the ones you get lost in, still do with the algorithm in view, or do slowly
+  // against your other cases; a little more the longer since you last did one; a little less if the last
+  // three went clean. Best first.
+  function rankByTraining(list) {
+    const by = {};
+    trlog.forEach((e) => { if (e.m === 'c' || e.m === 'h') (by[e.id] = by[e.id] || []).push(e); });
+    const avgOf = (es) => { const ok = es.filter((e) => e.ok && !e.a && !e.x && e.t != null); return ok.length ? ok.reduce((a, e) => a + e.t, 0) / ok.length : null; };
+    const avgs = list.map((c) => avgOf((by[c.id] || []).slice(-10))).filter((x) => x != null).sort((a, b) => a - b);
+    const ref = avgs.length ? avgs[Math.floor(avgs.length / 4)] : null;
+    const nowMs = Date.now();
+    return list.map((c) => {
+      const es = (by[c.id] || []).slice(-10);
+      const why = [];
+      let ms = 0;
+      if (!es.length) { ms = 100; why.push('Aún no lo has practicado'); } else {
+        const lost = es.filter((e) => e.x).length;
+        const peek = es.filter((e) => e.a && !e.x).length;
+        const avg = avgOf(es);
+        if (lost) { ms += (lost / es.length) * 60; why.push(`Te perdiste en ${lost} de los últimos ${es.length}`); }
+        if (peek) { ms += (peek / es.length) * 40; why.push(`${peek} de los últimos ${es.length}, con el algoritmo a la vista`); }
+        if (avg != null && ref && avg > ref * 1.1) { ms += Math.min(2, avg / ref - 1) * 30; why.push(`Lo haces en ${f1(avg)} s (tus casos rápidos, ${f1(ref)} s)`); }
+        if (avg == null && !peek) { ms += 20; why.push('Aún no te ha salido bien'); }
+        const days = (nowMs - es[es.length - 1].at) / 86400000;
+        ms += Math.min(30, days);
+        if (days >= 3) why.push(`Hace ${Math.floor(days)} días que no lo haces`);
+        if (es.slice(-3).length === 3 && es.slice(-3).every((e) => e.ok && !e.a && !e.x)) { ms -= 20; if (!why.length) why.push('Te sale bien: un repaso'); }
+      }
+      if (statusOf(c.id) === 'learning' && why.length < 3) why.push('Lo estás aprendiendo');
+      return { id: c.id, c, ms, why: why.slice(0, 3) };
+    }).sort((a, b) => b.ms - a.ms);
+  }
   function fullPlan() {
     const base = recommend2();
     const learning = FU.CASES.filter((c) => statusOf(c.id) === 'learning');
     const list = learning.length ? learning : FU.CASES.filter((c) => statusOf(c.id) !== 'known');
-    const set = (list.length ? list : FU.OLL).slice(0, 5).map((c) => ({ id: c.id, c, ms: 0, why: [statusOf(c.id) === 'learning' ? 'Lo estás aprendiendo' : statusOf(c.id) === 'known' ? 'Para repasarlo' : 'Aún no lo has marcado como sabido'] }));
+    const set = rankByTraining(list.length ? list : FU.OLL).slice(0, 5).map((x) => ({ ...x, why: x.why.length ? x.why : [statusOf(x.id) === 'known' ? 'Para repasarlo' : 'Aún no lo has marcado como sabido'] }));
     // Where the time goes, from the steps of your solves (cross, F2L, recognising): those are the same here.
     // Not the 2-look parts: the slow 2-look algorithms, and the U turns of more measured against them; instead,
     // the turns of more against the one-look algorithms of your OLL and PLL (kept with each solve here).
@@ -2305,7 +2337,7 @@
         </li>`).join('')}</ol>
         <p class="hint">Cuentas aproximadas: cada parte contra tu propio nivel bueno (tus casos más rápidos, tu ritmo al girar).</p></details>`;
     }
-    if (FULL) html += '<p class="fr-note">El set de abajo son los OLL y PLL que marcaste como «Aprendiendo» en Casos (o, si no hay, los primeros que aún no te sabes).</p>';
+    if (FULL) html += '<p class="fr-note">El set de abajo sale de los OLL y PLL que marcaste como «Aprendiendo» en Casos (o, si no hay, de los que aún no te sabes): primero los que no has practicado, en los que te pierdes, los que aún haces con el algoritmo a la vista o los más lentos. Los que ya te salen bien van dejando sitio.</p>';
     else if (!parts.length) {
       html += `<p class="fr-note">${plan.solves ? 'En tus últimos solves con el cubo no veo nada que te cueste mucho: sigue así.' : 'Haz unos solves con el cubo inteligente en el cronómetro y te diré en qué paso se te va el tiempo.'} El set de abajo sale de ${times.some((r) => r.sp) ? 'tus solves y ' : ''}lo que entrenas${trlog.length || times.some((r) => r.sp) ? '' : ' (aún nada: empiezo por los casos que más salen)'}.</p>`;
     }
@@ -2501,8 +2533,9 @@
     const fam = familyOf(session.set);
     if (fam) {
       const free = fam.filter((x) => !session.set.includes(x.id) && !session.done.includes(x.id));
-      const c = free.find((x) => statusOf(x.id) === 'learning') || free.find((x) => statusOf(x.id) !== 'known');
-      return c ? { id: c.id, c, ms: 0 } : null;
+      const learning = free.filter((x) => statusOf(x.id) === 'learning');
+      const pool = learning.length ? learning : free.filter((x) => statusOf(x.id) !== 'known');
+      return pool.length ? rankByTraining(pool)[0] : null;
     }
     const out = recommendation().scored.filter((x) => !session.set.includes(x.id) && !session.done.includes(x.id));
     return out.find((x) => x.ms >= 15) || out[0] || null;
@@ -3710,7 +3743,7 @@
     paceFor: (r) => { const pf = settings.pace !== 'off' ? paceFor(r) : null; return pf ? { d: pf.rows.map((x) => Math.round(x.d)), gold: pf.rows.map((x) => x.gold), total: Math.round(pf.total), label: pf.label } : null; },
     recordsOf,
     // For tests.
-    _: { simSolution, caseTarget, nextCase, trainRec: () => train, nowPic, liveTrack: () => track, tr, settings, logTr, celebrate, paceRef, bestsOf, paceTick, myBests, ligaPublish, player, loadLeague, lg, session: () => session, endSession, startSession, openPicker, follow: () => follow, makeFollow, partialKeys, setScramble, makeTry, ct, vibes, syncNow, syncPlan, mergeIn, syncData, offerUpdate, focus: () => focus.on },
+    _: { simSolution, caseTarget, nextCase, rankByTraining, trainRec: () => train, nowPic, liveTrack: () => track, tr, settings, logTr, celebrate, paceRef, bestsOf, paceTick, myBests, ligaPublish, player, loadLeague, lg, session: () => session, endSession, startSession, openPicker, follow: () => follow, makeFollow, partialKeys, setScramble, makeTry, ct, vibes, syncNow, syncPlan, mergeIn, syncData, offerUpdate, focus: () => focus.on },
   };
 
   // ================= Start =================
