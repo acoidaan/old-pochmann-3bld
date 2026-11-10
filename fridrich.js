@@ -1692,6 +1692,14 @@
       const slow = m === 'cube' ? (t.n ? t.sum / t.n / 1000 : 4)
         : m === 'hand' ? (t.mn ? 1 + (1 - t.mok / t.mn) * 4 : 3)
           : (t.qn ? (t.qsum / t.qn) / 1000 + (1 - t.qok / t.qn) * 3 : 3);
+      // In a session the set takes turns: never the same case twice in a row, and the ones it has
+      // tried least come first (what the case did before the session only nudges it).
+      if (session && session.set.includes(c.id)) {
+        if (c.id === avoid && pool.length > 1) return 0;
+        const s = session.per[c.id] || {};
+        const k = (s.n || 0) + (s.lost || 0);
+        return (1 + 3 / (1 + k)) ** 2 * Math.sqrt(0.5 + slow);
+      }
       return (c.id === avoid && pool.length > 1 ? 0.15 : 1) * (1 + 3 / (1 + n)) * (0.5 + slow);
     });
     let x = Math.random() * w.reduce((a, b) => a + b, 0);

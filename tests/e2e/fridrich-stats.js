@@ -152,8 +152,8 @@ const keys = (d) => ({ 'cfop:times:v1': d.times, 'cfop:trlog:v1': d.trlog, 'cfop
   await p.keyboard.press(' ');
   await p.click('#trHandLost');
   await p.waitForFunction(() => window.Fridrich._.tr.hand && !window.Fridrich._.tr.answered, null, { timeout: 30000 });
-  const hl = await p.evaluate((id) => ({ t: JSON.parse(localStorage.getItem('cfop:train:v1'))[id], log: JSON.parse(localStorage.getItem('cfop:trlog:v1')).slice(-2), toast: document.getElementById('toast').innerText, sess: document.getElementById('sessNums').innerText, card: document.querySelector(`#sessSet [data-sc="${id}"] .fr-sc-line`).innerText }), hc);
-  check('lost (normal cube): timed, then «Me he perdido» counted as a fail', hl.t.mfail === 1 && hl.log[1].m === 'h' && hl.log[1].x === 1 && /apuntado como fallo/.test(hl.toast), JSON.stringify(hl));
+  const hl = await p.evaluate((id) => ({ next: window.Fridrich._.tr.hand.c.id, t: JSON.parse(localStorage.getItem('cfop:train:v1'))[id], log: JSON.parse(localStorage.getItem('cfop:trlog:v1')).slice(-2), toast: document.getElementById('toast').innerText, sess: document.getElementById('sessNums').innerText, card: document.querySelector(`#sessSet [data-sc="${id}"] .fr-sc-line`).innerText }), hc);
+  check('lost (normal cube): timed, then «Me he perdido» counted as a fail, and the next case is another one', hl.t.mfail === 1 && hl.log[1].m === 'h' && hl.log[1].x === 1 && /apuntado como fallo/.test(hl.toast) && hl.next !== hc, JSON.stringify(hl));
   check('lost (normal cube): a new case of the set comes, and the session counts it (bar and that case)', /0 casos · 0 % bien · 1 perdido · 0 dominados/.test(hl.sess) && /0 de 0 bien · perdido 1/.test(hl.card) && await p.evaluate((n) => JSON.parse(localStorage.getItem('cfop:trlog:v1')).length === n + 1, before), JSON.stringify(hl));
   await p.click('#sessEnd');
   await p.click('#sessClose');
