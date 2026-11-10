@@ -312,22 +312,32 @@ const SOLVE = ["D R' F2 L", "U R U' R'", "U' F' U F", "L' U' L", "U B U' B'", "F
   await p.click('[data-pick="all"]');
   await p.click('#trModeHand');
   await p.waitForFunction(() => window.Fridrich._.tr.hand, null, { timeout: 30000 });
-  const h1 = await p.evaluate(() => ({ id: window.Fridrich._.tr.hand.c.id, text: document.getElementById('trBox').innerText }));
-  check('train/hand: how to mix a solved cube, then «¿Qué caso te ha quedado?»', /blanco abajo y verde delante, mezcla:/.test(h1.text) && /¿Qué caso te ha quedado\?/.test(h1.text), h1.text.slice(0, 200));
-  await p.click(`[data-answer="${h1.id}"]`);
-  const h2 = await p.evaluate(() => document.getElementById('trFeedback').innerText.replace(/\s+/g, ' '));
-  check('train/hand: right → ✓, what it looks like and how to solve it', /✓/.test(h2) && /Resuélvelo: Amarillo arriba y el \w+ delante/.test(h2), h2);
-  await p.click('#trNextQ');
-  await p.waitForFunction(() => window.Fridrich._.tr.hand && !window.Fridrich._.tr.answered, null, { timeout: 30000 });
-  const h3 = await p.evaluate(() => window.Fridrich._.tr.hand.c);
-  const other = await p.evaluate(() => [...document.querySelectorAll('[data-answer]')].map((b) => b.dataset.answer).find((x) => x !== window.Fridrich._.tr.hand.c.id));
-  if (other) {
-    await p.click(`[data-answer="${other}"]`);
-    const h4 = await p.evaluate(() => document.getElementById('trFeedback').innerText);
-    check('train/hand: wrong → ✗ and what it was', new RegExp(`✗ Era ${h3.name.replace(/[()]/g, '\\$&')}`).test(h4), h4);
-  }
+  // A scramble that leaves the case (it is not named), then the clock as in a solve, then what it was.
+  const h1 = await p.evaluate(() => ({ id: window.Fridrich._.tr.hand.c.id, name: window.Fridrich._.tr.hand.c.name, text: document.getElementById('trBox').innerText, answers: document.querySelectorAll('[data-answer]').length }));
+  check('train/hand: a scramble for a solved cube and a clock, the case not named nor guessed', /blanco abajo y verde delante, mezcla:/.test(h1.text) && /0\.00/.test(h1.text) && h1.answers === 0 && !h1.text.includes(h1.name), h1.text.slice(0, 200));
+  await p.keyboard.down(' ');
+  await p.waitForTimeout(450);
+  const held = await p.evaluate(() => document.getElementById('trHClock').dataset.phase);
+  await p.keyboard.up(' ');
+  await p.waitForTimeout(700);
+  const running = await p.evaluate(() => ({ ph: document.getElementById('trHClock').dataset.phase, t: document.getElementById('trHTime').textContent }));
+  await p.keyboard.press(' ');
+  await p.waitForTimeout(150);
+  const h2 = await p.evaluate(() => ({ ph: document.getElementById('trHClock').dataset.phase, text: document.getElementById('trBox').innerText.replace(/\s+/g, ' ') }));
+  check('train/hand: hold Space and let go → it runs; Space stops it → the time, which case it was and how to solve it', held === 'ready' && running.ph === 'run' && Number(running.t) > 0.3 && h2.ph === 'done' && h2.text.includes(h1.name) && /Amarillo arriba y el \w+ delante/.test(h2.text) && /✓ Bien/.test(h2.text), JSON.stringify({ held, running, text: h2.text.slice(0, 200) }));
+  await p.keyboard.press(' ');   // «✓ Bien»
+  await p.waitForFunction(() => window.Fridrich._.tr.hand && (window.Fridrich._.tr.hp || 'scr') === 'scr', null, { timeout: 30000 });
+  // The next one, stopped and marked as lost.
+  await p.locator('#trHClock').dispatchEvent('pointerdown');
+  await p.waitForTimeout(400);
+  await p.locator('#trHClock').dispatchEvent('pointerup');
+  await p.waitForTimeout(300);
+  await p.locator('#trHClock').dispatchEvent('pointerdown');
+  await p.waitForTimeout(100);
+  const h3 = await p.evaluate(() => window.Fridrich._.tr.hand.c.id);
+  await p.click('#trHandLost');
   const trh = await p.evaluate(() => JSON.parse(localStorage.getItem('cfop:train:v1')));
-  check('train/hand: counted apart', trh[h1.id].mn >= 1 && trh[h1.id].mok >= 1, JSON.stringify(trh[h1.id]));
+  check('train/hand: touch works too; «✓ Bien» counts the time, «✗ Me he perdido» a miss', trh[h1.id].mn >= 1 && trh[h1.id].mok >= 1 && trh[h1.id].hn >= 1 && trh[h1.id].hsum > 300 && trh[h3].mfail >= 1, JSON.stringify({ a: trh[h1.id], b: trh[h3] }));
 
   // ================= Entrenar: with the cube =================
   await p.click('[data-pick="oll"]');

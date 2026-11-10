@@ -653,3 +653,16 @@ body.trfocus .fr-train-card .fr-top, body.trfocus .fr-quiz-pic .fr-top, body.trf
 body.trfocus .fr-peek .fr-top, body.trfocus .fr-quiz-pic .fr-iso { width: clamp(140px, 30vmin, 240px); height: auto; }
 .fr-sess-bar .fr-sess-full { display: inline-flex; align-items: center; gap: 6px; }
 .fr-sess-bar .fr-sess-full + .btn { margin-left: 0; }
+
+/* «Cubo normal»: the clock of a case, a big area to hold and let go (or Space), as in a solve. */
+.fr-hclock {
+  display: grid; justify-items: center; gap: 6px; width: 100%; margin: 12px 0 4px; padding: 22px 12px;
+  border: 1px solid var(--line); border-radius: 14px; background: var(--raise); color: var(--ink); cursor: pointer;
+  touch-action: none; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent;
+}
+.fr-hclock-t { font-family: var(--font-mono); font-weight: 600; font-size: clamp(40px, 9vw, 72px); line-height: 1; font-variant-numeric: tabular-nums; }
+.fr-hclock[data-phase="hold"] .fr-hclock-t { color: var(--accent); }
+.fr-hclock[data-phase="ready"] { border-color: var(--ok); }
+.fr-hclock[data-phase="ready"] .fr-hclock-t { color: var(--ok); }
+.fr-hclock[data-phase="run"] { border-color: var(--ink); }
+.fr-hand .fr-case-name { font-size: 20px; }

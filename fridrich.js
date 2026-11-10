@@ -1544,7 +1544,7 @@
     if (t.an) bits.push(`con el algoritmo a la vista: ${t.an} ${t.an === 1 ? 'vez' : 'veces'}`);
     if (t.fail || t.mfail) bits.push(`te perdiste ${(t.fail || 0) + (t.mfail || 0)} ${(t.fail || 0) + (t.mfail || 0) === 1 ? 'vez' : 'veces'}`);
     if (t.qn) bits.push(`reconociendo: ${Math.round((t.qok / t.qn) * 100)} % · ${f1(t.qsum / t.qn)} s`);
-    if (t.mn) bits.push(`con tu cubo: ${Math.round((t.mok / t.mn) * 100)} % acertados (${t.mn})`);
+    if (t.mn) bits.push(`con tu cubo: ${t.hn ? `media ${f1(t.hsum / t.hn)} s · mejor ${f1(t.hbest)} s · ` : ''}${Math.round((t.mok / t.mn) * 100)} % bien (${t.mn})`);
     return bits.join(' · ');
   }
   const caseTile = (c) => `<article class="fr-card${c.step === 'f2l' ? ' f2l' : ''}" data-case="${c.id}">
@@ -1767,6 +1767,7 @@
     if (settings.trMode === 'hand') {
       const c = tr.c;
       tr.hand = null;
+      tr.hp = 'scr';
       renderTrain();
       let t;
       try { t = await makeTry(c, true); } catch (e) { t = await makeTry(c, false); }
@@ -1922,20 +1923,7 @@
       </div>`;
       return;
     }
-    if (settings.trMode === 'hand') {
-      const t = tr.hand;
-      const options = optionsFor(c);
-      box.dataset.h = '';
-      box.innerHTML = !t ? '<p class="fr-note">Preparando una mezcla…</p>' : `<div class="fr-train-head">
-        <span class="field-title">${step.name} · ${esc(step.long)}</span>
-        <p class="fr-note"><b>1.</b> Con el cubo resuelto, ${holdText()}, mezcla:</p>
-        <p class="fr-setup">${setupChips(t.setup)}</p>
-        <p class="fr-note"><b>2.</b> ¿Qué caso te ha quedado?</p>
-        <div class="fr-options">${options.map((x, i) => `<button class="btn" type="button" data-answer="${x.id}"><kbd>${(i + 1) % 10}</kbd> ${esc(x.name)}</button>`).join('')}</div>
-        <div class="fr-feedback" id="trFeedback" aria-live="polite"></div>
-      </div><p class="hint">${esc(trainLine(c.id))}</p>${sessHtml()}`;
-      return;
-    }
+    if (settings.trMode === 'hand') { renderHand(box, c); return; }
     if (!cube || !cube.on) {
       box.innerHTML = `<div class="fr-train-off"><p>Para entrenar con tu cubo inteligente, conéctalo en el <a href="#crono">cronómetro</a>. La app te dice cómo dejarlo en un caso, lo resuelves y te mide cuánto tardas en reconocerlo y en hacerlo.</p>
         <p class="hint">Con un cubo cualquiera, prueba «Cubo normal»: te digo cómo mezclarlo, adivinas el caso y te digo cómo resolverlo. Sin cubo, «Reconocer».</p>
@@ -1997,7 +1985,6 @@
     return `<p class="fr-sess"><b>Esta sesión</b> ${bits.join(' · ')}</p>`;
   }
   function answer(id) {
-    if (settings.trMode === 'hand') { answerHand(id); return; }
     if (settings.trMode !== 'look' || !tr.c || tr.answered) return;
     tr.answered = true;
     const ms = now() - tr.qStart;
@@ -2025,45 +2012,93 @@
     if (ok) setTimeout(() => { if (tr.seq === seq && tr.answered && settings.trMode === 'look' && view === 'entrenar') trNext(); }, 1100);
     else $('trNextQ').addEventListener('click', () => trNext());
   }
-  // «Cubo normal»: after guessing, what it was and how to solve it (the cube ends solved for the next one).
-  function answerHand(id) {
+  // «Cubo normal» (any cube, like a GAN V100): a scramble that leaves the case, seen from any side so that it does
+  // not give it away; then the clock as in a solve (hold and let go to start, tap or Space to stop), recognising
+  // and doing it together. Only then which case it was, how to do it, and whether it went right.
+  const handPhase = () => tr.hp || 'scr';
+  let handRaf = 0;
+  function renderHand(box, c) {
     const t = tr.hand;
-    if (!t || tr.answered) return;
-    tr.answered = true;
+    box.dataset.h = '';
+    if (!t) { box.innerHTML = '<p class="fr-note">Preparando una mezcla…</p>'; return; }
+    const ph = handPhase();
+    const fam = c.step === 'f2l' ? 'F2L' : isFull(c.step) ? STEP_NAME[c.step] : STEP_NAME[c.step];
+    const msg = { scr: 'Mezcla y, cuando lo tengas, mantén pulsado (o Espacio) y suelta para empezar', hold: 'Mantén…', ready: 'Suelta para empezar', run: 'Toca (o Espacio) para parar', done: '' }[ph];
+    let html = `<div class="fr-train-head fr-hand">
+      <span class="field-title">Con tu cubo · ${esc(fam)}</span>
+      ${ph === 'scr' || ph === 'hold' || ph === 'ready' ? `<p class="fr-note">Con el cubo resuelto, ${holdText()}, mezcla:</p><p class="fr-setup">${setupChips(t.setup)}</p>` : ''}
+      <button type="button" class="fr-hclock" id="trHClock" data-phase="${ph}" aria-label="Cronómetro del caso"><span class="fr-hclock-t" id="trHTime">${ph === 'done' ? f2(tr.hms) : ph === 'run' ? f2(now() - tr.ht0) : '0.00'}</span>${msg ? `<span class="hint">${msg}</span>` : ''}</button>`;
+    if (ph === 'done') {
+      html += `<div class="fr-train-card">${pictureOf(c, t.g, `Así estaba: ${c.name}`)}<div><b class="fr-case-name">${esc(c.name)}</b><p class="fr-note">${tryHow(t)}</p><p class="hint">${esc(c.look)}</p></div></div>
+        <div class="actions"><button class="btn primary" type="button" id="trHandOk">✓ Bien <kbd>Espacio</kbd></button><button class="btn" type="button" id="trHandLost">✗ Me he perdido</button></div>
+        <p class="hint">«Me he perdido» lo apunta como fallo: resuelve el cubo como sea y sigue con otro.</p>`;
+    }
+    html += `</div><p class="hint">${esc(trainLine(c.id))}</p>${sessHtml()}`;
+    box.innerHTML = html;
+    const clock = $('trHClock');
+    clock.addEventListener('pointerdown', (ev) => { ev.preventDefault(); handDown(); });
+    clock.addEventListener('pointerup', (ev) => { ev.preventDefault(); handUp(); });
+    clock.addEventListener('pointerleave', () => { if (handPhase() === 'hold' || handPhase() === 'ready') { clearTimeout(tr.hHold); tr.hp = 'scr'; renderTrain(); } });
+    if (ph === 'done') {
+      $('trHandOk').addEventListener('click', () => handResult(true));
+      $('trHandLost').addEventListener('click', () => handResult(false));
+    }
+    cancelAnimationFrame(handRaf);
+    if (ph === 'run') {
+      const tick = () => { const el = $('trHTime'); if (!el || handPhase() !== 'run') return; el.textContent = f2(now() - tr.ht0); handRaf = requestAnimationFrame(tick); };
+      handRaf = requestAnimationFrame(tick);
+    }
+  }
+  const f2 = (ms) => (ms / 1000).toFixed(2);
+  function handDown() {
+    const ph = handPhase();
+    if (ph === 'run') { tr.hms = Math.round(now() - tr.ht0); tr.hp = 'done'; tr.answered = true; lastAns = { ok: 1, t: tr.hms, name: tr.hand.c.name, guess: '' }; buzz([40]); renderTrain(); emit('train', null); return; }
+    if (ph !== 'scr') return;
+    tr.hp = 'hold';
+    tr.hHold = setTimeout(() => { if (handPhase() === 'hold') { tr.hp = 'ready'; renderTrain(); } }, HOLD_MS);
+    renderTrain();
+  }
+  function handUp() {
+    const ph = handPhase();
+    clearTimeout(tr.hHold);
+    if (ph === 'ready') { tr.hp = 'run'; tr.ht0 = now(); renderTrain(); emit('train', null); return; }
+    if (ph === 'hold') { tr.hp = 'scr'; renderTrain(); }
+  }
+  function handResult(ok) {
+    const t = tr.hand;
+    if (!t || handPhase() !== 'done') return;
     const c = t.c;
-    const ok = id === c.id;
-    lastAns = { ok: ok ? 1 : 0, t: null, name: c.name, guess: (C.caseById(id) || {}).name || '' };
     const rec = train[c.id] || {};
     rec.mn = (rec.mn || 0) + 1;
-    rec.mok = (rec.mok || 0) + (ok ? 1 : 0);
+    if (ok) {
+      rec.mok = (rec.mok || 0) + 1;
+      rec.hn = (rec.hn || 0) + 1;
+      rec.hsum = (rec.hsum || 0) + tr.hms;
+      rec.hbest = rec.hbest == null ? tr.hms : Math.min(rec.hbest, tr.hms);
+    } else rec.mfail = (rec.mfail || 0) + 1;
     train[c.id] = rec;
     save(K.train, train);
-    logTr({ id: c.id, m: 'h', ok: ok ? 1 : 0 });
-    document.querySelectorAll('[data-answer]').forEach((x) => {
-      x.disabled = true;
-      if (x.dataset.answer === c.id) x.classList.add('right');
-      else if (x.dataset.answer === id) x.classList.add('wrong');
-    });
-    const fb = $('trFeedback');
-    fb.className = `fr-feedback ${ok ? 'ok' : 'ko'}`;
-    fb.innerHTML = `<p class="fr-big ${ok ? 'ok' : ''}">${ok ? '✓' : '✗ Era'} ${esc(c.name)}</p>
-      <div class="fr-train-card">${pictureOf(c, t.g, `Así queda: ${c.name}`)}<div><span class="hint">${esc(c.look)}</span></div></div>
-      <p class="fr-note"><b>3.</b> Resuélvelo: ${tryHow(t)}</p>
-      <div class="actions"><button class="btn primary" type="button" id="trNextQ">Siguiente</button><button class="btn" type="button" id="trHandLost">Me he perdido</button></div>
-      <p class="hint">«Me he perdido» lo apunta como fallo: resuelve el cubo como sea y sigue con otro.</p>`;
-    $('trNextQ').addEventListener('click', () => trNext());
-    $('trHandLost').addEventListener('click', () => {
-      const rec2 = train[c.id] || {};
-      rec2.mfail = (rec2.mfail || 0) + 1;
-      train[c.id] = rec2;
-      save(K.train, train);
-      logTr({ id: c.id, m: 'h', ok: 0, x: 1 });
-      toast(`${c.name}: apuntado como fallo`);
-      trNext();
-    });
+    logTr({ id: c.id, m: 'h', ok: ok ? 1 : 0, t: ok ? tr.hms : null, ...(ok ? {} : { x: 1 }) });
+    if (!ok) toast(`${c.name}: apuntado como fallo`);
+    tr.hp = 'scr';
+    trNext();
   }
   document.addEventListener('keydown', (ev) => {
-    if (view !== 'entrenar' || (settings.trMode !== 'look' && settings.trMode !== 'hand') || typing(ev.target)) return;
+    if (view !== 'entrenar' || settings.trMode !== 'hand' || typing(ev.target) || ev.ctrlKey || ev.metaKey || ev.altKey) return;
+    if (ev.key === ' ' || ev.key === 'Enter') {
+      ev.preventDefault();
+      if (ev.repeat) return;
+      if (handPhase() === 'done') { handResult(true); return; }
+      if (ev.key === ' ') handDown();
+    } else if ((ev.key === 'x' || ev.key === 'X') && handPhase() === 'done') { ev.preventDefault(); handResult(false); }
+  });
+  document.addEventListener('keyup', (ev) => {
+    if (view !== 'entrenar' || settings.trMode !== 'hand' || typing(ev.target) || ev.key !== ' ') return;
+    ev.preventDefault();
+    handUp();
+  });
+  document.addEventListener('keydown', (ev) => {
+    if (view !== 'entrenar' || settings.trMode !== 'look' || typing(ev.target)) return;
     const n = ev.key === '0' ? 10 : Number(ev.key);
     if (n >= 1 && n <= 10) {
       const b = document.querySelectorAll('[data-answer]')[n - 1];
@@ -2514,7 +2549,8 @@
         : peeked ? `${peeked} con el algoritmo a la vista <span>(${peeked === 1 ? 'no cuenta' : 'no cuentan'})</span>` : 'aún sin hacer';
       line += ` · objetivo <b>${secs(p.target)}</b>${p.base != null && p.base !== p.target ? ` <span>(era ${secs(p.base)}, ajustado a tu ritmo)</span>` : ''}`;
     } else {
-      line = p.n || p.lost ? `<b>${p.ok}</b> de ${p.n} bien${p.lost ? ` · perdido ${p.lost}` : ''}` : 'aún sin hacer';
+      const ht = p.last.filter((x) => x.m === 'h' && x.ok && x.t != null);
+      line = p.n || p.lost ? `<b>${p.ok}</b> de ${p.n} bien${ht.length ? ` · media ${secs(ht.reduce((a, x) => a + x.t, 0) / ht.length, 2)}` : ''}${p.lost ? ` · perdido ${p.lost}` : ''}` : 'aún sin hacer';
     }
     // An attempt with the algorithm in view, with an eye: it does not count for the streak.
     const EYE = EYE_ON.replace('width="18" height="18"', 'width="12" height="12"');
