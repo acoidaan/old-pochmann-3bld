@@ -1768,6 +1768,7 @@
       const c = tr.c;
       tr.hand = null;
       tr.hp = 'scr';
+      tr.hPeek = false;
       renderTrain();
       let t;
       try { t = await makeTry(c, true); } catch (e) { t = await makeTry(c, false); }
@@ -1894,6 +1895,11 @@
     renderTrain();
     if (session) renderSession();
   }
+  // «Ver el algoritmo»: open, it stays in view each time this case comes up, until hidden.
+  const peekBox = (c, note) => {
+    const shown = peekOn(c.id);
+    return `<details class="fr-peek" id="trPeek"${shown ? ' open' : ''}><summary>${shown ? 'Ocultar el algoritmo' : 'Ver el algoritmo'}</summary>${casePicture(c)}<p><b>${esc(c.name)}</b> ${algHtml(c.alg)}</p><p class="hint">${esc(c.look)}</p><p class="hint">Se queda a la vista cada vez que salga este caso, hasta que lo ocultes (también con su ojo, en tu set). ${note} Los demás casos no cambian.</p></details>`;
+  };
   function quizPicture() {
     const c = tr.c;
     // An F2L case keeps its slot in front, the top turned; a last-layer one is seen from any side.
@@ -1952,7 +1958,7 @@
       // «Ver el algoritmo» is this case's eye: open, it comes in view every time this case comes up.
       const shown = peekOn(c.id);
       if (shown) tr.peeked = true;
-      html += `<details class="fr-peek" id="trPeek"${shown ? ' open' : ''}><summary>${shown ? 'Ocultar el algoritmo' : 'Ver el algoritmo'}</summary>${casePicture(c)}<p><b>${esc(c.name)}</b> ${algHtml(c.alg)}</p><p class="hint">${esc(c.look)}</p><p class="hint">Se queda a la vista cada vez que salga este caso, hasta que lo ocultes (también con su ojo, en tu set). Mientras, cuenta como práctica: no entra en tus tiempos ni sirve para dominarlo. Los demás casos no cambian.</p></details>`;
+      html += peekBox(c, 'Mientras, cuenta como práctica: no entra en tus tiempos ni sirve para dominarlo.');
       html += '<div class="actions fr-lost"><button class="btn" type="button" data-tr-lost>Me he perdido · otro caso</button><span class="hint">Cuenta como fallo y te preparo otro desde como esté el cubo.</span></div>';
     }
     html += `</div><p class="hint">${esc(trainLine(c.id))}</p>`;
@@ -2024,12 +2030,15 @@
     const ph = handPhase();
     const fam = c.step === 'f2l' ? 'F2L' : isFull(c.step) ? STEP_NAME[c.step] : STEP_NAME[c.step];
     const msg = { scr: 'Mezcla y, cuando lo tengas, mantén pulsado (o Espacio) y suelta para empezar', hold: 'Mantén…', ready: 'Suelta para empezar', run: 'Toca (o Espacio) para parar', done: '' }[ph];
+    // Its eye: seen at any point before the clock stops, the attempt is practice.
+    if (ph !== 'done' && peekOn(c.id)) tr.hPeek = true;
     let html = `<div class="fr-train-head fr-hand">
       <span class="field-title">Con tu cubo · ${esc(fam)}</span>
       ${ph === 'scr' || ph === 'hold' || ph === 'ready' ? `<p class="fr-note">Con el cubo resuelto, ${holdText()}, mezcla:</p><p class="fr-setup">${setupChips(t.setup)}</p>` : ''}
+      ${ph !== 'done' ? peekBox(c, 'Ese intento es práctica: se guarda aparte, no entra en tus tiempos ni sirve para dominarlo.') : ''}
       <button type="button" class="fr-hclock" id="trHClock" data-phase="${ph}" aria-label="Cronómetro del caso"><span class="fr-hclock-t" id="trHTime">${ph === 'done' ? f2(tr.hms) : ph === 'run' ? f2(now() - tr.ht0) : '0.00'}</span>${msg ? `<span class="hint">${msg}</span>` : ''}</button>`;
     if (ph === 'done') {
-      html += `<div class="fr-train-card">${pictureOf(c, t.g, `Así estaba: ${c.name}`)}<div><b class="fr-case-name">${esc(c.name)}</b><p class="fr-note">${tryHow(t)}</p><p class="hint">${esc(c.look)}</p></div></div>
+      html += `<div class="fr-train-card">${pictureOf(c, t.g, `Así estaba: ${c.name}`)}<div><b class="fr-case-name">${esc(c.name)}</b><p class="fr-note">${tryHow(t)}</p>${tr.hPeek ? '<p class="hint">Con el algoritmo a la vista: cuenta como práctica, aparte de tus tiempos.</p>' : ''}<p class="hint">${esc(c.look)}</p></div></div>
         <div class="actions"><button class="btn primary" type="button" id="trHandOk">✓ Bien <kbd>Espacio</kbd></button><button class="btn" type="button" id="trHandLost">✗ Me he perdido</button></div>
         <p class="hint">«Me he perdido» lo apunta como fallo: resuelve el cubo como sea y sigue con otro.</p>`;
     }
@@ -2069,16 +2078,17 @@
     if (!t || handPhase() !== 'done') return;
     const c = t.c;
     const rec = train[c.id] || {};
+    const seen = !!tr.hPeek;
     rec.mn = (rec.mn || 0) + 1;
-    if (ok) {
+    if (ok && !seen) {
       rec.mok = (rec.mok || 0) + 1;
       rec.hn = (rec.hn || 0) + 1;
       rec.hsum = (rec.hsum || 0) + tr.hms;
       rec.hbest = rec.hbest == null ? tr.hms : Math.min(rec.hbest, tr.hms);
-    } else rec.mfail = (rec.mfail || 0) + 1;
+    } else if (!ok) rec.mfail = (rec.mfail || 0) + 1;
     train[c.id] = rec;
     save(K.train, train);
-    logTr({ id: c.id, m: 'h', ok: ok ? 1 : 0, t: ok ? tr.hms : null, ...(ok ? {} : { x: 1 }) });
+    logTr({ id: c.id, m: 'h', ok: ok ? 1 : 0, t: ok ? tr.hms : null, ...(ok ? {} : { x: 1 }), ...(seen ? { a: 1 } : {}) });
     if (!ok) toast(`${c.name}: apuntado como fallo`);
     tr.hp = 'scr';
     trNext();
@@ -2549,7 +2559,7 @@
         : peeked ? `${peeked} con el algoritmo a la vista <span>(${peeked === 1 ? 'no cuenta' : 'no cuentan'})</span>` : 'aún sin hacer';
       line += ` · objetivo <b>${secs(p.target)}</b>${p.base != null && p.base !== p.target ? ` <span>(era ${secs(p.base)}, ajustado a tu ritmo)</span>` : ''}`;
     } else {
-      const ht = p.last.filter((x) => x.m === 'h' && x.ok && x.t != null);
+      const ht = p.last.filter((x) => x.m === 'h' && x.ok && x.t != null && !x.a);
       line = p.n || p.lost ? `<b>${p.ok}</b> de ${p.n} bien${ht.length ? ` · media ${secs(ht.reduce((a, x) => a + x.t, 0) / ht.length, 2)}` : ''}${p.lost ? ` · perdido ${p.lost}` : ''}` : 'aún sin hacer';
     }
     // An attempt with the algorithm in view, with an eye: it does not count for the streak.
@@ -2560,7 +2570,7 @@
     const cur = !!(tr.c && tr.c.id === id);
     const won = !!p.mastered;
     const eyeOn = peekOn(id);
-    const eye = session.mode === 'cube'
+    const eye = session.mode !== 'look'
       ? `<button class="fr-sc-eye" type="button" data-eye="${id}" aria-pressed="${eyeOn}" aria-label="Ver el algoritmo de ${esc(c.name)} al entrenarlo" title="${eyeOn ? 'Sale con el algoritmo a la vista (práctica). Pulsa para ocultarlo.' : 'Pulsa para que salga con el algoritmo a la vista.'}">${eyeOn ? EYE_ON : EYE_OFF}</button>` : '';
     return `<article class="fr-sc${cur ? ' cur' : ''}${won ? ' mastered' : ''}${lastWon === id ? ' won' : ''}" data-sc="${id}">
       <div class="fr-sc-pic">${casePicture(c)}</div>
@@ -2581,7 +2591,7 @@
         : `Dominas un caso con ${need} seguidos bien, sin perderte.`)
       + (session.auto !== false ? ' Entonces sale del set y entra el siguiente que más te cuesta.' : ' Entonces sale del set y no entra otro.');
     const peekNote = $('sessPeek');
-    peekNote.hidden = !(session.mode === 'cube' && session.set.some(peekOn));
+    peekNote.hidden = !(session.mode !== 'look' && session.set.some(peekOn));
     // On a phone the set is below the trainer: a line with each case and its progress, in the bar. A big set
     // would fill the screen: then only the case on now, and how many more.
     const mini = (id) => {

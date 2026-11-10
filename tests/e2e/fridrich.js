@@ -338,6 +338,24 @@ const SOLVE = ["D R' F2 L", "U R U' R'", "U' F' U F", "L' U' L", "U B U' B'", "F
   await p.click('#trHandLost');
   const trh = await p.evaluate(() => JSON.parse(localStorage.getItem('cfop:train:v1')));
   check('train/hand: touch works too; «✓ Bien» counts the time, «✗ Me he perdido» a miss', trh[h1.id].mn >= 1 && trh[h1.id].mok >= 1 && trh[h1.id].hn >= 1 && trh[h1.id].hsum > 300 && trh[h3].mfail >= 1, JSON.stringify({ a: trh[h1.id], b: trh[h3] }));
+  // Its eye: «Ver el algoritmo» shows the case and its algorithm with the scramble; that attempt is practice.
+  await p.waitForFunction(() => window.Fridrich._.tr.hand && (window.Fridrich._.tr.hp || 'scr') === 'scr', null, { timeout: 30000 });
+  const h4 = await p.evaluate(() => window.Fridrich._.tr.hand.c);
+  const hn0 = await p.evaluate((id) => (JSON.parse(localStorage.getItem('cfop:train:v1'))[id] || {}).hn || 0, h4.id);
+  await p.click('#trPeek summary');
+  await p.waitForTimeout(150);
+  const hpk = await p.evaluate(() => ({ open: document.getElementById('trPeek').open, text: document.getElementById('trPeek').innerText, scr: !!document.querySelector('.fr-setup') }));
+  await p.locator('#trHClock').dispatchEvent('pointerdown');
+  await p.waitForTimeout(400);
+  await p.locator('#trHClock').dispatchEvent('pointerup');
+  await p.waitForTimeout(200);
+  await p.locator('#trHClock').dispatchEvent('pointerdown');
+  await p.waitForSelector('#trHandOk');
+  const hpkDone = await p.evaluate(() => document.getElementById('trBox').innerText);
+  await p.click('#trHandOk');
+  const hpk2 = await p.evaluate((id) => ({ hn: (JSON.parse(localStorage.getItem('cfop:train:v1'))[id] || {}).hn || 0, last: JSON.parse(localStorage.getItem('cfop:trlog:v1')).slice(-1)[0] }), h4.id);
+  check('train/hand: its eye shows the case and its algorithm with the scramble; that attempt is practice, not in its times', hpk.open && hpk.scr && hpk.text.includes(h4.name) && /práctica/.test(hpkDone) && hpk2.hn === hn0 && hpk2.last && hpk2.last.a === 1 && hpk2.last.m === 'h', JSON.stringify({ hpk, hpk2, hn0 }));
+  await p.evaluate((id) => { const s = window.Fridrich._.settings; if (s && s.peek) delete s.peek[id]; }, h4.id);
 
   // ================= Entrenar: with the cube =================
   await p.click('[data-pick="oll"]');

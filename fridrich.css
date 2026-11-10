@@ -627,7 +627,7 @@ body.trfocus .view[data-view="entrenar"] {
   background: var(--bg); color: var(--ink); color-scheme: dark; isolation: isolate;
 }
 body.trfocus .view[data-view="entrenar"]::before, body.trfocus .view[data-view="entrenar"]::after {
-  content: ''; position: fixed; z-index: -1; border-radius: 50%; filter: blur(80px); pointer-events: none;
+  content: ''; position: fixed; z-index: -1; border-radius: 50%; pointer-events: none;
   animation: cb-drift 44s ease-in-out infinite alternate; will-change: transform; contain: strict;
 }
 body.trfocus .view[data-view="entrenar"]::before { width: 62vmax; height: 52vmax; left: -16vmax; top: -20vmax; background: radial-gradient(closest-side, rgba(165, 165, 165, .55), rgba(120, 120, 120, .24) 60%, transparent); }

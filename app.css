@@ -410,7 +410,7 @@ body.focus .view[data-view="crono"] > .panel {
 }
 body.focus .view[data-view="crono"] > .panel::before,
 body.focus .view[data-view="crono"] > .panel::after {
-  content: ''; position: absolute; z-index: -1; border-radius: 50%; filter: blur(70px); pointer-events: none;
+  content: ''; position: absolute; z-index: -1; border-radius: 50%; pointer-events: none;
   animation: cb-drift 38s ease-in-out infinite alternate; will-change: transform; contain: strict;
 }
 body.focus .view[data-view="crono"] > .panel::before {
@@ -1149,7 +1149,7 @@ body.focus .memo-ask input { width: 100%; font-size: 18px; }
 :root[data-theme="carbon"] body { background: var(--bg); isolation: isolate; }
 :root[data-theme="carbon"] body::before,
 :root[data-theme="carbon"] body::after {
-  content: ''; position: fixed; z-index: -1; border-radius: 50%; filter: blur(80px); pointer-events: none;
+  content: ''; position: fixed; z-index: -1; border-radius: 50%; pointer-events: none;
   animation: cb-drift 44s ease-in-out infinite alternate; will-change: transform; contain: strict;
 }
 :root[data-theme="carbon"] body::before {

@@ -84,11 +84,13 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
   await p.waitForTimeout(800);   // the page background fades
   const carbon = await p.evaluate(() => {
     const out = { theme: document.documentElement.dataset.theme, saved: localStorage.getItem('op3bld:theme:v1'), bg: getComputedStyle(document.body).backgroundColor, pressed: document.querySelector('[data-theme-set="carbon"]').getAttribute('aria-pressed') };
+    // The moving shapes are soft gradients, never a blur filter (redone each frame, it made the clock stutter).
+    out.blur = getComputedStyle(document.body, '::before').filter;
     document.querySelector('[data-theme-set="auto"]').click();
     out.back = document.documentElement.dataset.theme || 'auto';
     return out;
   });
-  check('theme: «Carbón» in Ajustes makes the whole page charcoal and is kept; «Automático» goes back', carbon.theme === 'carbon' && carbon.saved === 'carbon' && ['rgb(20, 20, 20)', 'rgb(26, 26, 26)'].includes(carbon.bg) && carbon.pressed === 'true' && carbon.back === 'auto', JSON.stringify(carbon));
+  check('theme: «Carbón» in Ajustes makes the whole page charcoal and is kept; «Automático» goes back', carbon.theme === 'carbon' && carbon.saved === 'carbon' && ['rgb(20, 20, 20)', 'rgb(26, 26, 26)'].includes(carbon.bg) && carbon.pressed === 'true' && carbon.blur === 'none' && carbon.back === 'auto', JSON.stringify(carbon));
   await p.click('[data-case-set="foll"]');
   let cs = await p.evaluate(() => ({
     n: document.querySelectorAll('#caseGroups .fr-card').length, groups: document.querySelectorAll('#caseGroups section').length,
