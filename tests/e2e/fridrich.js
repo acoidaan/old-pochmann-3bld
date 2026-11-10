@@ -357,6 +357,10 @@ const SOLVE = ["D R' F2 L", "U R U' R'", "U' F' U F", "L' U' L", "U B U' B'", "F
   await p.click('#trPeek summary');
   await p.waitForTimeout(150);
   const hpk = await p.evaluate(() => ({ open: document.getElementById('trPeek').open, text: document.getElementById('trPeek').innerText, scr: !!document.querySelector('.fr-setup') }));
+  // Hidden again before starting: seen already, so this attempt stays practice, and it says so.
+  await p.click('#trPeek summary');
+  await p.waitForTimeout(150);
+  hpk.left = await p.evaluate(() => !!document.getElementById('trPeekLeft') && !document.getElementById('trPeek').open);
   await p.locator('#trHClock').dispatchEvent('pointerdown');
   await p.waitForTimeout(400);
   await p.locator('#trHClock').dispatchEvent('pointerup');
@@ -366,7 +370,7 @@ const SOLVE = ["D R' F2 L", "U R U' R'", "U' F' U F", "L' U' L", "U B U' B'", "F
   const hpkDone = await p.evaluate(() => document.getElementById('trBox').innerText);
   await p.click('#trHandOk');
   const hpk2 = await p.evaluate((id) => ({ hn: (JSON.parse(localStorage.getItem('cfop:train:v1'))[id] || {}).hn || 0, last: JSON.parse(localStorage.getItem('cfop:trlog:v1')).slice(-1)[0] }), h4.id);
-  check('train/hand: its eye shows the case and its algorithm with the scramble; that attempt is practice, not in its times', hpk.open && hpk.scr && hpk.text.includes(h4.name) && /práctica/.test(hpkDone) && hpk2.hn === hn0 && hpk2.last && hpk2.last.a === 1 && hpk2.last.m === 'h', JSON.stringify({ hpk, hpk2, hn0 }));
+  check('train/hand: its eye shows the case and its algorithm with the scramble; that attempt is practice, not in its times (also if hidden again before starting, which it says)', hpk.open && hpk.left && hpk.scr && hpk.text.includes(h4.name) && /práctica/.test(hpkDone) && hpk2.hn === hn0 && hpk2.last && hpk2.last.a === 1 && hpk2.last.m === 'h', JSON.stringify({ hpk, hpk2, hn0 }));
   await p.evaluate((id) => { const s = window.Fridrich._.settings; if (s && s.peek) delete s.peek[id]; }, h4.id);
 
   // ================= Entrenar: with the cube =================

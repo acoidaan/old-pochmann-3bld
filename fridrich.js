@@ -2046,6 +2046,7 @@
       <span class="field-title">Con tu cubo · ${esc(fam)}</span>
       ${ph === 'scr' || ph === 'hold' || ph === 'ready' ? `<p class="fr-note">Con el cubo resuelto, ${holdText()}, mezcla:</p><p class="fr-setup">${setupChips(t.setup)}</p>` : ''}
       ${ph !== 'done' ? peekBox(c, 'Ese intento es práctica: se guarda aparte, no entra en tus tiempos ni sirve para dominarlo.') : ''}
+      ${ph !== 'done' && tr.hPeek && !peekOn(c.id) ? '<p class="hint" id="trPeekLeft">Ya has visto el algoritmo en esta mezcla, así que este intento aún es práctica. El siguiente ya cuenta.</p>' : ''}
       <button type="button" class="fr-hclock" id="trHClock" data-phase="${ph}" aria-label="Cronómetro del caso"><span class="fr-hclock-t" id="trHTime">${ph === 'done' ? f2(tr.hms) : ph === 'run' ? f2(now() - tr.ht0) : '0.00'}</span>${msg ? `<span class="hint">${msg}</span>` : ''}</button>`;
     if (ph === 'done') {
       html += `<div class="fr-train-card">${pictureOf(c, t.g, `Así estaba: ${c.name}`)}<div><b class="fr-case-name">${esc(c.name)}</b><p class="fr-note">${tryHow(t)}</p>${tr.hPeek ? '<p class="hint">Con el algoritmo a la vista: cuenta como práctica, aparte de tus tiempos.</p>' : ''}${!tr.hPeek && session && session.per[c.id] && tr.hms > htOf(c.id, session.per[c.id]) ? `<p class="hint">Más que su objetivo (${secs(session.per[c.id].ht)}): si te ha salido bien, cuenta para tus tiempos, pero no suma a la racha.</p>` : ''}<p class="hint">${esc(c.look)}</p></div></div>
