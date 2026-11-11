@@ -78,7 +78,7 @@
       };
       ctx.times = mergeList(ctx.times, remote.times);
       save(K.times, ctx.times);
-      ctx.ltimes = mergeList(ctx.ltimes, remote.ltimes).filter((r) => r.m === 'f2l' || r.m === 'll' || r.m === 'pll');
+      ctx.ltimes = mergeList(ctx.ltimes, remote.ltimes).filter((r) => ['cf2l', 'f2l', 'll', 'pll'].includes(r.m));
       save(K.ltimes, ctx.ltimes);
       const rl = remote.learn && typeof remote.learn === 'object' ? remote.learn : {};
       const ra = remote.learnAt && typeof remote.learnAt === 'object' ? remote.learnAt : {};

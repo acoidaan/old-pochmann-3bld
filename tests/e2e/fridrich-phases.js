@@ -3,7 +3,8 @@
 // records or the ranking), with their own averages; a note on a solve; the phase times and notes in sync;
 // timing by phases by hand (a press at the end of each one: the panel, the history, the pace, «Última capa»);
 // «Solo F2L» (the cross done; by hand, pair by pair; with the cube, it stops when the F2L is done, with each
-// pair, its analysis and its turns); the phone.
+// pair, its analysis and its turns); «Cruz + F2L» (a whole scramble, the same up to the F2L, the cross too);
+// the phone.
 const { chromium, devices } = require('playwright');
 const { SITE, SHOTS } = require('../env');
 const results = [];
@@ -27,8 +28,8 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
     return { ctx, p };
   };
   const idle = (p) => p.waitForFunction(() => !document.getElementById('newScr').disabled, null, { timeout: 40000 });
-  // A scramble of «Solo F2L» in place (one for another phase may finish first).
-  const f2lReady = (p) => p.waitForFunction(() => (JSON.parse(localStorage.getItem('cfop:scrmeta:v1') || '{}').m === 'f2l'), null, { timeout: 40000 });
+  // A scramble of that practice in place (one for another may finish first).
+  const modeReady = (p, m) => p.waitForFunction((x) => (JSON.parse(localStorage.getItem('cfop:scrmeta:v1') || '{}').m === x), m, { timeout: 40000 });
   const sample = async (p, n) => {
     const out = [];
     for (let k = 0; k < n; k++) {
@@ -156,7 +157,7 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
   check('by phases: not for «Solo PLL» (one phase)', await q.evaluate(() => document.getElementById('setPhasesRow').hidden));
   // «Solo F2L»: the cross comes done; by phases, one press per pair.
   await q.selectOption('#scrMode', 'f2l');
-  await f2lReady(q);
+  await modeReady(q, 'f2l');
   const f2s = await q.evaluate(() => {
     const M = window.CubeModel;
     const r = window.Cfop.readFace(M.apply(M.solved(), window.Fridrich.scramble()), 'U');
@@ -173,6 +174,26 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
     splits: document.getElementById('splits').innerText.replace(/\s+/g, ' '),
   }));
   check('solo F2L by hand: pair by pair, in its own list with a column for each', p1.ph === 'Pareja 1 · 1/4' && /al acabar la 1\.ª pareja/.test(p1.sub) && f2.r && f2.r.ph.length === 4 && /P1\s*P2\s*P3\s*P4/i.test(f2.head) && f2.row.every((x) => /^\d+\.\d\d$/.test(x)) && /Tu F2L por parejas/i.test(f2.splits), JSON.stringify({ p1, f2 }));
+  // «Cruz + F2L»: a whole scramble (the shortest cross to see), the cross and the F2L.
+  await q.selectOption('#scrMode', 'cf2l');
+  await modeReady(q, 'cf2l');
+  await idle(q);
+  const cfs = await q.evaluate(() => {
+    const M = window.CubeModel;
+    const r = window.Cfop.readFace(M.apply(M.solved(), window.Fridrich.scramble()), 'U');
+    return { cross: r.cross, crossBtn: !document.getElementById('crossShow').hidden, cases: document.getElementById('scrCasesBox').hidden, hint: document.getElementById('setPhasesHint').textContent };
+  });
+  check('cruz + F2L: a whole scramble, its shortest cross to see, by phases the cross and the F2L', cfs.cross < 4 && cfs.crossBtn && cfs.cases && /Cruz, F2L/.test(cfs.hint), JSON.stringify(cfs));
+  await go();
+  await tap();
+  await tap();
+  const cf = await q.evaluate(() => ({
+    r: JSON.parse(localStorage.getItem('cfop:ltimes:v1')).find((x) => x.m === 'cf2l'),
+    head: document.querySelector('#history thead').innerText.replace(/\s+/g, ' '),
+    row: [...document.querySelector('#history tbody tr').cells].slice(3, 5).map((c) => c.textContent),
+    splits: document.getElementById('splits').innerText.replace(/\s+/g, ' '),
+  }));
+  check('cruz + F2L by hand: in its own list, the cross and the F2L', cf.r && cf.r.ph.length === 2 && /Cruz\s*F2L\s*Giros/i.test(cf.head) && cf.row.every((x) => /^\d+\.\d\d$/.test(x)) && /Tu cruz y tu F2L/i.test(cf.splits), JSON.stringify(cf));
   await q.selectOption('#scrMode', 'full');
   await hp.ctx.close();
 
@@ -182,7 +203,7 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
   await v.evaluate(() => document.getElementById('cubeSim').click());
   await v.waitForFunction(() => window.Fridrich.cube().on);
   await v.selectOption('#scrMode', 'f2l');
-  await f2lReady(v);
+  await modeReady(v, 'f2l');
   await v.evaluate(() => window.Fridrich.cube().link.turn(window.Fridrich.scramble()));
   await v.waitForTimeout(150);
   await v.evaluate(() => window.Fridrich.cube().link.turn('z2'));   // white down, as you hold it
@@ -213,6 +234,44 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
   check('solo F2L with the cube: each pair against the shortest, no cross or last layer, and its turns', /Tu F2L · cruz blanca/i.test(vr.splits) && /Pareja 1/.test(vr.splits) && !/Cruz \d/.test(vr.splits) && !/OLL/.test(vr.splits) && /de eficiencia/.test(vr.splits) && /Reconstrucción/.test(vr.splits), vr.splits.slice(0, 400));
   check('solo F2L with the cube: the history with each pair and the turns', vr.row.slice(3, 7).every((x) => /^\d+\.\d\d$/.test(x)) && /\d+ giros · \d+ %/.test(vr.row[7]), JSON.stringify(vr.row));
   await vc.ctx.close();
+
+  // ================= «Cruz + F2L» with the smart cube =================
+  const vc2 = await open({}, '?cubo=virtual');
+  const w = vc2.p;
+  await w.evaluate(() => document.getElementById('cubeSim').click());
+  await w.waitForFunction(() => window.Fridrich.cube().on);
+  await w.selectOption('#scrMode', 'cf2l');
+  await modeReady(w, 'cf2l');
+  await idle(w);
+  await w.evaluate(() => window.Fridrich.cube().link.turn(window.Fridrich.scramble()));
+  await w.waitForTimeout(150);
+  // White down, its shortest cross, then pair by pair.
+  await w.evaluate(() => { const C = window.Cfop; const x = C.bestCross(window.Fridrich.cube().state, 'U'); window.Fridrich.cube().link.turn(`z2 ${x.moves}`); });
+  await w.waitForTimeout(250);
+  for (let k = 0; k < 4; k++) {
+    const left = await w.evaluate(() => {
+      const C = window.Cfop;
+      const g = C.canon(window.Fridrich.cube().state, 'U');
+      if (C.stageOf(g).stage >= 2) return 0;
+      window.Fridrich.cube().link.turn(C.pairSolutions(g, 600000)[0].moves);
+      return 1;
+    });
+    if (!left) break;
+    await w.waitForTimeout(250);
+  }
+  await w.waitForFunction(() => { const l = JSON.parse(localStorage.getItem('cfop:ltimes:v1') || '[]'); return l.length && l[0].an; }, null, { timeout: 20000 }).catch(() => {});
+  const wr = await w.evaluate(() => ({
+    r: JSON.parse(localStorage.getItem('cfop:ltimes:v1') || '[]')[0],
+    solved: window.CubeModel.isSolved(window.Fridrich.cube().state),
+    clock: document.getElementById('clock').dataset.phase,
+    splits: document.getElementById('splits').innerText.replace(/\s+/g, ' '),
+    row: [...document.querySelector('#history tbody tr').cells].map((c) => c.textContent.trim()),
+  }));
+  const r3 = wr.r || {};
+  check('cruz + F2L with the cube: it stops when the F2L is done, the cross and the F2L adding up to the time', wr.clock === 'done' && !wr.solved && r3.m === 'cf2l' && Array.isArray(r3.ph) && r3.ph.length === 2 && r3.ph[0] + r3.ph[1] === r3.t, JSON.stringify({ clock: wr.clock, solved: wr.solved, ph: r3.ph, t: r3.t, m: r3.m }));
+  check('cruz + F2L with the cube: the cross and each pair against the shortest, no last layer', /Tu cruz y tu F2L/i.test(wr.splits) && /Cruz \d/.test(wr.splits) && /Pareja 1/.test(wr.splits) && !/OLL/.test(wr.splits) && /Reconstrucción/.test(wr.splits), wr.splits.slice(0, 400));
+  check('cruz + F2L with the cube: the history with the cross, the F2L and the turns', wr.row.slice(3, 5).every((x) => /^\d+\.\d\d$/.test(x)) && /\d+ giros · \d+ %/.test(wr.row[5]), JSON.stringify(wr.row));
+  await vc2.ctx.close();
 
   // Phone.
   const ph = await open({ ...devices['Pixel 7'] });
