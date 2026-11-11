@@ -1,6 +1,7 @@
 // «Fridrich reducido», practising one phase: the scrambles of «Última capa» and «Solo PLL» leave the cross and
 // the F2L done and only bring the cases asked for; their times go to their own list (not the solves', the
 // records or the ranking), with their own averages; a note on a solve; the phase times and notes in sync;
+// timing by phases by hand (a press at the end of each one: the panel, the history, the pace, «Última capa»);
 // the phone.
 const { chromium, devices } = require('playwright');
 const { SITE, SHOTS } = require('../env');
@@ -103,6 +104,55 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
   });
   check('sync: the phase times and their notes travel', merged.n === 3 && merged.note === 'desde el móvil' && merged.data, JSON.stringify(merged));
   await ctx.close();
+
+  // ================= By phases, by hand (csTimer's «multi-phase») =================
+  const hp = await open({});
+  const q = hp.p;
+  const clk = () => q.evaluate(() => ({ ph: document.getElementById('clockPhase').textContent, sub: document.getElementById('clockSplit').textContent, pace: document.getElementById('pace').textContent }));
+  const go = async () => { await idle(q); await q.keyboard.down(' '); await q.waitForTimeout(400); await q.keyboard.up(' '); await q.waitForTimeout(300); };
+  const tap = async () => { await q.keyboard.press(' '); await q.waitForTimeout(300); };
+  check('by phases: offered without the smart cube', await q.evaluate(() => !document.getElementById('setPhasesRow').hidden && /Cruz, F2L, OLL, PLL/.test(document.getElementById('setPhasesHint').textContent)));
+  await q.check('#setPhases');
+  await go();
+  const c0 = await clk();
+  await q.keyboard.press(' ');   // the cross done
+  await q.keyboard.press(' ');   // straight after: a bounce, nothing
+  const c1 = await clk();
+  check('by phases: it says the phase and what to press for; a second press at once is a bounce', c0.ph === 'Cruz · 1/4' && /al acabar la cruz/.test(c0.sub) && c1.ph === 'F2L · 2/4' && /al acabar el F2L/.test(c1.sub) && /Cruz\s*\d+\.\d\d/.test(c1.pace), JSON.stringify({ c0, c1 }));
+  await q.waitForTimeout(300);
+  await tap();   // F2L
+  await tap();   // OLL
+  const c3 = await clk();
+  await q.keyboard.press(' ');   // PLL: stops
+  await q.waitForTimeout(150);
+  const r1 = await q.evaluate(() => JSON.parse(localStorage.getItem('cfop:times:v1'))[0]);
+  check('by phases: the last press stops; each phase kept, adding up to the time', c3.ph === 'PLL · 4/4' && /para parar/.test(c3.sub) && Array.isArray(r1.ph) && r1.ph.length === 4 && r1.ph.reduce((a, x) => a + x, 0) === r1.t && r1.ph.every((x) => x >= 200), JSON.stringify({ c3, r1 }));
+  const after = await q.evaluate(() => ({
+    splits: document.getElementById('splits').innerText.replace(/\s+/g, ' '),
+    row: [...document.querySelector('#history tbody tr').cells].slice(3, 7).map((c) => c.textContent),
+    phases: document.getElementById('phasesN').textContent,
+  }));
+  check('by phases: the panel after the solve, the history and where the time goes', /por fases/i.test(after.splits) && /Cruz[\s\S]*F2L[\s\S]*OLL[\s\S]*PLL/.test(after.splits) && after.row.every((x) => /^\d+\.\d\d$/.test(x)) && /media de 1 solve por fases/.test(after.phases), JSON.stringify(after));
+  // Two more, and the third has a reference to go against, as with the cube.
+  for (let k = 0; k < 2; k++) { await go(); for (let j = 0; j < 4; j++) await tap(); }
+  check('by phases: they make the pace reference', await q.evaluate(() => { const r = window.Fridrich._.paceRef(); return !!r && /tu media de 3/.test(r.label); }));
+  await go();
+  await tap();
+  const live = await clk();
+  for (let j = 0; j < 3; j++) await tap();
+  check('by phases: the pace live and after, against your average', /Cruz\s*\d+\.\d\d\s*[+−±]\d+\.\d/.test(live.pace) && /Contra tu media de 3/.test(await q.evaluate(() => document.getElementById('splits').innerText)), JSON.stringify(live));
+  // «Última capa»: OLL and PLL.
+  await q.selectOption('#scrMode', 'll');
+  check('by phases: «Última capa» is OLL and PLL', /OLL, PLL/.test(await q.evaluate(() => document.getElementById('setPhasesHint').textContent)));
+  await go();
+  await tap();
+  await tap();
+  const ll = await q.evaluate(() => ({ r: JSON.parse(localStorage.getItem('cfop:ltimes:v1'))[0], row: [...document.querySelector('#history tbody tr').cells].slice(3, 5).map((c) => c.textContent) }));
+  check('by phases: «Última capa» keeps its two, in its own list', ll.r && ll.r.m === 'll' && ll.r.ph && ll.r.ph.length === 2 && ll.row.every((x) => /^\d+\.\d\d$/.test(x)), JSON.stringify(ll));
+  await q.selectOption('#scrMode', 'pll');
+  check('by phases: not for «Solo PLL» (one phase)', await q.evaluate(() => document.getElementById('setPhasesRow').hidden));
+  await q.selectOption('#scrMode', 'full');
+  await hp.ctx.close();
 
   // Phone.
   const ph = await open({ ...devices['Pixel 7'] });

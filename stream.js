@@ -120,7 +120,8 @@
         ok: last.pen !== 'dnf', t: last.t, pen: last.pen || 0, at: last.at,
         first: last.pen !== 'dnf' && !before.length,
         pb: last.pen !== 'dnf' && prevBest != null && val(last) < prevBest,
-        sp: groups(last.sp), cases: caseNames(last.sp),
+        // Its parts: from the cube, or timed by phases by hand.
+        sp: groups(last.sp) || (!last.sp && Array.isArray(last.ph) && last.ph.length === 4 ? last.ph.slice() : null), cases: caseNames(last.sp),
         records: FR.recordsOf ? FR.recordsOf(last).map((x) => ({ k: x.k, v: Math.round(x.v) })) : [],
         pace: FR.paceFor ? FR.paceFor(last) : null,
       };

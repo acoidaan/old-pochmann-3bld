@@ -1,6 +1,7 @@
 // «Fridrich reducido», importing from csTimer: its export file (sessions, +2, DNF, comments, several solves in the
 // same second), choosing the sessions, the solves joining the history in order, importing it again (nothing
-// twice), a file that is not csTimer's, and the phone.
+// twice), a file that is not csTimer's, solves timed by phases («multi-phase»: each phase, the history, the
+// averages; the ones brought before get theirs; in sync), and the phone.
 const { chromium, devices } = require('playwright');
 const { SITE, SHOTS } = require('../env');
 const results = [];
@@ -73,6 +74,41 @@ const CS = {
   await p.click('#csGo');
   check('none chosen: asks for one', /Elige al menos una sesión/.test(await toastText(p)) && !(await p.evaluate(() => document.getElementById('csBox').hidden)));
   await p.click('#csCancel');
+
+  // By phases in csTimer («multi-phase»): [penalty, total, end of phase 3, of 2, of 1]. The first one came
+  // before without them and gets them now; one of 3 phases stays as it is; a DNF, without.
+  const CS2 = {
+    session1: [
+      [[0, 12345, 10000, 6000, 2000], "R U R' U'", '', T0],
+      [[0, 20000, 15000, 9000, 4000], 'U2 F', '', T0 + 300],
+      [[0, 9000, 6000, 3000], 'L2 B', '', T0 + 360],
+      [[-1, 30000, 20000, 10000, 5000], 'D2', '', T0 + 420],
+    ],
+    properties: { sessionData: JSON.stringify({ 1: { name: '3x3 fases', opt: { phases: 4 } } }) },
+  };
+  await p.setInputFiles('#csFile', file(CS2));
+  await p.waitForSelector('#csBox:not([hidden]) [data-cs]');
+  const lab = await p.evaluate(() => document.querySelector('[data-cs]').closest('label').innerText.replace(/\s+/g, ' ').trim());
+  check('multi-phase: the session says how many came by phases', /3x3 fases · 4 tiempos · 3 por fases/.test(lab), lab);
+  await p.click('#csGo');
+  t = await times(p);
+  const at = (dt) => t.find((r) => r.at === (T0 + dt) * 1000) || {};
+  check('multi-phase: each phase as csTimer’s P.1 … P.4, adding up to the time', JSON.stringify(at(300).ph) === '[4000,5000,6000,5000]', JSON.stringify(at(300)));
+  check('multi-phase: the one brought before gets its phases; says so', JSON.stringify(at(0).ph) === '[2000,4000,4000,2345]' && /3 tiempos importados · 1 ya estaba \(le he añadido sus fases\)/.test(await toastText(p)), `${JSON.stringify(at(0))} ${await toastText(p)}`);
+  check('multi-phase: 3 phases kept as they are; a DNF without them', JSON.stringify(at(360).ph) === '[3000,3000,3000]' && !at(420).ph && at(420).pen === 'dnf', JSON.stringify([at(360), at(420)]));
+  const hist = await p.evaluate(() => [...document.querySelectorAll('#history tbody tr')].map((tr) => [...tr.cells].map((c) => c.textContent.trim())));
+  const row = (time) => hist.find((c) => c[1] && c[1].startsWith(time)) || [];
+  check('multi-phase: the history shows cross, F2L, OLL and PLL', row('20.00').slice(3, 7).join() === '4.00,5.00,6.00,5.00', JSON.stringify(row('20.00')));
+  check('multi-phase: other phases than the four, each one in order', /Fases 3\.00 · 3\.00 · 3\.00/.test(row('9.00').join(' ')), JSON.stringify(row('9.00')));
+  check('multi-phase: where the time goes, from the solves by phases', /media de 2 solves por fases/.test(await p.evaluate(() => document.getElementById('phasesN').textContent)), await p.evaluate(() => document.getElementById('phasesN').textContent));
+  // Sync: the phases of a solve another device had without them.
+  const synced = await p.evaluate((x) => {
+    const F = window.Fridrich._;
+    const plain = JSON.parse(localStorage.getItem('cfop:times:v1')).find((r) => r.at === x);
+    F.mergeIn({ times: [{ ...plain, ph: [1000, 2000, 3000, plain.t - 6000] }] });
+    return JSON.parse(localStorage.getItem('cfop:times:v1')).find((r) => r.at === x).ph;
+  }, (T0 + 60) * 1000);
+  check('sync: phases that come in fill a solve without them', JSON.stringify(synced) === '[1000,2000,3000,5000]', JSON.stringify(synced));
   await ctx.close();
 
   const ph = await open({ ...devices['Pixel 7'] });

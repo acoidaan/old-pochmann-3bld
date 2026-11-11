@@ -44,6 +44,8 @@
   }
   // A smart-cube solve with every step timed.
   const full = (r) => r.sp && r.pen !== 'dnf' && Array.isArray(r.sp.s) && r.sp.s.length === 6 && r.sp.s.every(Boolean);
+  // A whole solve timed by phases by hand (or brought from csTimer): cross, F2L, OLL and PLL, no turns.
+  const byHand = (r) => !r.sp && !r.m && r.pen !== 'dnf' && Array.isArray(r.ph) && r.ph.length === 4;
   // Training attempts that are attempts (a «me he perdido» after answering with a normal cube is its own line).
   const isRep = (e) => !(e.m === 'h' && e.x);
 
@@ -166,8 +168,14 @@
 
   // ================= Steps =================
   const GROUPS = [['cross', 'Cruz', [0]], ['f2l', 'F2L', [1]], ['oll', 'OLL', [2, 3]], ['pll', 'PLL', [4, 5]]];
-  function stepSeries(times) {
-    return times.map((r, i) => ({ r, i })).filter(({ r }) => full(r)).map(({ r, i }) => {
+  // With `hand`, the solves timed by phases by hand too (their times only: no turns, no recognising).
+  function stepSeries(times, hand) {
+    return times.map((r, i) => ({ r, i })).filter(({ r }) => full(r) || (hand && byHand(r))).map(({ r, i }) => {
+      if (!r.sp) {
+        const o = { i, at: r.at, t: value(r), moves: null, tps: null, hand: true };
+        GROUPS.forEach(([id], g) => { o[id] = r.ph[g]; o[`${id}Rec`] = null; o[`${id}Moves`] = null; });
+        return o;
+      }
       const s = r.sp.s;
       const o = { i, at: r.at, t: value(r), moves: sum(s.map((x) => x[1] || 0)) };
       GROUPS.forEach(([id, , idx]) => {
@@ -179,9 +187,11 @@
       return o;
     });
   }
-  // Each step now (last 12 smart-cube solves) against before (the 12 before those).
+  // Each step now (last 12 solves with their steps timed) against before (the 12 before those). Turns,
+  // recognising and turns per second, from the smart-cube ones only.
   function steps(times) {
-    const ser = stepSeries(times);
+    const ser = stepSeries(times, true);
+    const known = (xs, k) => mean(xs.map((x) => x[k]).filter((v) => v != null));
     const recent = ser.slice(-12);
     const before = ser.length >= 24 ? ser.slice(-24, -12) : ser.length >= 16 ? ser.slice(0, ser.length - 12) : [];
     const total = mean(recent.map((x) => x.t)) || 1;
@@ -189,12 +199,12 @@
       id, name,
       now: mean(recent.map((x) => x[id])),
       before: before.length ? mean(before.map((x) => x[id])) : null,
-      rec: id === 'oll' || id === 'pll' ? mean(recent.map((x) => x[`${id}Rec`])) : null,
-      moves: mean(recent.map((x) => x[`${id}Moves`])),
+      rec: id === 'oll' || id === 'pll' ? known(recent, `${id}Rec`) : null,
+      moves: known(recent, `${id}Moves`),
       share: mean(recent.map((x) => x[id])) / total,
       series: ser.map((x) => ({ i: x.i, v: x[id] })),
     }));
-    return { n: ser.length, recent: recent.length, groups, tps: mean(recent.map((x) => x.tps)), tpsBefore: before.length ? mean(before.map((x) => x.tps)) : null, series: ser };
+    return { n: ser.length, recent: recent.length, hand: recent.filter((x) => x.hand).length, groups, tps: known(recent, 'tps'), tpsBefore: before.length ? known(before, 'tps') : null, series: ser };
   }
 
   // ================= How good the solves were (from each solve's analysis) =================

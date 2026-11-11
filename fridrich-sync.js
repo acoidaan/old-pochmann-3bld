@@ -70,6 +70,7 @@
           }
           if (mine && !mine.rc && r.rc) { mine.rc = r.rc; changedHere = true; }
           if (mine && !mine.an && r.an) { mine.an = r.an; changedHere = true; }
+          if (mine && !mine.ph && !mine.sp && Array.isArray(r.ph)) { mine.ph = r.ph; changedHere = true; }
         });
         const merged = [...byAt.values()].filter((r) => !dead.has(r.at)).sort((a, b) => a.at - b.at).slice(-2000);
         if (merged.length !== local.length) changedHere = true;

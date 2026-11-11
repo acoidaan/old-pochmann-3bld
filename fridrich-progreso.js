@@ -123,16 +123,17 @@
 
       // ---- Steps
       const st = S.steps(ctx.times);
-      $('progSteps').innerHTML = !st.n ? '<p class="fr-note">Con el cubo inteligente verás aquí cuánto tardas en cada paso y cómo cambia con el tiempo.</p>'
-        : `<p class="hint">Últimos ${st.recent} solves con el cubo${st.groups[0].before != null ? ', comparados con los anteriores' : ''}.</p>
+      const which = !st.hand ? 'con el cubo' : st.hand === st.recent ? 'cronometrados por fases' : `con fases (${st.recent - st.hand} con el cubo)`;
+      $('progSteps').innerHTML = !st.n ? '<p class="fr-note">Con el cubo inteligente (o cronometrando por fases en el cronómetro) verás aquí cuánto tardas en cada paso y cómo cambia con el tiempo.</p>'
+        : `<p class="hint">Últimos ${st.recent} solves ${which}${st.groups[0].before != null ? ', comparados con los anteriores' : ''}.</p>
           <div class="fr-step-cards">${st.groups.map((g) => `<div class="fr-step-card">
             <span class="field-title">${g.name}</span>
             <b class="fr-step-v">${secs(g.now, 2)}</b>
             ${deltaHtml(g.now, g.before) || '<span class="fr-delta same">&nbsp;</span>'}
-            <span class="muted">${Math.round(g.share * 100)} % del solve · ${Math.round(g.moves)} giros${g.rec != null ? ` · ${secs(g.rec)} reconociendo` : ''}</span>
+            <span class="muted">${Math.round(g.share * 100)} % del solve${g.moves != null ? ` · ${Math.round(g.moves)} giros` : ''}${g.rec != null ? ` · ${secs(g.rec)} reconociendo` : ''}</span>
             ${spark(g.series.map((x) => x.v), `${g.name}: ${g.series.length} solves, media móvil de 5`)}
           </div>`).join('')}</div>
-          <p class="fr-note">Giros por segundo: <b>${st.tps.toFixed(2)}</b>${st.tpsBefore != null ? ` ${deltaHtml(st.tps, st.tpsBefore, { higherBetter: true, eps: 0.05, fmt: (d) => d.toFixed(2) })}` : ''}</p>`;
+          ${st.tps != null ? `<p class="fr-note">Giros por segundo: <b>${st.tps.toFixed(2)}</b>${st.tpsBefore != null ? ` ${deltaHtml(st.tps, st.tpsBefore, { higherBetter: true, eps: 0.05, fmt: (d) => d.toFixed(2) })}` : ''}</p>` : ''}`;
 
       // ---- Efficiency
       const ef = S.efficiency(ctx.times);
@@ -169,7 +170,7 @@
           ${tile('Perfectas', `${Math.round((lastC.filter((x) => x.n <= x.opt).length / lastC.length) * 100)} %`, 'la más corta, de las últimas')}
           ${tile('Tiempo', secs(lastC.reduce((s2, x) => s2 + (x.t || 0), 0) / lastC.length, 2), 'de media')}
         </div>` : '<p class="fr-note">Aún no has usado «Entrenar la cruz»: planéala entera en la inspección y te digo cuántos giros te sobran.</p>')
-        + (cg ? `<p class="fr-note">En tus solves con el cubo, la cruz te lleva <b>${secs(cg.now, 2)}</b> y ${Math.round(cg.moves)} giros${ef.n ? `, ${ef.now.crossExtra.toFixed(1)} más que la más corta` : ''}.</p>` : '')
+        + (cg ? `<p class="fr-note">En tus solves ${which}, la cruz te lleva <b>${secs(cg.now, 2)}</b>${cg.moves != null ? ` y ${Math.round(cg.moves)} giros${ef.n ? `, ${ef.now.crossExtra.toFixed(1)} más que la más corta` : ''}` : ''}.</p>` : '')
         + '<div class="actions"><button class="btn" type="button" data-prog-go="cross">Entrenar la cruz</button></div>';
 
       // ---- Cases

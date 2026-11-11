@@ -32,7 +32,7 @@
   };
   const load = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; } catch (e) { return d; } };
   const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* this visit only */ } };
-  const settings = { inspect: false, help: true, sound: true, vibrate: true, cross: 'U', timed: true, trMode: 'cube', chart: 50, pace: 'avg', celebrate: true, peek: {}, scrMode: 'full', scrCases: 'kl', ...load(K.set, {}) };
+  const settings = { inspect: false, help: true, sound: true, vibrate: true, cross: 'U', timed: true, trMode: 'cube', chart: 50, pace: 'avg', celebrate: true, peek: {}, scrMode: 'full', scrCases: 'kl', phases: false, ...load(K.set, {}) };
   if (!['full', 'll', 'pll'].includes(settings.scrMode)) settings.scrMode = 'full';
   if (!['known', 'kl', 'all'].includes(settings.scrCases)) settings.scrCases = 'kl';
   // The algorithm in view is chosen case by case (the eye on each case); the old switch for all of them goes.
@@ -415,6 +415,7 @@
     listMode = settings.scrMode;
     histShown = 25;
     renderScrMode();
+    renderPhasesSet();
     renderStats();
     if (timer.phase !== 'run') { scrSeq++; scrBusy = false; newScramble(); }
   });
@@ -431,7 +432,13 @@
   // idle → (hold) → ready → [inspect →(hold)→ ready] → run → done. With the cube: armed once it is scrambled,
   // the first turn starts it and solving it stops it.
   const HOLD_MS = 300;
-  const timer = { phase: 'idle', t0: 0, t: 0, insp0: 0, hold: 0, held: false, inspHold: false, raf: 0, pen: 0, line: null, startState: null, last: null };
+  const timer = { phase: 'idle', t0: 0, t: 0, insp0: 0, hold: 0, held: false, inspHold: false, raf: 0, pen: 0, line: null, startState: null, last: null, names: null, marks: null };
+  // By hand, by phases (csTimer's «multi-phase»): one press at the end of each phase, the last one stops the
+  // clock. The phases of each kind of practice, as [name, «al acabar …»]; «Solo PLL» is one phase.
+  const HAND_PHASES = { full: [['Cruz', 'la cruz'], ['F2L', 'el F2L'], ['OLL', 'la OLL'], ['PLL', 'la PLL']], ll: [['OLL', 'la OLL'], ['PLL', 'la PLL']] };
+  const SPLIT_GAP = 200;   // a press this soon after the last one is a bounce (csTimer ignores them too)
+  // With the smart cube the phases come on their own.
+  const handPhases = (mode) => (settings.phases && settings.timed && !(cube && cube.on) ? HAND_PHASES[mode || 'full'] || null : null);
   document.body.dataset.timer = 'idle'; // from the start: the competition mode's «Salir» and scramble show at once
   function setPhase(p) {
     timer.phase = p;
@@ -481,6 +488,8 @@
     timer.pen = penaltyNow();
     timer.line = cube && cube.on ? [{ t: 0, st: startState || cube.state }] : null;
     timer.startState = startState || (cube && cube.state);
+    timer.names = timer.line ? null : handPhases(timer.mode);
+    timer.marks = [];
     track = null;
     resetProg();
     pace.ref = timer.mode === 'full' ? paceRef() : null;
@@ -499,6 +508,12 @@
     timer.t = Math.round(end - timer.t0);
     cancelAnimationFrame(timer.raf);
     const r = { at: Date.now(), t: timer.t, pen: timer.pen || 0, scr: timer.scr || scramble };
+    // By phases, by hand: how long each one took (they add up to the time).
+    if (timer.names && timer.marks && timer.marks.length === timer.names.length - 1) {
+      const ends = [...timer.marks.map(Math.round), timer.t];
+      r.ph = ends.map((e, i) => e - (i ? ends[i - 1] : 0));
+    }
+    timer.names = null;
     if (timer.line && timer.line.length > 1) {
       const sp = C.splits(timer.line, settings.cross);
       if (sp && sp.steps[0].done) {
@@ -579,6 +594,7 @@
     cancelAnimationFrame(timer.raf);
     timer.insp0 = 0;
     timer.line = null;
+    timer.names = null;
     $('clockTime').textContent = fmt(0);
     setPhase('idle');
     renderScramble();
@@ -591,27 +607,58 @@
     const armed = cube && cube.on && settings.timed && done(follow) && (p === 'idle' || p === 'inspect');
     const label = {
       idle: armed ? 'Listo · empieza al girar' : 'Listo', hold: 'Mantén…', ready: 'Suelta para empezar', inspect: 'Inspección',
-      ihold: 'Mantén…', iready: 'Suelta para empezar', run: 'En marcha', done: timer.last && timer.last.pen === 'dnf' ? 'DNF' : 'Tiempo',
+      ihold: 'Mantén…', iready: 'Suelta para empezar', run: timer.names ? `${timer.names[timer.marks.length][0]} · ${timer.marks.length + 1}/${timer.names.length}` : 'En marcha',
+      done: timer.last && timer.last.pen === 'dnf' ? 'DNF' : 'Tiempo',
     }[p] || '';
     $('clockPhase').textContent = label;
     let sub = '';
     if (p === 'idle' || p === 'done') {
       sub = cube && cube.on && settings.timed
         ? (armed ? 'Gira y empieza · o mantén Espacio y suelta' : 'Mezcla el cubo con el scramble · o mantén Espacio y suelta')
-        : `Mantén pulsado y suelta para empezar${settings.inspect ? ' la inspección' : ''}`;
+        : `Mantén pulsado y suelta para empezar${settings.inspect ? ' la inspección' : ''}${handPhases(scrMeta.m) ? '; luego pulsa al acabar cada fase' : ''}`;
       if (p === 'done' && timer.last) sub = `${timer.last.pen === 2 ? '+2 por pasarte de 15 s · ' : ''}${sub}`;
     } else if (p === 'inspect') sub = cube && cube.on ? 'Empieza con tu primer giro (o mantén Espacio y suelta)' : 'Mantén y suelta para empezar';
-    else if (p === 'run') sub = cube && cube.on ? 'Se para solo al resolverlo · o pulsa para parar' : 'Pulsa para parar';
+    else if (p === 'run') sub = timer.names ? handSplitText() : cube && cube.on ? 'Se para solo al resolverlo · o pulsa para parar' : 'Pulsa para parar';
     $('clockSplit').textContent = sub;
     if (p === 'idle' && !timer.last) $('clockTime').textContent = fmt(0);
     $('clock').hidden = !settings.timed;
     renderPace();
+    renderPhasesSet();
   }
+  // «Por fases»: by hand only (the smart cube splits on its own), and not for «Solo PLL» (one phase).
+  function renderPhasesSet() {
+    const hp = HAND_PHASES[settings.scrMode];
+    $('setPhases').checked = !!settings.phases;
+    $('setPhasesRow').hidden = !hp || !settings.timed || !!(cube && cube.on);
+    $('setPhasesHint').textContent = hp ? `una pulsación al acabar cada fase (${hp.map((x) => x[0]).join(', ')}); la última para` : '';
+  }
+  $('setPhases').addEventListener('change', (e) => { settings.phases = e.target.checked; saveSettings(); renderClock(); });
   // Space is the timer's even on a focused button or checkbox; not while writing.
   const typing = (el) => el && ((el.tagName === 'INPUT' && !['checkbox', 'radio', 'button', 'submit'].includes(el.type)) || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable);
+  // While running by phases: what to press for, and the phases done (when the pace chips do not show them).
+  function handSplitText() {
+    const n = timer.names.length;
+    const k = timer.marks.length;
+    const ask = `Pulsa al acabar ${timer.names[k][1]}${k === n - 1 ? ' para parar' : ''}`;
+    if (n === 4 && settings.pace !== 'off') return ask;
+    return [...timer.marks.map((m, i) => `${timer.names[i][0]} ${f1(m - (i ? timer.marks[i - 1] : 0))}`), ask].join(' · ');
+  }
+  // A press while running: by phases, the end of one (the last one stops); otherwise, stop.
+  function splitOrStop() {
+    if (!timer.names) { stopRun(); return; }
+    const t = now() - timer.t0;
+    if (t - (timer.marks.length ? timer.marks[timer.marks.length - 1] : 0) < SPLIT_GAP) return;
+    if (timer.marks.length < timer.names.length - 1) {
+      timer.marks.push(t);
+      buzz([25]);
+      renderClock();
+      return;
+    }
+    stopRun();
+  }
   function press() {
     const p = timer.phase;
-    if (p === 'run') { stopRun(); return true; }
+    if (p === 'run') { splitOrStop(); return true; }
     if (p === 'idle' || p === 'done') { timer.hold = setTimeout(() => { if (timer.phase === 'hold') setPhase('ready'); }, HOLD_MS); setPhase('hold'); return true; }
     if (p === 'inspect') { timer.hold = setTimeout(() => { if (timer.phase === 'ihold') setPhase('iready'); }, HOLD_MS); setPhase('ihold'); return true; }
     return false;
@@ -626,7 +673,7 @@
   document.addEventListener('keydown', (ev) => {
     if (view !== 'crono' || !settings.timed || typing(ev.target)) return;
     if (ev.key === 'Escape') { if (['inspect', 'ihold', 'iready', 'run', 'hold', 'ready'].includes(timer.phase)) { ev.preventDefault(); cancel(); } return; }
-    if (timer.phase === 'run' && !ev.repeat && !ev.ctrlKey && !ev.metaKey && !ev.altKey) { ev.preventDefault(); stopRun(); return; }
+    if (timer.phase === 'run' && !ev.repeat && !ev.ctrlKey && !ev.metaKey && !ev.altKey) { ev.preventDefault(); splitOrStop(); return; }
     if (ev.key !== ' ') return;
     ev.preventDefault();
     if (ev.repeat) return;
@@ -985,14 +1032,23 @@
   // for its end, the gap counts up live.
   const PACE_GROUPS = [['Cruz', [0]], ['F2L', [1]], ['OLL', [2, 3]], ['PLL', [4, 5]]];
   const PACE_END = [0, 1, 3, 5];
-  const fullSp = (r) => !!(r && r.sp && r.pen !== 'dnf' && Array.isArray(r.sp.s) && r.sp.s.length === 6 && r.sp.s.every(Boolean));
-  const segOf = (r, g) => PACE_GROUPS[g][1].reduce((a, i) => a + r.sp.s[i][0], 0);
-  const skipIn = (r, g) => PACE_GROUPS[g][1].some((i) => r.sp.s[i][4]);
+  // The four parts of a whole solve (cross, F2L, OLL, PLL), in ms: from the cube's six steps, or from the four
+  // phases timed by hand (or brought from csTimer). null without all four.
+  function partsOf(r) {
+    if (!r || r.m) return null;
+    if (r.sp) return Array.isArray(r.sp.s) && r.sp.s.length === 6 && r.sp.s.every(Boolean) ? PACE_GROUPS.map(([, idx]) => idx.reduce((a, i) => a + r.sp.s[i][0], 0)) : null;
+    return Array.isArray(r.ph) && r.ph.length === 4 ? r.ph : null;
+  }
+  const withParts = (r) => !!(r && r.pen !== 'dnf' && partsOf(r));
+  const segOf = (r, g) => partsOf(r)[g];
+  // A skip: the cube saw it; by hand, a phase pressed straight through.
+  const SKIP_MS = 400;
+  const skipIn = (r, g) => (r.sp ? PACE_GROUPS[g][1].some((i) => r.sp.s[i][4]) : partsOf(r)[g] < SKIP_MS);
   const pace = { ref: null, at: null, live: '' };
   // The reference, from the solves before index `upto`.
   function paceRef(upto = times.length) {
     if (settings.pace === 'off') return null;
-    const before = times.slice(0, upto).filter(fullSp);
+    const before = times.slice(0, upto).filter(withParts);
     let seg;
     let label;
     if (settings.pace === 'pb') {
@@ -1016,44 +1072,55 @@
     return { seg, cum, best, label };
   }
   const signed = (ms) => (Math.abs(ms) < 50 ? '±0.0' : `${ms < 0 ? '−' : '+'}${(Math.abs(ms) / 1000).toFixed(1)}`);
-  // Each part of a solve against a reference: [{ t: part, d: gap at its end, gold }]; null for parts not done.
+  // Each part of a solve, from where each one ended (four, null for parts not done) and which were skips,
+  // against a reference: [{ t: part, d: gap at its end, gold }]. Without a reference, only the times.
   function paceRows(ends, skips, ref) {
     return [0, 1, 2, 3].map((g) => {
-      const end = ends[PACE_END[g]];
+      const end = ends[g];
       if (end == null) return null;
-      const startT = g ? ends[PACE_END[g - 1]] : 0;
-      const seg = end - (startT || 0);
-      const skipped = skips ? PACE_GROUPS[g][1].some((i) => skips[i]) : false;
-      return { t: seg, d: end - ref.cum[g], gold: !skipped && ref.best[g] != null && seg < ref.best[g] };
+      const seg = end - (g ? ends[g - 1] || 0 : 0);
+      return { t: seg, d: ref ? end - ref.cum[g] : null, gold: !!ref && !skips[g] && ref.best[g] != null && seg < ref.best[g] };
     });
   }
   function paceFor(r) {
-    if (!fullSp(r) || r.m) return null;
+    if (!withParts(r)) return null;
     const i = times.indexOf(r);
     const ref = paceRef(i < 0 ? times.length : i);
     if (!ref) return null;
     const ends = [];
-    r.sp.s.reduce((a, x, k) => { ends[k] = a + x[0]; return ends[k]; }, 0);
-    const rows = paceRows(ends, r.sp.s.map((x) => !!x[4]), ref);
-    return { rows, total: ends[5] - ref.cum[3], label: ref.label };
+    partsOf(r).reduce((a, x, g) => { ends[g] = a + x; return ends[g]; }, 0);
+    const rows = paceRows(ends, [0, 1, 2, 3].map((g) => skipIn(r, g)), ref);
+    return { rows, total: ends[3] - ref.cum[3], label: ref.label };
+  }
+  // Where each part ended so far in the solve under way: from the cube, or from the presses by phases.
+  function liveEnds() {
+    if (timer.names) {
+      if (timer.names.length !== 4) return null;
+      const ends = [0, 1, 2, 3].map((g) => (g < timer.marks.length ? timer.marks[g] : null));
+      return { ends, skips: ends.map((e, g) => e != null && e - (g ? ends[g - 1] : 0) < SKIP_MS) };
+    }
+    const reach = liveSplits();
+    return reach ? { ends: PACE_END.map((i) => reach[i]), skips: PACE_GROUPS.map(([, idx]) => idx.some((i) => reach.skip[i])) } : null;
   }
   const chip = (g, row, cls, d) => `<span class="pc ${cls}" data-g="${g}"><span class="pc-n">${PACE_GROUPS[g][0]}</span><b>${row ? f1(row.t) : '…'}</b><span class="pc-d">${d}</span></span>`;
   function renderPace() {
     const box = $('pace');
     if (!box) return;
     let html = '';
-    if (settings.pace !== 'off' && cube && cube.on && settings.timed) {
-      if (timer.phase === 'run' && pace.ref && timer.line) {
-        const reach = liveSplits();
-        if (reach) {
-          const rows = paceRows(reach, reach.skip, pace.ref);
+    const tone = (row) => (row.d == null ? '' : row.gold ? 'gold' : row.d < 0 ? 'ahead' : 'behind');
+    const gap = (row) => (row.d == null ? '' : `${signed(row.d)}${row.gold ? ' ★' : ''}`);
+    if (settings.pace !== 'off' && settings.timed) {
+      // By phases by hand, the chips show the times even with no reference yet.
+      if (timer.phase === 'run' && (timer.names ? timer.names.length === 4 : cube && cube.on && pace.ref && timer.line)) {
+        const live = liveEnds();
+        if (live) {
+          const rows = paceRows(live.ends, live.skips, pace.ref);
           const cur = rows.findIndex((x) => !x);
-          html = rows.map((row, g) => (row ? chip(g, row, row.gold ? 'gold' : row.d < 0 ? 'ahead' : 'behind', `${signed(row.d)}${row.gold ? ' ★' : ''}`)
-            : chip(g, null, g === cur ? 'cur' : 'todo', ''))).join('');
+          html = rows.map((row, g) => (row ? chip(g, row, tone(row), gap(row)) : chip(g, null, g === cur ? 'cur' : 'todo', ''))).join('');
           const lastDone = cur < 0 ? 3 : cur - 1;
-          if (lastDone >= 0 && cur >= 0) html += `<span class="pc-proj">Vas para ${fmt(reach[PACE_END[lastDone]] + pace.ref.cum[3] - pace.ref.cum[lastDone])}</span>`;
+          if (pace.ref && lastDone >= 0 && cur >= 0) html += `<span class="pc-proj">Vas para ${fmt(live.ends[lastDone] + pace.ref.cum[3] - pace.ref.cum[lastDone])}</span>`;
         }
-      } else if (timer.phase === 'done' && timer.last && timer.last.at === pace.at) {
+      } else if (timer.phase === 'done' && timer.last && timer.last.at === pace.at && ((cube && cube.on) || timer.last.ph)) {
         const pf = paceFor(timer.last);
         if (pf) {
           html = pf.rows.map((row, g) => chip(g, row, row.gold ? 'gold' : row.d < 0 ? 'ahead' : 'behind', `${signed(row.d)}${row.gold ? ' ★' : ''}`)).join('')
@@ -1312,10 +1379,29 @@
   }
 
   // ================= After a solve: the splits =================
+  // The phases of a solve timed by hand (or brought from csTimer), by name when they are the usual ones.
+  const phaseNames = (r) => {
+    const fixed = HAND_PHASES[r.m || 'full'];
+    return fixed && fixed.length === r.ph.length ? fixed.map((x) => x[0]) : r.ph.map((x, i) => `Fase ${i + 1}`);
+  };
+  const SEG_CLASS = { Cruz: 'cruz', F2L: 'f2l', OLL: 'oll', PLL: 'pll' };
+  function handSplitsHtml(r, paceLine) {
+    const names = phaseNames(r);
+    const total = r.ph.reduce((a, x) => a + x, 0) || 1;
+    const cls = (i) => SEG_CLASS[names[i]] || ['cruz', 'f2l', 'oll', 'pll'][i % 4];
+    const bar = r.ph.map((t, i) => `<span class="fr-seg fr-seg-${cls(i)}" style="flex-grow:${Math.max(1, t)}" title="${esc(names[i])} ${f1(t)} s"><b>${esc(names[i])}</b> ${f1(t)}</span>`).join('');
+    const rows = r.ph.map((t, i) => `<tr><th scope="row">${esc(names[i])}</th><td>${f1(t)}</td><td class="muted">${Math.round((t / total) * 100)} % del solve</td></tr>`).join('');
+    return `<div class="fr-splits-head"><span class="field-title">Tu solve por fases <span class="muted">· a mano</span></span><b>${fmtRes(r)}</b></div>
+      <div class="fr-bar">${bar}</div>${paceLine}
+      <div class="fr-table" tabindex="0" role="region" aria-label="Tiempos de cada fase"><table><thead><tr><th scope="col">Fase</th><th scope="col">Tiempo</th><th scope="col">Parte</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  }
   function renderSplits(r) {
     const box = $('splits');
-    if (!r || !r.sp) { box.hidden = true; return; }
+    if (!r || (!r.sp && !r.ph)) { box.hidden = true; return; }
     box.hidden = false;
+    const pf = settings.pace !== 'off' ? paceFor(r) : null;
+    const paceLine = pf ? `<p class="fr-pace-line"><span class="muted">Contra ${esc(pf.label)}:</span> ${pf.rows.map((row, g) => `<span class="pc ${row.gold ? 'gold' : row.d < 0 ? 'ahead' : 'behind'}"><span class="pc-n">${PACE_GROUPS[g][0]}</span> <span class="pc-d">${signed(row.d)}${row.gold ? ` ★ tu mejor ${g ? PACE_GROUPS[g][0] : 'cruz'}` : ''}</span></span>`).join(' · ')} → <b class="pc ${pf.total < 0 ? 'ahead' : 'behind'}"><span class="pc-d">${signed(pf.total)} s</span></b></p>` : '';
+    if (!r.sp) { box.innerHTML = handSplitsHtml(r, paceLine); return; }
     const s = r.sp.s;
     const total = s.reduce((a, x) => a + (x ? x[0] : 0), 0) || 1;
     const groups = [['Cruz', [0]], ['F2L', [1]], ['OLL', [2, 3]], ['PLL', [4, 5]]];
@@ -1332,8 +1418,6 @@
       const rx = recog != null && !skip ? `<span class="muted">${f1(recog)} + ${f1(t - recog)}</span>` : '';
       return `<tr><th scope="row">${st.name}</th><td>${f1(t)}</td><td>${moves}<span class="muted"> · ${tps} TPS</span></td><td>${what}</td><td>${rx}</td></tr>`;
     }).join('');
-    const pf = settings.pace !== 'off' ? paceFor(r) : null;
-    const paceLine = pf ? `<p class="fr-pace-line"><span class="muted">Contra ${esc(pf.label)}:</span> ${pf.rows.map((row, g) => `<span class="pc ${row.gold ? 'gold' : row.d < 0 ? 'ahead' : 'behind'}"><span class="pc-n">${PACE_GROUPS[g][0]}</span> <span class="pc-d">${signed(row.d)}${row.gold ? ` ★ tu mejor ${g ? PACE_GROUPS[g][0] : 'cruz'}` : ''}</span></span>`).join(' · ')} → <b class="pc ${pf.total < 0 ? 'ahead' : 'behind'}"><span class="pc-d">${signed(pf.total)} s</span></b></p>` : '';
     box.innerHTML = `<div class="fr-splits-head"><span class="field-title">Tu solve por fases · ${esc(C.crossName(r.sp.f))}</span><b>${fmtRes(r)}</b></div>
       <div class="fr-bar">${bar}</div>${paceLine}
       <div class="fr-table" tabindex="0" role="region" aria-label="Tiempos de cada paso"><table><thead><tr><th scope="col">Paso</th><th scope="col">Tiempo</th><th scope="col">Giros</th><th scope="col">Caso</th><th scope="col">Reconocer + hacer</th></tr></thead><tbody>${rows}</tbody></table></div>`
@@ -1364,17 +1448,19 @@
     renderHistory();
     renderFocus();
   }
-  // Average of each step over the last 12 solves timed with the cube.
+  // Average of each part over the last 12 solves with their parts timed: by the cube or by phases by hand.
   function renderPhases() {
-    const withSp = times.filter((r) => r.sp && r.pen !== 'dnf' && r.sp.s.every(Boolean)).slice(-12);
+    const withP = times.filter(withParts).slice(-12);
     const box = $('phases');
-    box.hidden = withSp.length < 1;
+    box.hidden = withP.length < 1;
     if (box.hidden) return;
-    $('phasesN').textContent = `· media de ${withSp.length} ${withSp.length === 1 ? 'solve' : 'solves'} con el cubo`;
-    const avg = (i, j) => withSp.reduce((a, r) => a + (j == null ? r.sp.s[i][j == null ? 0 : j] : 0) + 0, 0) / withSp.length;
-    const recogAvg = (idx) => withSp.reduce((a, r) => a + idx.reduce((b, i) => b + (r.sp.s[i][2] || 0), 0), 0) / withSp.length;
-    const groups = [['Cruz', [0]], ['F2L', [1]], ['OLL', [2, 3]], ['PLL', [4, 5]]];
-    const vals = groups.map(([name, idx]) => [name, idx.reduce((a, i) => a + avg(i), 0), idx.length > 1 ? recogAvg(idx) : null]);
+    const withSp = withP.filter((r) => r.sp);
+    const n = withP.length;
+    $('phasesN').textContent = `· media de ${n} ${n === 1 ? 'solve' : 'solves'} ${withSp.length === n ? 'con el cubo' : !withSp.length ? 'por fases' : `con fases (${withSp.length} con el cubo)`}`;
+    const parts = withP.map(partsOf);
+    // Recognising, only the cube can tell.
+    const recogAvg = (idx) => (withSp.length ? withSp.reduce((a, r) => a + idx.reduce((b, i) => b + (r.sp.s[i][2] || 0), 0), 0) / withSp.length : null);
+    const vals = PACE_GROUPS.map(([name, idx], g) => [name, parts.reduce((a, x) => a + x[g], 0) / n, idx.length > 1 ? recogAvg(idx) : null]);
     const total = vals.reduce((a, v) => a + v[1], 0) || 1;
     $('phaseBar').innerHTML = vals.map(([name, t]) => `<span class="fr-seg fr-seg-${name.toLowerCase()}" style="flex-grow:${Math.max(1, t)}"><b>${name}</b> ${f1(t)}</span>`).join('');
     const effs = withSp.filter((r) => r.an && r.an.m).map((r) => r.an.i / r.an.m);
@@ -1396,10 +1482,19 @@
     let best = Infinity;
     all.forEach((r, i) => { const v = value(r); isPb[i] = i > 0 && Number.isFinite(v) && v < best && Number.isFinite(best); best = Math.min(best, v); });
     const list = all.map((r, i) => ({ r, i })).reverse().slice(0, histShown);
-    const step = (r, idx) => (r.sp && idx.every((i) => r.sp.s[i]) ? f1(idx.reduce((a, i) => a + r.sp.s[i][0], 0)) : '—');
+    // Each part (cross, F2L, OLL, PLL): the cube's steps, or the phases by hand («Última capa»: OLL and PLL).
+    const partAt = (r, g) => {
+      if (r.sp) { const idx = PACE_GROUPS[g][1]; return idx.every((i) => r.sp.s[i]) ? idx.reduce((a, i) => a + r.sp.s[i][0], 0) : null; }
+      if (!Array.isArray(r.ph)) return null;
+      if (r.m === 'll') return r.ph.length === 2 && g >= 2 ? r.ph[g - 2] : null;
+      return !r.m && r.ph.length === 4 ? r.ph[g] : null;
+    };
+    const step = (r, g) => { const t = partAt(r, g); return t == null ? '—' : f1(t); };
     const short = (c) => c.name.replace('PLL (', '').replace(')', '');
     const cases = (r) => {
       if (r.sp) return viewSteps(r).slice(2).map(([, x]) => { if (!x) return null; if (x[4]) return 'salto'; const c = x[3] && C.caseById(x[3]); return c ? short(c) : null; }).filter(Boolean).join(' · ');
+      // Other phases than the usual ones (from csTimer): each one, in order.
+      if (Array.isArray(r.ph) && phaseNames(r)[0] === 'Fase 1') return `Fases ${r.ph.map(f1).join(' · ')}`;
       return (r.lc || []).map((id) => C.caseById(id)).filter(Boolean).map(short).join(' · ');
     };
     const cols = full ? 9 : 7;
@@ -1409,7 +1504,7 @@
         const a5 = avgOf(all.slice(0, i + 1), 5);
         const n = i + 1;
         return `<tr><td class="muted">${n}</td><td><b>${fmtRes(r)}</b>${isPb[i] ? ' <span class="fr-pbtag" title="Mejor single hasta entonces">PB</span>' : ''}</td><td class="muted">${a5 == null ? '' : fmt(a5)}</td>`
-          + (full ? `<td>${step(r, [0])}</td><td>${step(r, [1])}</td>` : '') + `<td>${step(r, [2, 3])}</td><td>${step(r, [4, 5])}</td><td class="fr-cases">${esc(cases(r))}</td>`
+          + (full ? `<td>${step(r, 0)}</td><td>${step(r, 1)}</td>` : '') + `<td>${step(r, 2)}</td><td>${step(r, 3)}</td><td class="fr-cases">${esc(cases(r))}</td>`
           + `<td class="fr-acts"><button class="x" type="button" data-pen="2" data-i="${i}" aria-label="Poner o quitar +2 al solve ${n}" aria-pressed="${r.pen === 2}">+2</button>`
           + `<button class="x" type="button" data-pen="dnf" data-i="${i}" aria-label="Marcar o desmarcar DNF el solve ${n}" aria-pressed="${r.pen === 'dnf'}">DNF</button>`
           + `<button class="x" type="button" data-note="${r.at}" aria-expanded="${noteAt === r.at}" aria-label="${r.no ? 'Cambiar la nota' : 'Añadir una nota'} del solve ${n}" title="Nota">✎</button>`
@@ -3539,7 +3634,7 @@
   $('setHelp').addEventListener('change', (e) => { settings.help = e.target.checked; saveSettings(); });
   $('setVibrate').addEventListener('change', (e) => { settings.vibrate = e.target.checked; saveSettings(); });
   $('setCelebrate').addEventListener('change', (e) => { settings.celebrate = e.target.checked; saveSettings(); });
-  $('setPace').addEventListener('change', (e) => { settings.pace = e.target.value; saveSettings(); renderPace(); if (timer.last && timer.last.sp) renderSplits(timer.last); });
+  $('setPace').addEventListener('change', (e) => { settings.pace = e.target.value; saveSettings(); renderPace(); if (timer.last && (timer.last.sp || timer.last.ph)) renderSplits(timer.last); });
   $('setSound').addEventListener('change', (e) => { settings.sound = e.target.checked; saveSettings(); if (settings.sound) window.SmartCube.unlockAudio(); });
   $('setCross').addEventListener('change', (e) => { settings.cross = e.target.value; saveSettings(); renderCross(); track = null; tr.c = null; });
   document.querySelectorAll('[data-theme-set]').forEach((b) => b.addEventListener('click', () => {
@@ -3558,6 +3653,14 @@
   });
   // ---- Import from csTimer: its «Exportar a archivo» (a JSON, usually .txt), every session or the ones chosen.
   // A solve there is [[penalty, ms, ...], scramble, comment, unix seconds]; penalty 0, 2000 (+2) or -1 (DNF).
+  // Timed with «multi-phase», after the total come where the other phases ended, from the last one back:
+  // [penalty, total, end of phase n-1, …, end of phase 1] (as csTimer's own P.1 … P.n columns read them).
+  function csPhases(x) {
+    if (x.length < 3 || x.length > 11 || x[0] === -1) return null;
+    const ends = x.slice(1).reverse().map((e) => (Number.isFinite(e) ? Math.round(e) : NaN));
+    if (!ends.every((e, i) => e >= (i ? ends[i - 1] : 0))) return null;
+    return ends.map((e, i) => e - (i ? ends[i - 1] : 0));
+  }
   let csData = null;
   function parseCsTimer(text) {
     let j;
@@ -3578,9 +3681,11 @@
         seen.set(base, n + 1);
         const r = { at: base + n, t: Math.round(x[0][1]), pen: p === -1 ? 'dnf' : p === 2000 ? 2 : 0, scr: typeof x[1] === 'string' ? x[1].trim() : '' };
         if (typeof x[2] === 'string' && x[2].trim()) r.no = x[2].trim().slice(0, 200);
+        const ph = csPhases(x[0]);
+        if (ph) r.ph = ph;
         return r;
       }).filter((r) => r && r.t > 0);
-      return { id, name: String(meta.name == null ? id : meta.name), type, solves };
+      return { id, name: String(meta.name == null ? id : meta.name), type, solves, phased: solves.filter((r) => r.ph).length };
     }).filter((s) => s.solves.length);
     return sessions.length ? sessions : null;
   }
@@ -3588,8 +3693,13 @@
     const box = $('csBox');
     if (!csData) { box.hidden = true; box.innerHTML = ''; return; }
     box.hidden = false;
-    box.innerHTML = `<p>Elige qué sesiones de csTimer traer. Entran como solves completos, con su scramble, su penalización y su comentario como nota.</p>
-      <div class="fr-cs-list">${csData.map((s, i) => `<label class="check"><input type="checkbox" data-cs="${i}"${s.type === '333' ? ' checked' : ''}> <span><b>${esc(s.name)}</b> <span class="muted">· ${s.solves.length} ${s.solves.length === 1 ? 'tiempo' : 'tiempos'}${s.type !== '333' ? ` · ${esc(s.type)}` : ''}</span></span></label>`).join('')}</div>
+    const phaseText = (s) => {
+      if (!s.phased) return '';
+      const n = new Set(s.solves.filter((r) => r.ph).map((r) => r.ph.length));
+      return ` · ${s.phased === s.solves.length ? 'todos' : s.phased} por fases${n.size === 1 && n.has(4) ? ' (cruz, F2L, OLL, PLL)' : ''}`;
+    };
+    box.innerHTML = `<p>Elige qué sesiones de csTimer traer. Entran como solves completos, con su scramble, su penalización, su comentario como nota y, si los cronometraste por fases («multi-phase»), lo que tardaste en cada una.</p>
+      <div class="fr-cs-list">${csData.map((s, i) => `<label class="check"><input type="checkbox" data-cs="${i}"${s.type === '333' ? ' checked' : ''}> <span><b>${esc(s.name)}</b> <span class="muted">· ${s.solves.length} ${s.solves.length === 1 ? 'tiempo' : 'tiempos'}${phaseText(s)}${s.type !== '333' ? ` · ${esc(s.type)}` : ''}</span></span></label>`).join('')}</div>
       <div class="actions"><button class="btn primary" type="button" id="csGo">Importar</button><button class="btn" type="button" id="csCancel">Cancelar</button></div>`;
     $('csGo').addEventListener('click', importCs);
     $('csCancel').addEventListener('click', () => { csData = null; renderCs(); });
@@ -3597,9 +3707,15 @@
   function importCs() {
     const picked = [...document.querySelectorAll('[data-cs]')].filter((b) => b.checked).flatMap((b) => csData[Number(b.dataset.cs)].solves);
     if (!picked.length) { toast('Elige al menos una sesión'); return; }
-    const have = new Set([...times, ...ltimes].map((r) => r.at));
+    const have = new Map([...times, ...ltimes].map((r) => [r.at, r]));
     const dead = new Set(load(K.deleted, []));
     const fresh = picked.filter((r) => !have.has(r.at) && !dead.has(r.at));
+    // Brought before without their phases: they get them now.
+    let filled = 0;
+    picked.forEach((r) => {
+      const mine = have.get(r.at);
+      if (mine && r.ph && !mine.ph && !mine.sp && !mine.m && mine.t === r.t) { mine.ph = r.ph; filled++; }
+    });
     const all = [...times, ...fresh].sort((a, b) => a.at - b.at);
     const cut = Math.max(0, all.length - 2000);
     times = all.slice(cut);
@@ -3610,7 +3726,10 @@
     changed();
     ligaPublishSoon();
     const skipped = picked.length - fresh.length;
-    toast(`${fresh.length} ${fresh.length === 1 ? 'tiempo importado' : 'tiempos importados'}${skipped ? ` · ${skipped} ya estaban` : ''}${cut ? ` · se guardan los 2000 más recientes` : ''}`);
+    const them = filled === 1 ? 'le' : 'les';
+    toast(`${fresh.length} ${fresh.length === 1 ? 'tiempo importado' : 'tiempos importados'}${skipped ? ` · ${skipped} ${skipped === 1 ? 'ya estaba' : 'ya estaban'}` : ''}${filled ? ` (${filled === skipped ? them : `a ${filled} ${them}`} he añadido sus fases)` : ''}${cut ? ' · se guardan los 2000 más recientes' : ''}`);
+    const lastOne = times[times.length - 1];
+    if (lastOne && !timer.last && (lastOne.sp || lastOne.ph)) renderSplits(lastOne);
   }
   $('csImport').addEventListener('click', () => { $('csFile').value = ''; $('csFile').click(); });
   $('csFile').addEventListener('change', async () => {
@@ -3754,8 +3873,9 @@
   renderMode();
   renderStats();
   renderPick();
+  renderPhasesSet();
   const lastWithSp = times.length ? times[times.length - 1] : null;
-  if (lastWithSp && lastWithSp.sp) renderSplits(lastWithSp);
+  if (lastWithSp && (lastWithSp.sp || lastWithSp.ph)) renderSplits(lastWithSp);
   if (scramble && (scrMeta.m || 'full') === settings.scrMode) setScramble(scramble, scrMeta); else { renderScramble(); newScramble(); }
   // Sync set up on the 3BLD page (or another tab): bring this page up to date.
   syncPlan.start(1500);
