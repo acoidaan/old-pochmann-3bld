@@ -681,7 +681,7 @@
         if (!was && done(follow) && settings.timed && settings.inspect && timer.phase === 'idle') startInspection();
       }
       if (trActive()) trMove(mv, st, t);
-      if (ctActive()) ctMove(mv, st, t);
+      if (ctActive() || fridrichCruz.tracking()) ctMove(mv, st, t);
       renderScramble();
       renderLive();
       renderFocus();

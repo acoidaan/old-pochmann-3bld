@@ -126,6 +126,38 @@ const SOLVE = ["D R' F2 L", "U R U' R'", "U' F' U F", "L' U' L", "U B U' B'", "F
   const ctText = await p.evaluate(() => document.getElementById('crossTr').innerText.replace(/\s+/g, ' '));
   check('cross: done → my turns, how many more than the shortest, and the shortest', new RegExp(`${best.length + 2} giros: 2 más que la más corta`).test(ctText) && /La más corta/.test(ctText), ctText.slice(0, 220));
   check('cross: kept for the averages', /Últimas 1: de media 2.0 giros más/.test(ctText), ctText);
+  // Rewind: the cube's turns undone back to the scramble, then the shortest one turn at a time.
+  const ctPhase = () => p.evaluate(() => window.Fridrich._.ct.phase);
+  await p.click('#ctRewind');
+  const back = await p.evaluate(() => [...document.querySelectorAll('.fr-ct-seq .sm')].map((e) => e.textContent).join(' '));
+  check('cross: rewind shows the way back (my cross undone, the turns that cancel left out)', (await ctPhase()) === 'rewind' && back.split(' ').length === best.length, back);
+  await turn(p, back);
+  await p.waitForTimeout(100);
+  const now1 = await p.evaluate(() => document.getElementById('ctNow').textContent);
+  check('cross: back at the scramble → the shortest, its first turn big', (await ctPhase()) === 'replay' && now1 === best.moves.split(' ')[0], now1);
+  await p.click('#ctFull');
+  const fs = await p.evaluate(() => { const r = document.getElementById('ctPanel').getBoundingClientRect(); return document.body.classList.contains('ctfocus') && r.top <= 0 && r.width >= innerWidth - 1 && document.documentElement.scrollWidth <= innerWidth; });
+  check('cross: full screen, only the cross panel', fs);
+  await p.screenshot({ path: `${SHOTS}/fridrich-cross-replay-1280.png` });
+  await p.keyboard.press('Escape');
+  check('cross: Escape leaves full screen', await p.evaluate(() => !document.body.classList.contains('ctfocus')));
+  const mv = best.moves.split(' ');
+  await turn(p, mv[0]);
+  await p.waitForTimeout(50);
+  check('cross: one turn done → the next one', (await p.evaluate(() => document.getElementById('ctNow').textContent)) === (mv[1] || mv[0]));
+  await turn(p, mv.slice(1).join(' '));
+  await p.waitForTimeout(100);
+  check('cross: the shortest done step by step', (await ctPhase()) === 'done' && /¡Hecha!/.test(await p.evaluate(() => document.getElementById('crossTr').innerText)));
+  // Again, and this time I try it myself: it does not count for the averages.
+  await p.click('#ctRewind');
+  await turn(p, await p.evaluate(() => [...document.querySelectorAll('.fr-ct-seq .sm')].map((e) => e.textContent).join(' ')));
+  await p.waitForTimeout(100);
+  await p.click('#ctRetry');
+  check('cross: «Prefiero intentarla yo» → 15 s to plan', (await ctPhase()) === 'plan');
+  await turn(p, best.moves);
+  await p.waitForTimeout(100);
+  const rtText = await p.evaluate(() => document.getElementById('crossTr').innerText.replace(/\s+/g, ' '));
+  check('cross: a repeat is shown but not kept', /¡La más corta!/.test(rtText) && /repetida/.test(rtText) && /Últimas 1:/.test(rtText), rtText.slice(0, 300));
   await p.evaluate(() => document.getElementById('cubeOff').click());
   await p.click('#ctGo');
   await p.waitForFunction(() => window.Fridrich._.ct.phase === 'scramble', null, { timeout: 30000 });
