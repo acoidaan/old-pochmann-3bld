@@ -33,7 +33,7 @@
   const load = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; } catch (e) { return d; } };
   const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* this visit only */ } };
   const settings = { inspect: false, help: true, sound: true, vibrate: true, cross: 'U', timed: true, trMode: 'cube', chart: 50, pace: 'avg', celebrate: true, peek: {}, scrMode: 'full', scrCases: 'kl', phases: false, ...load(K.set, {}) };
-  if (!['full', 'll', 'pll'].includes(settings.scrMode)) settings.scrMode = 'full';
+  if (!['full', 'f2l', 'll', 'pll'].includes(settings.scrMode)) settings.scrMode = 'full';
   if (!['known', 'kl', 'all'].includes(settings.scrCases)) settings.scrCases = 'kl';
   // The algorithm in view is chosen case by case (the eye on each case); the old switch for all of them goes.
   if (!settings.peek || typeof settings.peek !== 'object' || Array.isArray(settings.peek)) settings.peek = {};
@@ -41,10 +41,11 @@
   if (!(settings.cross in C.DOWN)) settings.cross = 'U';
   const saveSettings = () => save(K.set, settings);
   let times = load(K.times, []);
-  // Solves of one phase only (the scramble leaves the cross and F2L done): kept apart, with their own
-  // averages, out of the records and the ranking. r.m: 'll' (OLL + PLL) or 'pll'.
+  // Solves of one phase only (the scramble leaves done what comes before it): kept apart, with their own
+  // averages, out of the records and the ranking. r.m: 'f2l' (the cross done; it ends with the F2L), 'll'
+  // (OLL + PLL) or 'pll'.
   let ltimes = load(K.ltimes, []);
-  const PHASE_NAME = { full: 'Solve completo', ll: 'Última capa', pll: 'Solo PLL' };
+  const PHASE_NAME = { full: 'Solve completo', f2l: 'Solo F2L', ll: 'Última capa', pll: 'Solo PLL' };
   let listMode = settings.scrMode;   // what the stats and the history show
   const listOf = (m) => (m === 'full' ? times : ltimes.filter((r) => r.m === m));
   const findTime = (at) => times.find((r) => r.at === at) || ltimes.find((r) => r.at === at);
@@ -300,7 +301,7 @@
     const mode = settings.scrMode;
     if (mode !== 'full') {
       try {
-        const x = await llScramble(mode);
+        const x = mode === 'f2l' ? await f2lScramble() : await llScramble(mode);
         scr = x.scr;
         meta = { m: mode, c: x.cases };
       } catch (e) { scr = null; }
@@ -347,6 +348,18 @@
     const scr = M.simplifyAlg(await M.withTimeout(M.solveState(toFacelets(target)), 25000));
     if (key(apply(solved(), scr)) !== key(target)) throw new Error('el scramble no llega');
     return { scr, cases };
+  }
+  // «Solo F2L»: any random cube with its shortest cross of your colour done, as a normal-looking scramble
+  // (the rest stays as random as it was).
+  async function f2lScramble() {
+    const raw = M.simplifyAlg(await M.withTimeout(M.requestScramble('full'), 30000));
+    const st = apply(solved(), raw);
+    const x = C.bestCross(st, settings.cross);
+    const g = C.canon(st, settings.cross);
+    const target = norm(x.moves ? apply(g, x.moves) : g);
+    const scr = M.simplifyAlg(await M.withTimeout(M.solveState(toFacelets(target)), 25000));
+    if (key(apply(solved(), scr)) !== key(target)) throw new Error('el scramble no llega');
+    return { scr, cases: [] };
   }
   function renderScramble() {
     renderDuel();
@@ -407,7 +420,7 @@
   function renderScrMode() {
     $('scrMode').value = settings.scrMode;
     $('scrCases').value = settings.scrCases;
-    $('scrCasesBox').hidden = settings.scrMode === 'full';
+    $('scrCasesBox').hidden = !PHASE_STEPS[settings.scrMode];   // the F2L comes as it comes
   }
   $('scrMode').addEventListener('change', () => {
     settings.scrMode = $('scrMode').value;
@@ -435,7 +448,11 @@
   const timer = { phase: 'idle', t0: 0, t: 0, insp0: 0, hold: 0, held: false, inspHold: false, raf: 0, pen: 0, line: null, startState: null, last: null, names: null, marks: null };
   // By hand, by phases (csTimer's «multi-phase»): one press at the end of each phase, the last one stops the
   // clock. The phases of each kind of practice, as [name, «al acabar …»]; «Solo PLL» is one phase.
-  const HAND_PHASES = { full: [['Cruz', 'la cruz'], ['F2L', 'el F2L'], ['OLL', 'la OLL'], ['PLL', 'la PLL']], ll: [['OLL', 'la OLL'], ['PLL', 'la PLL']] };
+  const HAND_PHASES = {
+    full: [['Cruz', 'la cruz'], ['F2L', 'el F2L'], ['OLL', 'la OLL'], ['PLL', 'la PLL']],
+    f2l: [1, 2, 3, 4].map((k) => [`Pareja ${k}`, `la ${k}.ª pareja`, `P${k}`]),
+    ll: [['OLL', 'la OLL'], ['PLL', 'la PLL']],
+  };
   const SPLIT_GAP = 200;   // a press this soon after the last one is a bounce (csTimer ignores them too)
   // With the smart cube the phases come on their own.
   const handPhases = (mode) => (settings.phases && settings.timed && !(cube && cube.on) ? HAND_PHASES[mode || 'full'] || null : null);
@@ -522,6 +539,11 @@
         const fl = FULL ? fullLL(timer.line, sp) : null;
         if (fl) r.sp.fc = fl.map((x) => (x && x.id) || null);
         r.rc = reconstruction(timer.line, sp);
+        // «Solo F2L»: how long each pair took (until one more was in; two at once, the second 0).
+        if (timer.mode === 'f2l' && sp.steps[1].done && sp.pairsAt.every((x) => x != null)) {
+          const ends = [...sp.pairsAt.slice(0, 3).map((x) => Math.min(Math.round(x), timer.t)), timer.t];
+          r.ph = ends.map((e, i) => e - (i ? ends[i - 1] : 0));
+        }
         // How good each step was: worked out just after (the pair searches take a moment).
         const line = timer.line;
         setTimeout(() => {
@@ -552,7 +574,7 @@
       $('clockTime').textContent = fmtRes(r);
       pace.at = r.at;
       setPhase('done');
-      if (cube && cube.on && isSolved(cube.state)) {
+      if (cube && cube.on && finished(cube.state)) {
         if (settings.sound) window.SmartCube.chime();
         buzz([80, 60, 180]);
       }
@@ -615,10 +637,10 @@
     if (p === 'idle' || p === 'done') {
       sub = cube && cube.on && settings.timed
         ? (armed ? 'Gira y empieza · o mantén Espacio y suelta' : 'Mezcla el cubo con el scramble · o mantén Espacio y suelta')
-        : `Mantén pulsado y suelta para empezar${settings.inspect ? ' la inspección' : ''}${handPhases(scrMeta.m) ? '; luego pulsa al acabar cada fase' : ''}`;
+        : `Mantén pulsado y suelta para empezar${settings.inspect ? ' la inspección' : ''}${handPhases(scrMeta.m) ? `; luego pulsa al acabar cada ${scrMeta.m === 'f2l' ? 'pareja' : 'fase'}` : ''}`;
       if (p === 'done' && timer.last) sub = `${timer.last.pen === 2 ? '+2 por pasarte de 15 s · ' : ''}${sub}`;
     } else if (p === 'inspect') sub = cube && cube.on ? 'Empieza con tu primer giro (o mantén Espacio y suelta)' : 'Mantén y suelta para empezar';
-    else if (p === 'run') sub = timer.names ? handSplitText() : cube && cube.on ? 'Se para solo al resolverlo · o pulsa para parar' : 'Pulsa para parar';
+    else if (p === 'run') sub = timer.names ? handSplitText() : cube && cube.on ? `Se para solo al ${timer.mode === 'f2l' ? 'acabar el F2L' : 'resolverlo'} · o pulsa para parar` : 'Pulsa para parar';
     $('clockSplit').textContent = sub;
     if (p === 'idle' && !timer.last) $('clockTime').textContent = fmt(0);
     $('clock').hidden = !settings.timed;
@@ -630,7 +652,8 @@
     const hp = HAND_PHASES[settings.scrMode];
     $('setPhases').checked = !!settings.phases;
     $('setPhasesRow').hidden = !hp || !settings.timed || !!(cube && cube.on);
-    $('setPhasesHint').textContent = hp ? `una pulsación al acabar cada fase (${hp.map((x) => x[0]).join(', ')}); la última para` : '';
+    $('setPhasesHint').textContent = !hp ? '' : settings.scrMode === 'f2l' ? 'una pulsación al acabar cada pareja; la cuarta para'
+      : `una pulsación al acabar cada fase (${hp.map((x) => x[0]).join(', ')}); la última para`;
   }
   $('setPhases').addEventListener('change', (e) => { settings.phases = e.target.checked; saveSettings(); renderClock(); });
   // Space is the timer's even on a focused button or checkbox; not while writing.
@@ -640,8 +663,8 @@
     const n = timer.names.length;
     const k = timer.marks.length;
     const ask = `Pulsa al acabar ${timer.names[k][1]}${k === n - 1 ? ' para parar' : ''}`;
-    if (n === 4 && settings.pace !== 'off') return ask;
-    return [...timer.marks.map((m, i) => `${timer.names[i][0]} ${f1(m - (i ? timer.marks[i - 1] : 0))}`), ask].join(' · ');
+    if (timer.mode === 'full' && settings.pace !== 'off') return ask;
+    return [...timer.marks.map((m, i) => `${timer.names[i][2] || timer.names[i][0]} ${f1(m - (i ? timer.marks[i - 1] : 0))}`), ask].join(' · ');
   }
   // A press while running: by phases, the end of one (the last one stops); otherwise, stop.
   function splitOrStop() {
@@ -692,6 +715,8 @@
   clockEl.addEventListener('click', (ev) => ev.preventDefault());
 
   // ================= The smart cube =================
+  // Where a timed solve ends with the cube: solved, or in «Solo F2L», with the F2L done.
+  const finished = (st) => (timer.mode === 'f2l' ? C.readCube(st, settings.cross).stage >= 2 : isSolved(st));
   let cube = null;
   let prevState = null;
   let track = null;   // the last-layer case being done: its turns, to show how far along
@@ -704,7 +729,7 @@
       track = null;
       if (timer.phase === 'run' && timer.line) timer.line.push({ t: (at > timer.t0 ? at : now()) - timer.t0, st });
       // A turn the cube lost on the way, found when it is asked: if it was the last one, the solve ends there.
-      if (timer.phase === 'run' && at > timer.t0 && isSolved(st)) stopRun(at);
+      if (timer.phase === 'run' && at > timer.t0 && finished(st)) stopRun(at);
       trSync();
       if (at > tr.ready && trActive() && tr.c && tr.ready && !tr.result) trMove(null, st, at);   // and so may a case
       renderAll();
@@ -716,7 +741,7 @@
       prevState = st;
       if (timer.phase === 'run') {
         if (timer.line) timer.line.push({ t: t - timer.t0, st, m: mv, c: ct });
-        if (isSolved(st)) stopRun(t);
+        if (finished(st)) stopRun(t);
       } else if (settings.timed && view === 'crono' && done(follow) && (timer.phase === 'idle' || timer.phase === 'inspect' || timer.phase === 'done') && !trActive() && !ctActive()) {
         // The first turn after scrambling starts the clock.
         startRun(t, before);
@@ -1095,7 +1120,7 @@
   // Where each part ended so far in the solve under way: from the cube, or from the presses by phases.
   function liveEnds() {
     if (timer.names) {
-      if (timer.names.length !== 4) return null;
+      if (timer.mode !== 'full') return null;
       const ends = [0, 1, 2, 3].map((g) => (g < timer.marks.length ? timer.marks[g] : null));
       return { ends, skips: ends.map((e, g) => e != null && e - (g ? ends[g - 1] : 0) < SKIP_MS) };
     }
@@ -1111,7 +1136,7 @@
     const gap = (row) => (row.d == null ? '' : `${signed(row.d)}${row.gold ? ' ★' : ''}`);
     if (settings.pace !== 'off' && settings.timed) {
       // By phases by hand, the chips show the times even with no reference yet.
-      if (timer.phase === 'run' && (timer.names ? timer.names.length === 4 : cube && cube.on && pace.ref && timer.line)) {
+      if (timer.phase === 'run' && (timer.names ? timer.mode === 'full' : cube && cube.on && pace.ref && timer.line)) {
         const live = liveEnds();
         if (live) {
           const rows = paceRows(live.ends, live.skips, pace.ref);
@@ -1241,23 +1266,23 @@
     const rot = C.DOWN[r.sp.f];
     const lines = [];
     if (rot) lines.push(`${rot} // inspección`);
-    viewSteps(r).forEach(([st, , rc]) => { if (rc != null) lines.push(`${rc || '—'} // ${st.name}`); });
+    viewSteps(r).forEach(([st, , rc]) => { if (rc != null && !(r.m === 'f2l' && st.id !== 'f2l')) lines.push(`${rc || '—'} // ${st.name}`); });
     return lines.join('\n');
   }
   function reconHtml(r) {
     if (!r || !r.rc) return '';
     const rot = C.DOWN[r.sp.f];
     const rows = viewSteps(r).map(([st, x, rc]) => {
-      if (!x || rc == null) return '';
+      if (!x || rc == null || (r.m === 'f2l' && st.id !== 'f2l')) return '';   // «Solo F2L»: only its F2L
       return `<li><b>${st.name}</b> <span class="muted">${f1(x[0])} s · ${rc ? rc.split(' ').length : 0} giros</span><span class="fr-recon-moves">${rc ? algHtml(rc) : '<i>nada</i>'}</span></li>`;
     }).join('');
     return `<ol class="fr-recon">${rot ? `<li><b>Inspección</b> <span class="muted">${esc(C.crossName(r.sp.f))} abajo</span><span class="fr-recon-moves">${algHtml(rot)}</span></li>` : ''}${rows}</ol>`
-      + `<div class="actions"><button class="btn" type="button" data-copy-rc="${times.indexOf(r)}">Copiar reconstrucción</button></div>`;
+      + `<div class="actions"><button class="btn" type="button" data-copy-rc="${r.at}">Copiar reconstrucción</button></div>`;
   }
   document.addEventListener('click', async (ev) => {
     const b = ev.target.closest('[data-copy-rc]');
     if (!b) return;
-    const r = times[Number(b.dataset.copyRc)];
+    const r = findTime(Number(b.dataset.copyRc));
     if (!r || !r.rc) return;
     try { await navigator.clipboard.writeText(reconText(r)); toast('Reconstrucción copiada'); } catch (e) { toast('No he podido copiarla'); }
   });
@@ -1319,7 +1344,7 @@
   }
   const slotNames = (face) => SLOT_NAMES(C.canon(solved(), face));
   const extra = (mine, opt) => (opt == null ? '' : mine - opt > 0 ? ` <b class="fr-extra">+${mine - opt}</b>` : ' <span class="fr-perfect" aria-label="lo más corto">✓</span>');
-  const anRow = (name, mine, opt, note) => `<tr><th scope="row">${name}</th><td class="fr-an-n">${mine}${extra(mine, opt)}</td><td class="fr-an-n">${opt == null ? '—' : opt}</td><td class="fr-an-note">${note}</td></tr>`;
+  const anRow = (name, mine, opt, note, t) => `<tr><th scope="row">${name}</th>${t != null ? `<td class="fr-an-n">${f1(t)}</td>` : ''}<td class="fr-an-n">${mine}${extra(mine, opt)}</td><td class="fr-an-n">${opt == null ? '—' : opt}</td><td class="fr-an-note">${note}</td></tr>`;
   function analysisHtml(r) {
     const a = r.an;
     if (!a || !r.sp) return '';
@@ -1327,7 +1352,9 @@
     const ideal = FULL && a.fi != null ? a.fi : a.i;
     const eff = a.m ? Math.round((ideal / a.m) * 100) : 100;
     const rows = [];
-    rows.push(anRow('Cruz', a.c[0], a.c[1], a.c[0] > a.c[1] ? `Se podía en ${a.c[1]}.` : 'La más corta.'));
+    // «Solo F2L»: only the pairs (the cross came done), each with its time.
+    const pairsOnly = r.m === 'f2l';
+    if (!pairsOnly) rows.push(anRow('Cruz', a.c[0], a.c[1], a.c[0] > a.c[1] ? `Se podía en ${a.c[1]}.` : 'La más corta.'));
     a.p.forEach((x, k) => {
       const [slots, mine, opt, bestSlot, bestLen, look, pauses, pauseMs] = x;
       const who = slots.split('').map((i) => names[Number(i)]).join(' + ') || 'pareja';
@@ -1338,11 +1365,11 @@
       if (look >= 1500) notes.push(`tardaste ${f1(look)} s en empezarla`);
       if (pauses) notes.push(`${pauses} ${pauses === 1 ? 'pausa' : 'pausas'} a mitad (${f1(pauseMs)} s)`);
       const note = notes.length ? notes.join(' · ') : 'La más corta';
-      rows.push(anRow(`Pareja ${k + 1} <span class="muted">${esc(who)}</span>`, mine, opt, esc(note.charAt(0).toUpperCase() + note.slice(1)) + '.'));
+      rows.push(anRow(`Pareja ${k + 1} <span class="muted">${esc(who)}</span>`, mine, opt, esc(note.charAt(0).toUpperCase() + note.slice(1)) + '.', pairsOnly ? x[8] : null));
     });
     const vs = viewSteps(r);
     const ll = FULL ? (a.f || [2, 3].map(() => null)) : a.l;
-    ll.forEach((x, k) => {
+    if (!pairsOnly) ll.forEach((x, k) => {
       const st = vs[k + 2][0];
       const sp = vs[k + 2][1];
       const c = sp && sp[3] ? C.caseById(sp[3]) : null;
@@ -1371,7 +1398,7 @@
     if (llExtra >= 4) tips.push(`La última capa se llevó ${llExtra} giros de más: mira desde qué lado empiezas cada algoritmo (la ayuda en directo te lo dice).`);
     return `<div class="fr-an">
       <p class="fr-an-sum"><b class="fr-eff ${eff >= 90 ? 'ok' : eff >= 75 ? 'mid' : 'low'}">${eff} %</b> <span>de eficiencia: <b>${a.m}</b> giros; con lo más corto de cada paso (y tus mismas parejas) serían <b>${ideal}</b>.${a.z >= 1000 ? ` Pausas de más de 1 s a mitad de un paso: <b>${f1(a.z)} s</b>.` : ''}</span></p>
-      <table class="fr-an-table"><thead><tr><th scope="col">Paso</th><th scope="col">Tus giros</th><th scope="col">Lo más corto</th><th scope="col">Nota</th></tr></thead><tbody>${rows.join('')}</tbody></table>
+      <table class="fr-an-table${pairsOnly ? ' fr-an-pairs' : ''}"><thead><tr><th scope="col">${pairsOnly ? 'Pareja' : 'Paso'}</th>${pairsOnly ? '<th scope="col">Tiempo</th>' : ''}<th scope="col">Tus giros</th><th scope="col">Lo más corto</th><th scope="col">Nota</th></tr></thead><tbody>${rows.join('')}</tbody></table>
       ${tips.length ? `<p class="fr-an-h">Qué mejorar</p><ul class="fr-tips">${tips.slice(0, 3).map((t) => `<li>${esc(t)}</li>`).join('')}</ul>`
         : `<p class="fr-note">${a.m <= ideal ? 'Nada que mejorar en giros: ahora, más rápido.' : `Solo ${a.m - ideal} ${a.m - ideal === 1 ? 'giro' : 'giros'} de más: muy bien. Lo que queda es ir más rápido.`}</p>`}
       <p class="hint">Giros contados como los nota el cubo: un giro de cara, también los dobles; las capas del medio cuentan dos. «Lo más corto»: la cruz más corta, cada pareja por el camino más corto sin romper lo hecho, y los algoritmos de J Perm desde el mejor lado.</p>
@@ -1385,15 +1412,27 @@
     return fixed && fixed.length === r.ph.length ? fixed.map((x) => x[0]) : r.ph.map((x, i) => `Fase ${i + 1}`);
   };
   const SEG_CLASS = { Cruz: 'cruz', F2L: 'f2l', OLL: 'oll', PLL: 'pll' };
+  // The bar of a solve's phases; the pairs of an F2L, all in its colour.
+  function phaseBar(r) {
+    const names = phaseNames(r);
+    const pairs = r.m === 'f2l';
+    const cls = (i) => (pairs ? `f2l${i % 2 ? ' alt' : ''}` : SEG_CLASS[names[i]] || ['cruz', 'f2l', 'oll', 'pll'][i % 4]);
+    return `<div class="fr-bar">${r.ph.map((t, i) => `<span class="fr-seg fr-seg-${cls(i)}" style="flex-grow:${Math.max(1, t)}" title="${esc(names[i])} ${f1(t)} s"><b>${pairs ? `P${i + 1}` : esc(names[i])}</b> ${f1(t)}</span>`).join('')}</div>`;
+  }
   function handSplitsHtml(r, paceLine) {
     const names = phaseNames(r);
     const total = r.ph.reduce((a, x) => a + x, 0) || 1;
-    const cls = (i) => SEG_CLASS[names[i]] || ['cruz', 'f2l', 'oll', 'pll'][i % 4];
-    const bar = r.ph.map((t, i) => `<span class="fr-seg fr-seg-${cls(i)}" style="flex-grow:${Math.max(1, t)}" title="${esc(names[i])} ${f1(t)} s"><b>${esc(names[i])}</b> ${f1(t)}</span>`).join('');
-    const rows = r.ph.map((t, i) => `<tr><th scope="row">${esc(names[i])}</th><td>${f1(t)}</td><td class="muted">${Math.round((t / total) * 100)} % del solve</td></tr>`).join('');
-    return `<div class="fr-splits-head"><span class="field-title">Tu solve por fases <span class="muted">· a mano</span></span><b>${fmtRes(r)}</b></div>
-      <div class="fr-bar">${bar}</div>${paceLine}
-      <div class="fr-table" tabindex="0" role="region" aria-label="Tiempos de cada fase"><table><thead><tr><th scope="col">Fase</th><th scope="col">Tiempo</th><th scope="col">Parte</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    const rows = r.ph.map((t, i) => `<tr><th scope="row">${esc(names[i])}</th><td>${f1(t)}</td><td class="muted">${Math.round((t / total) * 100)} % ${r.m === 'f2l' ? 'del F2L' : 'del solve'}</td></tr>`).join('');
+    return `<div class="fr-splits-head"><span class="field-title">${r.m === 'f2l' ? 'Tu F2L por parejas' : 'Tu solve por fases'} <span class="muted">· a mano</span></span><b>${fmtRes(r)}</b></div>
+      ${phaseBar(r)}${paceLine}
+      <div class="fr-table" tabindex="0" role="region" aria-label="Tiempos de cada fase"><table><thead><tr><th scope="col">${r.m === 'f2l' ? 'Pareja' : 'Fase'}</th><th scope="col">Tiempo</th><th scope="col">Parte</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  }
+  // «Solo F2L» with the cube: each pair, its turns against the shortest, and the turns.
+  function f2lSplitsHtml(r) {
+    return `<div class="fr-splits-head"><span class="field-title">Tu F2L · ${esc(C.crossName(r.sp.f))}</span><b>${fmtRes(r)}</b></div>
+      ${r.ph ? phaseBar(r) : ''}`
+      + (r.an ? `<details class="fr-an-box" open><summary>Análisis: cómo de óptima fue cada pareja</summary>${analysisHtml(r)}</details>` : r.rc ? '<p class="hint">Analizando el F2L…</p>' : '')
+      + (r.rc ? `<details class="fr-recon-box"><summary>Reconstrucción: tus giros del F2L</summary>${reconHtml(r)}</details>` : '');
   }
   function renderSplits(r) {
     const box = $('splits');
@@ -1402,6 +1441,7 @@
     const pf = settings.pace !== 'off' ? paceFor(r) : null;
     const paceLine = pf ? `<p class="fr-pace-line"><span class="muted">Contra ${esc(pf.label)}:</span> ${pf.rows.map((row, g) => `<span class="pc ${row.gold ? 'gold' : row.d < 0 ? 'ahead' : 'behind'}"><span class="pc-n">${PACE_GROUPS[g][0]}</span> <span class="pc-d">${signed(row.d)}${row.gold ? ` ★ tu mejor ${g ? PACE_GROUPS[g][0] : 'cruz'}` : ''}</span></span>`).join(' · ')} → <b class="pc ${pf.total < 0 ? 'ahead' : 'behind'}"><span class="pc-d">${signed(pf.total)} s</span></b></p>` : '';
     if (!r.sp) { box.innerHTML = handSplitsHtml(r, paceLine); return; }
+    if (r.m === 'f2l') { box.innerHTML = f2lSplitsHtml(r); return; }
     const s = r.sp.s;
     const total = s.reduce((a, x) => a + (x ? x[0] : 0), 0) || 1;
     const groups = [['Cruz', [0]], ['F2L', [1]], ['OLL', [2, 3]], ['PLL', [4, 5]]];
@@ -1497,14 +1537,20 @@
       if (Array.isArray(r.ph) && phaseNames(r)[0] === 'Fase 1') return `Fases ${r.ph.map(f1).join(' · ')}`;
       return (r.lc || []).map((id) => C.caseById(id)).filter(Boolean).map(short).join(' · ');
     };
-    const cols = full ? 9 : 7;
-    const head = full ? '<th scope="col">Cruz</th><th scope="col">F2L</th><th scope="col">OLL</th><th scope="col">PLL</th>' : '<th scope="col">OLL</th><th scope="col">PLL</th>';
-    box.innerHTML = `<table><thead><tr><th scope="col">#</th><th scope="col">Tiempo</th><th scope="col">ao5</th>${head}<th scope="col">Casos</th><th scope="col"><span class="sr-only">Acciones</span></th></tr></thead><tbody>${
+    // «Solo F2L»: each pair, and the turns with how good they were.
+    const f2l = listMode === 'f2l';
+    const pairCell = (r, k) => `<td>${Array.isArray(r.ph) && r.ph.length === 4 ? f1(r.ph[k]) : '—'}</td>`;
+    const turnsOf = (r) => (r.an && r.an.m ? `${r.an.m} giros · ${Math.round((r.an.i / r.an.m) * 100)} %` : '');
+    const cols = full || f2l ? 9 : 7;
+    const head = full ? '<th scope="col">Cruz</th><th scope="col">F2L</th><th scope="col">OLL</th><th scope="col">PLL</th>'
+      : f2l ? [1, 2, 3, 4].map((k) => `<th scope="col"><abbr title="Pareja ${k}">P${k}</abbr></th>`).join('') : '<th scope="col">OLL</th><th scope="col">PLL</th>';
+    box.innerHTML = `<table><thead><tr><th scope="col">#</th><th scope="col">Tiempo</th><th scope="col">ao5</th>${head}<th scope="col">${f2l ? 'Giros' : 'Casos'}</th><th scope="col"><span class="sr-only">Acciones</span></th></tr></thead><tbody>${
       list.map(({ r, i }) => {
         const a5 = avgOf(all.slice(0, i + 1), 5);
         const n = i + 1;
         return `<tr><td class="muted">${n}</td><td><b>${fmtRes(r)}</b>${isPb[i] ? ' <span class="fr-pbtag" title="Mejor single hasta entonces">PB</span>' : ''}</td><td class="muted">${a5 == null ? '' : fmt(a5)}</td>`
-          + (full ? `<td>${step(r, 0)}</td><td>${step(r, 1)}</td>` : '') + `<td>${step(r, 2)}</td><td>${step(r, 3)}</td><td class="fr-cases">${esc(cases(r))}</td>`
+          + (f2l ? `${[0, 1, 2, 3].map((k) => pairCell(r, k)).join('')}<td class="fr-cases">${esc(turnsOf(r))}</td>`
+            : `${full ? `<td>${step(r, 0)}</td><td>${step(r, 1)}</td>` : ''}<td>${step(r, 2)}</td><td>${step(r, 3)}</td><td class="fr-cases">${esc(cases(r))}</td>`)
           + `<td class="fr-acts"><button class="x" type="button" data-pen="2" data-i="${i}" aria-label="Poner o quitar +2 al solve ${n}" aria-pressed="${r.pen === 2}">+2</button>`
           + `<button class="x" type="button" data-pen="dnf" data-i="${i}" aria-label="Marcar o desmarcar DNF el solve ${n}" aria-pressed="${r.pen === 'dnf'}">DNF</button>`
           + `<button class="x" type="button" data-note="${r.at}" aria-expanded="${noteAt === r.at}" aria-label="${r.no ? 'Cambiar la nota' : 'Añadir una nota'} del solve ${n}" title="Nota">✎</button>`

@@ -88,6 +88,7 @@
 .fr-seg-f2l { background: var(--fr-f2l); }
 .fr-seg-oll { background: var(--fr-oll); color: #1A1300; }
 .fr-seg-pll { background: var(--fr-pll); }
+.fr-seg.alt { filter: brightness(1.2) saturate(.85); }   /* every other pair of an F2L */
 .fr-table { overflow-x: auto; }
 .fr-table table { width: 100%; border-collapse: collapse; font-size: 13.5px; font-variant-numeric: tabular-nums; }
 .fr-table th, .fr-table td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
@@ -128,6 +129,8 @@
   .fr .fr-an-table td.fr-an-n[colspan="2"] { grid-column: span 2; }
   .fr .fr-an-table td.fr-an-note { grid-column: 1 / -1; padding-top: 0; }
   .fr .fr-an-table thead th { white-space: normal; }
+  /* «Solo F2L»: each pair with its time too */
+  .fr .fr-an-table.fr-an-pairs thead tr, .fr .fr-an-table.fr-an-pairs tbody tr { grid-template-columns: minmax(0, 1fr) 4.2em 4.6em 4.6em; }
 }
 .fr-extra { color: var(--accent); }
 .fr-perfect { color: var(--ok); font-weight: 700; }
