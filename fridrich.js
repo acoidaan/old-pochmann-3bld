@@ -32,7 +32,7 @@
   };
   const load = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; } catch (e) { return d; } };
   const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* this visit only */ } };
-  const settings = { inspect: false, help: true, sound: true, vibrate: true, cross: 'U', timed: true, trMode: 'cube', chart: 50, pace: 'avg', celebrate: true, peek: {}, scrMode: 'full', scrCases: 'kl', phases: false, phaseSound: true, voice: true, voiceName: '', ...load(K.set, {}) };
+  const settings = { inspect: false, help: true, sound: true, vibrate: true, cross: 'U', timed: true, trMode: 'cube', chart: 50, pace: 'avg', celebrate: true, peek: {}, scrMode: 'full', scrCases: 'kl', phases: false, phaseSound: true, voice: true, voiceSrc: 'clip', voiceName: '', ...load(K.set, {}) };
   if (!['full', 'cf2l', 'f2l', 'll', 'pll'].includes(settings.scrMode)) settings.scrMode = 'full';
   if (!['known', 'kl', 'all'].includes(settings.scrCases)) settings.scrCases = 'kl';
   // The algorithm in view is chosen case by case (the eye on each case); the old switch for all of them goes.
@@ -444,9 +444,10 @@
   $('crossShow').addEventListener('click', () => { crossOpen = !crossOpen; renderCross(); });
 
   // ================= The judge's voice =================
-  // In the inspection (and while planning a cross), at 8 and 12 s, «ocho segundos» and «doce segundos», as a WCA
-  // judge calls them (and csTimer). The browser's own speech in Spanish, so nothing to download; iOS only lets a
-  // page speak after a touch, so the first touch or key primes it with a silent one.
+  // In the inspection (and while planning a cross), at 8 and 12 s, as a WCA judge calls them (and csTimer): a
+  // recorded voice («eight seconds», «twelve seconds», ElevenLabs' Viraj; audio/*.mp3, cached for offline), or the
+  // browser's own speech in Spanish («ocho segundos»). iOS only lets a page speak after a touch, so the first touch
+  // or key primes it with a silent one.
   const voice = (() => {
     const S = window.speechSynthesis;
     const ok = !!S && typeof window.SpeechSynthesisUtterance === 'function';
@@ -468,15 +469,27 @@
         S.speak(u);
       } catch (e) { /* no voice here */ }
     }
-    const prime = () => { if (!primed && ok) { primed = true; speak(' ', 0); } };
+    // The first touch also wakes the page's audio, for the recorded voice.
+    const prime = () => { if (!primed && ok) { primed = true; speak(' ', 0); } if (window.SmartCube) window.SmartCube.unlockAudio(); };
     ['click', 'keydown', 'touchend'].forEach((t) => document.addEventListener(t, prime, { capture: true, passive: true }));
-    // «ocho» at 8 s, «doce» at 12 s, each once per countdown (`said` is that countdown's own record).
+    // The recorded ones: their versioned addresses come in the page (hidden <audio>, never played as such).
+    const CLIPS = { eight: $('voiceEight'), twelve: $('voiceTwelve') };
+    const WORDS = { eight: 'Ocho segundos', twelve: 'Doce segundos' };
+    const clipUrl = (k) => (CLIPS[k] ? CLIPS[k].getAttribute('src') : null);
+    const recorded = () => settings.voiceSrc !== 'tts' && !!clipUrl('eight');
+    const preload = () => { if (recorded() && window.SmartCube) Object.keys(CLIPS).forEach((k) => window.SmartCube.loadClip(clipUrl(k))); };
+    // One of the two calls; the browser's voice if the recorded one cannot play.
+    function say(k) {
+      if (recorded() && window.SmartCube) window.SmartCube.clip(clipUrl(k), k).then((done) => { if (!done) speak(WORDS[k]); });
+      else speak(WORDS[k]);
+    }
+    // At 8 s and at 12 s, each once per countdown (`said` is that countdown's own record).
     function judge(used, said) {
       if (settings.voice === false) return;
-      if (used >= 8000 && used < 11000 && !said.eight) { said.eight = true; speak('Ocho segundos'); }
-      if (used >= 12000 && used < 15000 && !said.twelve) { said.twelve = true; speak('Doce segundos'); }
+      if (used >= 8000 && used < 11000 && !said.eight) { said.eight = true; say('eight'); }
+      if (used >= 12000 && used < 15000 && !said.twelve) { said.twelve = true; say('twelve'); }
     }
-    return { ok, spanish, speak, judge, onVoices: (fn) => { if (ok) S.addEventListener('voiceschanged', fn); } };
+    return { ok, spanish, speak, say, judge, preload, onVoices: (fn) => { if (ok) S.addEventListener('voiceschanged', fn); } };
   })();
 
   // ================= Timer =================
@@ -535,6 +548,7 @@
   function startInspection() {
     timer.insp0 = now();
     timer.said = {};
+    if (settings.voice !== false) voice.preload();
     setPhase('inspect');
     tick();
   }
@@ -3755,22 +3769,33 @@
     document.querySelectorAll('[data-theme-set]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.themeSet === th)));
   }
   $('setInspect').addEventListener('change', (e) => { settings.inspect = e.target.checked; saveSettings(); renderClock(); });
-  // The voice: on or off, and which Spanish voice of the ones this device has.
+  // The voice: on or off, and which: the recorded one (by default), or a Spanish one of this device's.
   function renderVoiceSet() {
     $('setVoice').checked = settings.voice !== false;
     const list = voice.spanish();
     const sel = $('setVoiceName');
-    const opts = `<option value="">${list.length ? 'La que elija el navegador' : 'La del sistema'}</option>${list.map((v) => `<option value="${esc(v.voiceURI)}">${esc(v.name)}</option>`).join('')}`;
+    const opts = '<option value="clip">Grabada, en inglés: «eight seconds» (Viraj, de ElevenLabs)</option>'
+      + `<option value="">${voice.ok ? `Del navegador, en español${list.length ? '' : ' (la del sistema)'}` : 'Del navegador (este no puede hablar)'}</option>`
+      + list.map((v) => `<option value="${esc(v.voiceURI)}">Del navegador: ${esc(v.name)}</option>`).join('');
     if (sel.dataset.h !== opts) { sel.dataset.h = opts; sel.innerHTML = opts; }
-    sel.value = list.some((v) => v.voiceURI === settings.voiceName) ? settings.voiceName : '';
-    sel.disabled = settings.voice === false || !voice.ok;
-    $('voiceTry').disabled = settings.voice === false || !voice.ok;
-    $('voiceNote').textContent = !voice.ok ? 'Este navegador no puede hablar.' : list.length ? '' : 'No encuentro voces en español en este dispositivo: usará la que tenga.';
+    sel.value = settings.voiceSrc !== 'tts' ? 'clip' : list.some((v) => v.voiceURI === settings.voiceName) ? settings.voiceName : '';
+    sel.disabled = settings.voice === false;
+    $('voiceTry').disabled = settings.voice === false;
+    $('voiceNote').textContent = settings.voiceSrc !== 'tts' ? '' : !voice.ok ? 'Este navegador no puede hablar: elige la grabada.'
+      : list.length ? '' : 'No encuentro voces en español en este dispositivo: usará la que tenga.';
   }
   voice.onVoices(() => { if (view === 'ajustes') renderVoiceSet(); });
+  const tryVoice = () => { window.SmartCube.unlockAudio(); voice.say('eight'); };
   $('setVoice').addEventListener('change', (e) => { settings.voice = e.target.checked; saveSettings(); renderVoiceSet(); });
-  $('setVoiceName').addEventListener('change', (e) => { settings.voiceName = e.target.value; saveSettings(); voice.speak('Ocho segundos'); });
-  $('voiceTry').addEventListener('click', () => voice.speak('Ocho segundos'));
+  $('setVoiceName').addEventListener('change', (e) => {
+    const v = e.target.value;
+    settings.voiceSrc = v === 'clip' ? 'clip' : 'tts';
+    if (v !== 'clip') settings.voiceName = v;
+    saveSettings();
+    renderVoiceSet();
+    tryVoice();
+  });
+  $('voiceTry').addEventListener('click', tryVoice);
   $('setHelp').addEventListener('change', (e) => { settings.help = e.target.checked; saveSettings(); });
   $('setVibrate').addEventListener('change', (e) => { settings.vibrate = e.target.checked; saveSettings(); });
   $('setCelebrate').addEventListener('change', (e) => { settings.celebrate = e.target.checked; saveSettings(); });

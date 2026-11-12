@@ -209,6 +209,29 @@
     } catch (e) { /* no sound */ }
   }
 
+  // A recorded sound (the judge's voice): fetched and decoded once, played through the same audio as the rest.
+  const clips = new Map();
+  function loadClip(url) {
+    if (!audio || !url) return Promise.resolve(null);
+    if (!clips.has(url)) {
+      clips.set(url, fetch(url).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error('no está'))))
+        .then((b) => new Promise((ok, ko) => audio.decodeAudioData(b, ok, ko)))   // the callback form: old Safari
+        .catch(() => { clips.delete(url); return null; }));
+    }
+    return clips.get(url);
+  }
+  function clip(url, name) {
+    return loadClip(url).then((buf) => {
+      if (!buf) return false;
+      const src = audio.createBufferSource();
+      src.buffer = buf;
+      src.connect(audio.destination);
+      src.start();
+      fxLog.push(`clip:${name || url}`);
+      return true;
+    }).catch(() => false);
+  }
+
   // ================= The connection =================
   function start(opts) {
     const o = opts || {};
@@ -541,5 +564,5 @@
     return total;
   }
 
-  window.SmartCube = { start, facePath, unlockAudio, chime, cubeClock };
+  window.SmartCube = { start, facePath, unlockAudio, chime, cubeClock, clip, loadClip };
 })();

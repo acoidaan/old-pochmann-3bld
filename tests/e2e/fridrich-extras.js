@@ -117,9 +117,9 @@ const SOLVE = ["D R' F2 L", "U R U' R'", "U' F' U F", "L' U' L", "U B U' B'", "F
   await turn(p, await p.evaluate(() => window.Fridrich._.ct.scr));
   await p.waitForFunction(() => window.Fridrich._.ct.phase === 'plan', null, { timeout: 5000 }).catch(() => {});
   check('cross: scrambled → 15 s to plan', await p.evaluate(() => window.Fridrich._.ct.phase === 'plan' && /Planea la cruz blanca/i.test(document.getElementById('crossTr').innerText)));
-  await p.evaluate(() => { window.__said = []; window.speechSynthesis.speak = (x) => window.__said.push(x.text); window.Fridrich._.ct.insp0 -= 8000; });
-  await p.waitForTimeout(200);
-  check('cross: planning, the judge’s voice at 8 s', (await p.evaluate(() => window.__said.filter((t) => t.trim()).join())) === 'Ocho segundos', await p.evaluate(() => JSON.stringify(window.__said)));
+  await p.evaluate(() => { window.Fridrich._.ct.insp0 -= 8000; });
+  await p.waitForTimeout(400);
+  check('cross: planning, the judge’s voice at 8 s', (await p.evaluate(() => window.Fridrich.cube().fxLog.filter((x) => x.startsWith('clip:')).join())) === 'clip:eight', await p.evaluate(() => JSON.stringify(window.Fridrich.cube().fxLog)));
   const best = await p.evaluate(() => window.Fridrich._.ct.best);
   // Two turns too many (that cannot join with the cross's first turns), then the cross.
   const first = best.moves.split(' ').slice(0, 2).map((m) => m[0]);

@@ -17,13 +17,14 @@ for (const f of fs.readdirSync(path.join(__dirname, 'vendor')).filter((x) => !x.
 }
 
 // Static files get a content hash in their URL, so browsers and the service worker never keep stale copies.
-const ASSETS = ['app.css', 'cubemodel.js', 'follow.js', 'core.js', 'learn.js', 'syncplan.js', 'social.js', 'stream.js', 'cube.js', 'fridrich.css', 'cfop.js', 'cfopf2l.js', 'cfopfull.js', 'cfopstats.js', 'smartcube.js', 'practice.js', 'fridrich-progreso.js', 'fridrich-cruz.js', 'fridrich-sync.js', 'fridrich.js', 'lbl.js', 'principiante.css', 'principiante.js', 'cubefab.js', 'bldprogress.js', 'bldalgs.js', 'awake.js'];
+const ASSETS = ['audio/eight.mp3', 'audio/twelve.mp3', 'app.css', 'cubemodel.js', 'follow.js', 'core.js', 'learn.js', 'syncplan.js', 'social.js', 'stream.js', 'cube.js', 'fridrich.css', 'cfop.js', 'cfopf2l.js', 'cfopfull.js', 'cfopstats.js', 'smartcube.js', 'practice.js', 'fridrich-progreso.js', 'fridrich-cruz.js', 'fridrich-sync.js', 'fridrich.js', 'lbl.js', 'principiante.css', 'principiante.js', 'cubefab.js', 'bldprogress.js', 'bldalgs.js', 'awake.js'];
 const versions = {};
 const all = crypto.createHash('sha1');
 for (const f of ASSETS) {
   const data = fs.readFileSync(path.join(__dirname, f));
   versions[f] = crypto.createHash('sha1').update(data).digest('hex').slice(0, 10);
   all.update(data);
+  fs.mkdirSync(path.dirname(path.join(out, f)), { recursive: true });
   fs.writeFileSync(path.join(out, f), data);
 }
 // The pages: the 3BLD app, «Fridrich reducido» (/fridrich) and the beginner's method (/principiante).

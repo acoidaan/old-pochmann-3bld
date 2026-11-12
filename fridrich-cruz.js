@@ -44,6 +44,7 @@
       ct.phase = 'plan';
       ct.insp0 = now();
       ct.said = {};
+      if (voice && settings.voice !== false) voice.preload();
       ctTick();
       renderCt();
     }

@@ -6,7 +6,7 @@ const path = require('path');
 
 const TYPES = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png',
-  '.webmanifest': 'application/manifest+json', '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8',
+  '.webmanifest': 'application/manifest+json', '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8', '.mp3': 'audio/mpeg',
 };
 const FIXTURES = path.join(__dirname, 'fixtures');
 const FONT_DIRS = ['unbounded', 'atkinson-hyperlegible', 'martian-mono']

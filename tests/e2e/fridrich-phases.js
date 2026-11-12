@@ -4,7 +4,8 @@
 // timing by phases by hand (a press at the end of each one: the panel, the history, the pace, «Última capa»);
 // «Solo F2L» (the cross done; by hand, pair by pair; with the cube, it stops when the F2L is done, with each
 // pair, its analysis and its turns); «Cruz + F2L» (a whole scramble, the same up to the F2L, the cross too);
-// the judge's voice in the inspection («ocho segundos», «doce segundos»; off in Ajustes); the phone.
+// the judge's voice in the inspection (recorded, «eight seconds», «twelve seconds»; or the browser's in Spanish;
+// off in Ajustes); the phone.
 const { chromium, devices } = require('playwright');
 const { SITE, SHOTS } = require('../env');
 const results = [];
@@ -292,31 +293,39 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
   const u = vo.p;
   await u.evaluate(() => { window.__said = []; window.speechSynthesis.speak = (x) => window.__said.push(x.text); });
   const said = () => u.evaluate(() => window.__said.filter((t) => t.trim()));
+  const clips = () => u.evaluate(() => window.Fridrich.cube().fxLog.filter((x) => x.startsWith('clip:')));
   await u.evaluate(() => window.Fridrich.showView('ajustes'));
   await u.check('#setInspect');
-  const vset = await u.evaluate(() => ({ on: document.getElementById('setVoice').checked, pick: !!document.getElementById('setVoiceName').options.length }));
+  const vset = await u.evaluate(() => ({ on: document.getElementById('setVoice').checked, src: document.getElementById('setVoiceName').value }));
   await u.click('#voiceTry');
-  const tried = await said();
+  await u.waitForTimeout(400);
+  const tried = await clips();
   await u.evaluate(() => window.Fridrich.showView('crono'));
   await idle(u);
   const inspect = async () => { await u.keyboard.down(' '); await u.waitForTimeout(400); await u.keyboard.up(' '); await u.waitForTimeout(100); };
+  const shift = async (ms) => { await u.evaluate((x) => { window.Fridrich._.timer.insp0 -= x; }, ms); await u.waitForTimeout(350); };
   await inspect();
   const ph0 = await u.evaluate(() => window.Fridrich._.timer.phase);
-  await u.evaluate(() => { window.Fridrich._.timer.insp0 -= 8000; });
-  await u.waitForTimeout(200);
-  const s8 = await said();
-  await u.evaluate(() => { window.Fridrich._.timer.insp0 -= 4000; });
-  await u.waitForTimeout(200);
-  const s12 = await said();
-  check('voice: on by default, «Probar» says it, then «Ocho segundos» at 8 s and «Doce segundos» at 12 s of the inspection, once each', vset.on && vset.pick && tried.join() === 'Ocho segundos' && ph0 === 'inspect' && s8.join() === 'Ocho segundos,Ocho segundos' && s12.join() === 'Ocho segundos,Ocho segundos,Doce segundos', JSON.stringify({ vset, tried, ph0, s8, s12 }));
+  await shift(8000);
+  const c8 = await clips();
+  await shift(4000);
+  const c12 = await clips();
+  check('voice: the recorded one by default; «Probar» plays it, then «eight seconds» at 8 s and «twelve seconds» at 12 s of the inspection, once each', vset.on && vset.src === 'clip' && tried.join() === 'clip:eight' && ph0 === 'inspect' && c8.join() === 'clip:eight,clip:eight' && c12.join() === 'clip:eight,clip:eight,clip:twelve' && !(await said()).length, JSON.stringify({ vset, tried, ph0, c8, c12 }));
+  await u.keyboard.press('Escape');
+  // The browser's own instead, in Spanish.
+  await u.evaluate(() => window.Fridrich.showView('ajustes'));
+  await u.selectOption('#setVoiceName', '');
+  await u.evaluate(() => window.Fridrich.showView('crono'));
+  await inspect();
+  await shift(8000);
+  check('voice: the browser’s instead, «Ocho segundos»', (await said()).join() === 'Ocho segundos,Ocho segundos' && (await clips()).length === 3, JSON.stringify(await said()));
   await u.keyboard.press('Escape');
   await u.evaluate(() => window.Fridrich.showView('ajustes'));
   await u.uncheck('#setVoice');
   await u.evaluate(() => window.Fridrich.showView('crono'));
   await inspect();
-  await u.evaluate(() => { window.Fridrich._.timer.insp0 -= 8500; });
-  await u.waitForTimeout(200);
-  check('voice: off in Ajustes, silence', (await said()).length === 3);
+  await shift(8500);
+  check('voice: off in Ajustes, silence', (await said()).length === 2 && (await clips()).length === 3);
   await u.keyboard.press('Escape');
   await vo.ctx.close();
 
