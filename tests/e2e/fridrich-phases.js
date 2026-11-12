@@ -204,6 +204,10 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
     row: [...document.querySelector('#history tbody tr').cells].slice(3, 5).map((c) => c.textContent),
     splits: document.getElementById('splits').innerText.replace(/\s+/g, ' '),
   }));
+  // The chart of each list: «Cruz + F2L» with three solves of its own.
+  for (let k = 0; k < 2; k++) { await go(); await tap(); await tap(); }
+  const ch = await q.evaluate(() => ({ shown: !document.getElementById('chartBox').hidden, end: [...document.querySelectorAll('#chart .fr-tick')].map((t) => t.textContent).pop(), n: JSON.parse(localStorage.getItem('cfop:ltimes:v1')).filter((r) => r.m === 'cf2l').length }));
+  check('the chart («Cómo vas») in the lists of one phase too, with their own solves', ch.shown && ch.n === 3 && ch.end === '#3', JSON.stringify(ch));
   check('cruz + F2L by hand: in its own list, the cross and the F2L', cf.r && cf.r.ph.length === 2 && /Cruz\s*F2L\s*Giros/i.test(cf.head) && cf.row.every((x) => /^\d+\.\d\d$/.test(x)) && /Tu cruz y tu F2L/i.test(cf.splits), JSON.stringify(cf));
   await q.selectOption('#scrMode', 'full');
   await hp.ctx.close();

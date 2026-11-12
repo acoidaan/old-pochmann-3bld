@@ -1571,7 +1571,8 @@
     ];
     $('stats').innerHTML = list.length ? cells.map(([k, v]) => `<div class="stat"><span>${k}</span><b>${v}</b></div>`).join('') : '';
     document.querySelectorAll('[data-hist]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.hist === listMode)));
-    if (listMode === 'full') { renderPhases(); renderChart(); } else { $('phases').hidden = true; $('chartBox').hidden = true; }
+    if (listMode === 'full') renderPhases(); else $('phases').hidden = true;
+    renderChart();
     renderHistory();
     renderFocus();
   }
@@ -2372,7 +2373,9 @@
   // Every solve (dots, DNFs left out), with the ao5 and the ao12 at each one. One axis, thin lines, the last
   // values labelled at the end; hovering shows that solve.
   const CHART = { w: 640, h: 220, l: 40, r: 78, t: 12, b: 26 };
+  // The times of the list shown (the solves, or one phase on its own) with their ao5 and ao12.
   function renderChart() {
+    const times = listOf(listMode);   // shadows the solves' list on purpose: the chart is of the list shown
     const box = $('chartBox');
     box.hidden = times.length < 3;
     document.querySelectorAll('[data-chart]').forEach((b) => b.setAttribute('aria-pressed', String(Number(b.dataset.chart) === settings.chart)));
