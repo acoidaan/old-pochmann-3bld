@@ -309,7 +309,14 @@
         <div id="progPractice"></div>
       </section>
       <section class="panel" aria-labelledby="hStepsP" id="progStepsPanel">
-        <div class="panel-head"><h2 id="hStepsP">Por pasos</h2></div>
+        <div class="panel-head">
+          <h2 id="hStepsP">Por pasos</h2>
+          <div class="seg small" role="group" aria-label="Contra cuándo">
+            <button type="button" data-steps="12" aria-pressed="true">Últimos 12</button>
+            <button type="button" data-steps="200" aria-pressed="false">Últimos 200</button>
+            <button type="button" data-steps="0" aria-pressed="false">Todo</button>
+          </div>
+        </div>
         <div id="progSteps"></div>
       </section>
       <section class="panel" aria-labelledby="hEff" id="progEffPanel">

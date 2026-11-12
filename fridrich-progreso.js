@@ -6,11 +6,17 @@
   window.FridrichProgreso = (ctx) => {
     const { $, C, DAY_MS, K, S, STEP_NAME, deltaHtml, esc, fdate, fmt, learn, load, onView, recommendation, secs, showView } = ctx;
     let dayRange = 90;
+    // «Por pasos»: against the 12 before (12), how it went 200 solves ago (200) or at the very start (0).
+    let stepRange = (() => { try { const v = Number(localStorage.getItem('cfop:progsteps:v1')); return [12, 200, 0].includes(v) && localStorage.getItem('cfop:progsteps:v1') != null ? v : 12; } catch (e) { return 12; } })();
     const KIND = { single: 'Single', ao5: 'ao5', ao12: 'ao12' };
-    function spark(values, label) {
-      const v = values.filter((x) => x != null && Number.isFinite(x)).slice(-80);
+    // A small line, a moving average of `win` (5 by default) over the last `max` values (80 by default).
+    function spark(values, label, opts) {
+      const o = opts || {};
+      const v = values.filter((x) => x != null && Number.isFinite(x)).slice(-(o.max || 80));
       if (v.length < 3) return '';
-      const sm = v.map((_, i) => { const w = v.slice(Math.max(0, i - 4), i + 1); return w.reduce((a, b) => a + b, 0) / w.length; });
+      const win = o.win || 5;
+      let sm = v.map((_, i) => { const w = v.slice(Math.max(0, i - win + 1), i + 1); return w.reduce((a, b) => a + b, 0) / w.length; });
+      if (win > 5 && sm.length > win * 3) sm = sm.slice(win - 1);   // a long line starts once its average is a full one
       const W = 200; const H = 40;
       let lo = Math.min(...sm); let hi = Math.max(...sm);
       if (hi - lo < 1e-9) { hi += 1; lo -= 1; }
@@ -122,16 +128,24 @@
         </div>`;
 
       // ---- Steps
-      const st = S.steps(ctx.times);
+      const st = S.steps(ctx.times, stepRange);
+      document.querySelectorAll('[data-steps]').forEach((b) => b.setAttribute('aria-pressed', String(Number(b.dataset.steps) === stepRange)));
       const which = !st.hand ? 'con el cubo' : st.hand === st.recent ? 'cronometrados por fases' : `con fases (${st.recent - st.hand} con el cubo)`;
+      // Against what: the 12 before; how it went 200 solves ago; or at the very start (also when there are not 200 yet).
+      const since = !st.long ? (st.before ? ', comparados con los anteriores' : '')
+        : !st.before ? '. Aún no hay bastantes para comparar con el principio'
+          : stepRange && st.all > st.n ? `, comparados con cómo ibas hace ${st.n} solves (los ${st.before} primeros de esos ${st.n})`
+            : `, comparados con tus ${st.before} primeros (desde el principio: ${st.n} solves)`;
+      // A long range: a smoother line over all of it.
+      const line = st.long ? { max: st.n, win: Math.max(5, Math.round(st.n / 20)) } : null;
       $('progSteps').innerHTML = !st.n ? '<p class="fr-note">Con el cubo inteligente (o cronometrando por fases en el cronómetro) verás aquí cuánto tardas en cada paso y cómo cambia con el tiempo.</p>'
-        : `<p class="hint">Últimos ${st.recent} solves ${which}${st.groups[0].before != null ? ', comparados con los anteriores' : ''}.</p>
+        : `<p class="hint">Últimos ${st.recent} solves ${which}${since}.</p>
           <div class="fr-step-cards">${st.groups.map((g) => `<div class="fr-step-card">
             <span class="field-title">${g.name}</span>
             <b class="fr-step-v">${secs(g.now, 2)}</b>
-            ${deltaHtml(g.now, g.before) || '<span class="fr-delta same">&nbsp;</span>'}
+            ${deltaHtml(g.now, g.before) || '<span class="fr-delta same">&nbsp;</span>'}${st.long && g.before != null ? `<span class="muted fr-step-then">${stepRange && st.all > st.n ? `hace ${st.n} solves` : 'al principio'}: ${secs(g.before, 2)}</span>` : ''}
             <span class="muted">${Math.round(g.share * 100)} % del solve${g.moves != null ? ` · ${Math.round(g.moves)} giros` : ''}${g.rec != null ? ` · ${secs(g.rec)} reconociendo` : ''}</span>
-            ${spark(g.series.map((x) => x.v), `${g.name}: ${g.series.length} solves, media móvil de 5`)}
+            ${spark(g.series.map((x) => x.v), `${g.name}: ${line ? st.n : Math.min(80, g.series.length)} solves, media móvil de ${line ? line.win : 5}`, line)}
           </div>`).join('')}</div>
           ${st.tps != null ? `<p class="fr-note">Giros por segundo: <b>${st.tps.toFixed(2)}</b>${st.tpsBefore != null ? ` ${deltaHtml(st.tps, st.tpsBefore, { higherBetter: true, eps: 0.05, fmt: (d) => d.toFixed(2) })}` : ''}</p>` : ''}`;
 
@@ -246,6 +260,11 @@
       hit.addEventListener('pointerleave', () => { $('dayHair').setAttribute('visibility', 'hidden'); $('dayTip').hidden = true; });
     }
     document.querySelectorAll('[data-days]').forEach((b) => b.addEventListener('click', () => { dayRange = Number(b.dataset.days); renderDayChart(); }));
+    document.querySelectorAll('[data-steps]').forEach((b) => b.addEventListener('click', () => {
+      stepRange = Number(b.dataset.steps);
+      try { localStorage.setItem('cfop:progsteps:v1', String(stepRange)); } catch (e) { /* this visit */ }
+      renderProgress();
+    }));
     let dayW = 0;
     window.addEventListener('resize', () => {
       clearTimeout(dayW);

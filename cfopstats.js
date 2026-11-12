@@ -187,13 +187,18 @@
       return o;
     });
   }
-  // Each step now (last 12 solves with their steps timed) against before (the 12 before those). Turns,
-  // recognising and turns per second, from the smart-cube ones only.
-  function steps(times) {
-    const ser = stepSeries(times, true);
+  // Each step now (last 12 solves with their steps timed) against before: the 12 before those, or, with `range`
+  // (200 or 0 for all), how it went at the start of that range (its first 12, not the same as the last ones), to
+  // see the way come all along. Turns, recognising and turns per second, from the smart-cube ones only.
+  function steps(times, range) {
+    const all = stepSeries(times, true);
+    const long = range != null && range !== 12;
+    const ser = long && range > 0 ? all.slice(-range) : all;   // the range: its line and its start
     const known = (xs, k) => mean(xs.map((x) => x[k]).filter((v) => v != null));
     const recent = ser.slice(-12);
-    const before = ser.length >= 24 ? ser.slice(-24, -12) : ser.length >= 16 ? ser.slice(0, ser.length - 12) : [];
+    const head = ser.slice(0, Math.min(12, ser.length - 12));
+    const before = long ? (head.length >= 4 ? head : [])
+      : ser.length >= 24 ? ser.slice(-24, -12) : ser.length >= 16 ? ser.slice(0, ser.length - 12) : [];
     const total = mean(recent.map((x) => x.t)) || 1;
     const groups = GROUPS.map(([id, name]) => ({
       id, name,
@@ -204,7 +209,10 @@
       share: mean(recent.map((x) => x[id])) / total,
       series: ser.map((x) => ({ i: x.i, v: x[id] })),
     }));
-    return { n: ser.length, recent: recent.length, hand: recent.filter((x) => x.hand).length, groups, tps: known(recent, 'tps'), tpsBefore: before.length ? known(before, 'tps') : null, series: ser };
+    return {
+      n: ser.length, all: all.length, recent: recent.length, before: before.length, long, hand: recent.filter((x) => x.hand).length,
+      groups, tps: known(recent, 'tps'), tpsBefore: before.length ? known(before, 'tps') : null, series: ser,
+    };
   }
 
   // ================= How good the solves were (from each solve's analysis) =================

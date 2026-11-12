@@ -115,6 +115,23 @@ const keys = (d) => ({ 'cfop:times:v1': d.times, 'cfop:trlog:v1': d.trlog, 'cfop
   check('progreso: a calendar of practice, with how many days', hm.cells === exp.cells && hm.on >= 45 && /Has practicado (29|30) de los últimos 30 días/.test(hm.label), JSON.stringify(hm));
   const steps = await p.evaluate(() => [...document.querySelectorAll('.fr-step-card')].map((x) => x.innerText.replace(/\s+/g, ' ')));
   check('progreso: each step now, against before, with a line', steps.length === 4 && /^CRUZ 4\.68 s ▼ 0\.4 s mejor/i.test(steps[0]) && /F2L 21\.28 s ▼ 1\.6 s mejor 50 % del solve/i.test(steps[1]) && await p.evaluate(() => document.querySelectorAll('.fr-step-card .fr-spark').length === 4), JSON.stringify(steps));
+  // Against the start: «Todo» (and «Últimos 200», with fewer than that, the same): now against the first 12.
+  await p.click('[data-steps="0"]');
+  const all = await p.evaluate(() => {
+    const g = window.CfopStats.steps(JSON.parse(localStorage.getItem('cfop:times:v1')), 0).groups[1];
+    return {
+      cards: [...document.querySelectorAll('.fr-step-card')].map((x) => x.innerText.replace(/\s+/g, ' ')),
+      hint: document.querySelector('#progSteps .hint').textContent,
+      want: `${g.now < g.before ? '▼' : '▲'} ${(Math.abs(g.now - g.before) / 1000).toFixed(1)} s ${g.now < g.before ? 'mejor' : 'peor'}`,
+      kept: localStorage.getItem('cfop:progsteps:v1'),
+      pressed: document.querySelector('[data-steps="0"]').getAttribute('aria-pressed'),
+    };
+  });
+  check('progreso: each step against the start («Todo»), with how it was then, and kept', all.cards[1].includes(all.want) && /al principio: \d+\.\d\d s/.test(all.cards[1]) && /comparados con tus 12 primeros/.test(all.hint) && all.kept === '0' && all.pressed === 'true', JSON.stringify(all));
+  await p.click('[data-steps="200"]');
+  const a200 = await p.evaluate(() => [...document.querySelectorAll('.fr-step-card')].map((x) => x.innerText.replace(/\s+/g, ' ')));
+  check('progreso: «Últimos 200» with fewer than 200 solves: from the start too', JSON.stringify(a200) === JSON.stringify(all.cards), JSON.stringify(a200));
+  await p.click('[data-steps="12"]');
   const eff = await p.evaluate(() => [...document.querySelectorAll('#progEff tbody tr')].map((x) => x.innerText.replace(/\s+/g, ' ')));
   check('progreso: efficiency now and before', eff.length === 8 && /^Eficiencia 93 % 93 %/.test(eff[0]) && /Parado en el F2L 2\.8 s/.test(eff[6]), JSON.stringify(eff));
   const crossP = await p.evaluate(() => document.getElementById('progCross').innerText.replace(/\s+/g, ' '));
