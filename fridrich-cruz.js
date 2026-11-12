@@ -7,7 +7,7 @@
     const {
       $, C, COLOR_NAME, K, M, algHtml, apply, buzz, changed, done, esc, f1, faceMapFor, fmt, followMove,
       halves, inHand, isSolved, load, locate, makeFollow, now, onView, parseAlg, save, settings, solved,
-      undoText
+      undoText, voice
     } = ctx;
     // A scramble, 15 s to plan the whole cross, then do it in one go. With the smart cube the app counts the
     // turns and the time and compares with the shortest; without it, it shows the shortest at the end.
@@ -43,6 +43,7 @@
     function ctPlan() {
       ct.phase = 'plan';
       ct.insp0 = now();
+      ct.said = {};
       ctTick();
       renderCt();
     }
@@ -54,6 +55,7 @@
         if (ct.phase === 'plan') {
           const left = 15000 - (now() - ct.insp0);
           el.textContent = left > 0 ? String(Math.ceil(left / 1000)) : left > -2000 ? '+2' : 'DNF';
+          if (voice) voice.judge(15000 - left, ct.said);   // as in the inspection: «ocho segundos», «doce segundos»
         } else if (ct.phase === 'do') el.textContent = fmt(now() - ct.t0);
         else return;
         ct.raf = requestAnimationFrame(step);

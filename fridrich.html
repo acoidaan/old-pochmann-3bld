@@ -339,6 +339,11 @@
         <div class="panel-head"><h2 id="hSettings">Ajustes</h2></div>
         <div class="fr-settings">
           <label class="check"><input type="checkbox" id="setInspect"> Inspección de 15 s (como en la WCA: +2 si pasas de 15, DNF si pasas de 17)</label>
+          <div class="fr-voice-set fr-sub-check">
+            <label class="check"><input type="checkbox" id="setVoice"> Una voz que dice «ocho segundos» y «doce segundos» en la inspección, como un juez (también al planear la cruz)</label>
+            <div class="fr-voice-pick"><select id="setVoiceName" class="text-input" aria-label="Qué voz"></select><button class="btn" type="button" id="voiceTry">Probar</button></div>
+            <span class="hint" id="voiceNote"></span>
+          </div>
           <label class="check"><input type="checkbox" id="setHelp"> Con el cubo, decirme el caso y el algoritmo también mientras corre el crono</label>
           <label class="check"><input type="checkbox" id="setSound"> Sonido al resolver y al acabar un caso</label>
           <label class="check fr-sub-check"><input type="checkbox" id="setPhaseSound"> Un toque muy suave al acabar cada fase (la cruz, el F2L, la OLL; en «Solo F2L», cada pareja)</label>

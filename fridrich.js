@@ -32,7 +32,7 @@
   };
   const load = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; } catch (e) { return d; } };
   const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* this visit only */ } };
-  const settings = { inspect: false, help: true, sound: true, vibrate: true, cross: 'U', timed: true, trMode: 'cube', chart: 50, pace: 'avg', celebrate: true, peek: {}, scrMode: 'full', scrCases: 'kl', phases: false, phaseSound: true, ...load(K.set, {}) };
+  const settings = { inspect: false, help: true, sound: true, vibrate: true, cross: 'U', timed: true, trMode: 'cube', chart: 50, pace: 'avg', celebrate: true, peek: {}, scrMode: 'full', scrCases: 'kl', phases: false, phaseSound: true, voice: true, voiceName: '', ...load(K.set, {}) };
   if (!['full', 'cf2l', 'f2l', 'll', 'pll'].includes(settings.scrMode)) settings.scrMode = 'full';
   if (!['known', 'kl', 'all'].includes(settings.scrCases)) settings.scrCases = 'kl';
   // The algorithm in view is chosen case by case (the eye on each case); the old switch for all of them goes.
@@ -443,11 +443,47 @@
   renderScrMode();
   $('crossShow').addEventListener('click', () => { crossOpen = !crossOpen; renderCross(); });
 
+  // ================= The judge's voice =================
+  // In the inspection (and while planning a cross), at 8 and 12 s, «ocho segundos» and «doce segundos», as a WCA
+  // judge calls them (and csTimer). The browser's own speech in Spanish, so nothing to download; iOS only lets a
+  // page speak after a touch, so the first touch or key primes it with a silent one.
+  const voice = (() => {
+    const S = window.speechSynthesis;
+    const ok = !!S && typeof window.SpeechSynthesisUtterance === 'function';
+    let primed = false;
+    const spanish = () => (ok ? S.getVoices().filter((v) => /^es([-_]|$)/i.test(v.lang)) : []);
+    const pick = () => {
+      const list = spanish();
+      return list.find((v) => v.voiceURI === settings.voiceName) || list.find((v) => /^es[-_]ES/i.test(v.lang)) || list[0] || null;
+    };
+    function speak(text, volume) {
+      if (!ok) return;
+      try {
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = 'es-ES';
+        const v = pick();
+        if (v) u.voice = v;
+        u.rate = 1.05;
+        if (volume != null) u.volume = volume;
+        S.speak(u);
+      } catch (e) { /* no voice here */ }
+    }
+    const prime = () => { if (!primed && ok) { primed = true; speak(' ', 0); } };
+    ['click', 'keydown', 'touchend'].forEach((t) => document.addEventListener(t, prime, { capture: true, passive: true }));
+    // «ocho» at 8 s, «doce» at 12 s, each once per countdown (`said` is that countdown's own record).
+    function judge(used, said) {
+      if (settings.voice === false) return;
+      if (used >= 8000 && used < 11000 && !said.eight) { said.eight = true; speak('Ocho segundos'); }
+      if (used >= 12000 && used < 15000 && !said.twelve) { said.twelve = true; speak('Doce segundos'); }
+    }
+    return { ok, spanish, speak, judge, onVoices: (fn) => { if (ok) S.addEventListener('voiceschanged', fn); } };
+  })();
+
   // ================= Timer =================
   // idle → (hold) → ready → [inspect →(hold)→ ready] → run → done. With the cube: armed once it is scrambled,
   // the first turn starts it and solving it stops it.
   const HOLD_MS = 300;
-  const timer = { phase: 'idle', t0: 0, t: 0, insp0: 0, hold: 0, held: false, inspHold: false, raf: 0, pen: 0, line: null, startState: null, last: null, names: null, marks: null };
+  const timer = { phase: 'idle', t0: 0, t: 0, insp0: 0, hold: 0, held: false, inspHold: false, raf: 0, pen: 0, line: null, startState: null, last: null, names: null, marks: null, said: {} };
   // By hand, by phases (csTimer's «multi-phase»): one press at the end of each phase, the last one stops the
   // clock. The phases of each kind of practice, as [name, «al acabar …»]; «Solo PLL» is one phase.
   const HAND_PHASES = {
@@ -490,6 +526,7 @@
       else if (timer.phase === 'inspect' || timer.phase === 'ihold' || timer.phase === 'iready') {
         const left = inspectLeft();
         $('clockTime').textContent = left > 0 ? String(Math.ceil(left / 1000)) : left > -2000 ? '+2' : 'DNF';
+        voice.judge(15000 - left, timer.said);
       } else return;
       timer.raf = requestAnimationFrame(step);
     };
@@ -497,6 +534,7 @@
   }
   function startInspection() {
     timer.insp0 = now();
+    timer.said = {};
     setPhase('inspect');
     tick();
   }
@@ -3694,7 +3732,7 @@
   // ================= Entrenar la cruz (fridrich-cruz.js) =================
   const fridrichCruz = window.FridrichCruz({
     $, C, COLOR_NAME, K, M, algHtml, apply, buzz, changed, done, esc, f1, faceMapFor, fmt, followMove, halves,
-    inHand, isSolved, load, locate, makeFollow, now, onView, parseAlg, save, settings, solved, undoText,
+    inHand, isSolved, load, locate, makeFollow, now, onView, parseAlg, save, settings, solved, undoText, voice,
     get cube() { return cube; },
     get view() { return view; },
   });
@@ -3703,6 +3741,7 @@
   // ================= Settings =================
   function renderSettings() {
     $('setInspect').checked = settings.inspect;
+    renderVoiceSet();
     $('setHelp').checked = settings.help;
     $('setSound').checked = settings.sound;
     $('setPhaseSound').checked = settings.phaseSound !== false;
@@ -3716,6 +3755,22 @@
     document.querySelectorAll('[data-theme-set]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.themeSet === th)));
   }
   $('setInspect').addEventListener('change', (e) => { settings.inspect = e.target.checked; saveSettings(); renderClock(); });
+  // The voice: on or off, and which Spanish voice of the ones this device has.
+  function renderVoiceSet() {
+    $('setVoice').checked = settings.voice !== false;
+    const list = voice.spanish();
+    const sel = $('setVoiceName');
+    const opts = `<option value="">${list.length ? 'La que elija el navegador' : 'La del sistema'}</option>${list.map((v) => `<option value="${esc(v.voiceURI)}">${esc(v.name)}</option>`).join('')}`;
+    if (sel.dataset.h !== opts) { sel.dataset.h = opts; sel.innerHTML = opts; }
+    sel.value = list.some((v) => v.voiceURI === settings.voiceName) ? settings.voiceName : '';
+    sel.disabled = settings.voice === false || !voice.ok;
+    $('voiceTry').disabled = settings.voice === false || !voice.ok;
+    $('voiceNote').textContent = !voice.ok ? 'Este navegador no puede hablar.' : list.length ? '' : 'No encuentro voces en español en este dispositivo: usará la que tenga.';
+  }
+  voice.onVoices(() => { if (view === 'ajustes') renderVoiceSet(); });
+  $('setVoice').addEventListener('change', (e) => { settings.voice = e.target.checked; saveSettings(); renderVoiceSet(); });
+  $('setVoiceName').addEventListener('change', (e) => { settings.voiceName = e.target.value; saveSettings(); voice.speak('Ocho segundos'); });
+  $('voiceTry').addEventListener('click', () => voice.speak('Ocho segundos'));
   $('setHelp').addEventListener('change', (e) => { settings.help = e.target.checked; saveSettings(); });
   $('setVibrate').addEventListener('change', (e) => { settings.vibrate = e.target.checked; saveSettings(); });
   $('setCelebrate').addEventListener('change', (e) => { settings.celebrate = e.target.checked; saveSettings(); });
@@ -3953,7 +4008,7 @@
     paceFor: (r) => { const pf = settings.pace !== 'off' ? paceFor(r) : null; return pf ? { d: pf.rows.map((x) => Math.round(x.d)), gold: pf.rows.map((x) => x.gold), total: Math.round(pf.total), label: pf.label } : null; },
     recordsOf,
     // For tests.
-    _: { simSolution, caseTarget, nextCase, rankByTraining, trainRec: () => train, nowPic, liveTrack: () => track, tr, settings, logTr, celebrate, paceRef, bestsOf, paceTick, myBests, ligaPublish, player, loadLeague, lg, session: () => session, endSession, startSession, openPicker, follow: () => follow, makeFollow, partialKeys, setScramble, makeTry, ct, vibes, syncNow, syncPlan, mergeIn, syncData, offerUpdate, focus: () => focus.on },
+    _: { simSolution, caseTarget, nextCase, rankByTraining, trainRec: () => train, nowPic, liveTrack: () => track, tr, settings, logTr, celebrate, paceRef, bestsOf, paceTick, myBests, ligaPublish, player, loadLeague, lg, session: () => session, endSession, startSession, openPicker, follow: () => follow, makeFollow, partialKeys, setScramble, makeTry, ct, vibes, syncNow, syncPlan, mergeIn, syncData, offerUpdate, focus: () => focus.on, timer },
   };
 
   // ================= Start =================

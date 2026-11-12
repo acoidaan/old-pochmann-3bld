@@ -600,6 +600,11 @@ body.focus .clock-pb b { font-size: 24px; }
 .fr-scr-mode .fr-phases-set input { margin-top: 1px; flex: none; }
 .fr-phases-set[hidden] { display: none; }
 .fr-settings .fr-sub-check { margin-left: 24px; }   /* under the sound it depends on */
+.fr-voice-set { display: grid; gap: 6px; }
+.fr-voice-pick { display: flex; flex-wrap: wrap; gap: 8px; margin-left: 24px; }
+.fr-voice-pick select { flex: 1 1 200px; min-width: 0; max-width: 360px; }
+.fr-voice-set .hint { margin-left: 24px; }
+.fr-voice-set .hint:empty { display: none; }
 .fr-hist-mode { margin-top: 6px; flex-wrap: wrap; }
 .fr .history tr.fr-note-row > td { white-space: normal; padding-top: 0; }
 .fr-note-text { font-size: 13px; font-style: italic; color: var(--muted); }

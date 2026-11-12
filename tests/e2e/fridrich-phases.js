@@ -4,7 +4,7 @@
 // timing by phases by hand (a press at the end of each one: the panel, the history, the pace, «Última capa»);
 // «Solo F2L» (the cross done; by hand, pair by pair; with the cube, it stops when the F2L is done, with each
 // pair, its analysis and its turns); «Cruz + F2L» (a whole scramble, the same up to the F2L, the cross too);
-// the phone.
+// the judge's voice in the inspection («ocho segundos», «doce segundos»; off in Ajustes); the phone.
 const { chromium, devices } = require('playwright');
 const { SITE, SHOTS } = require('../env');
 const results = [];
@@ -286,6 +286,39 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
   check('cruz + F2L with the cube: the cross and each pair against the shortest, no last layer', /Tu cruz y tu F2L/i.test(wr.splits) && /Cruz \d/.test(wr.splits) && /Pareja 1/.test(wr.splits) && !/OLL/.test(wr.splits) && /Reconstrucción/.test(wr.splits), wr.splits.slice(0, 400));
   check('cruz + F2L with the cube: the history with the cross, the F2L and the turns', wr.row.slice(3, 5).every((x) => /^\d+\.\d\d$/.test(x)) && /\d+ giros · \d+ %/.test(wr.row[5]), JSON.stringify(wr.row));
   await vc2.ctx.close();
+
+  // ================= The judge's voice in the inspection =================
+  const vo = await open({});
+  const u = vo.p;
+  await u.evaluate(() => { window.__said = []; window.speechSynthesis.speak = (x) => window.__said.push(x.text); });
+  const said = () => u.evaluate(() => window.__said.filter((t) => t.trim()));
+  await u.evaluate(() => window.Fridrich.showView('ajustes'));
+  await u.check('#setInspect');
+  const vset = await u.evaluate(() => ({ on: document.getElementById('setVoice').checked, pick: !!document.getElementById('setVoiceName').options.length }));
+  await u.click('#voiceTry');
+  const tried = await said();
+  await u.evaluate(() => window.Fridrich.showView('crono'));
+  await idle(u);
+  const inspect = async () => { await u.keyboard.down(' '); await u.waitForTimeout(400); await u.keyboard.up(' '); await u.waitForTimeout(100); };
+  await inspect();
+  const ph0 = await u.evaluate(() => window.Fridrich._.timer.phase);
+  await u.evaluate(() => { window.Fridrich._.timer.insp0 -= 8000; });
+  await u.waitForTimeout(200);
+  const s8 = await said();
+  await u.evaluate(() => { window.Fridrich._.timer.insp0 -= 4000; });
+  await u.waitForTimeout(200);
+  const s12 = await said();
+  check('voice: on by default, «Probar» says it, then «Ocho segundos» at 8 s and «Doce segundos» at 12 s of the inspection, once each', vset.on && vset.pick && tried.join() === 'Ocho segundos' && ph0 === 'inspect' && s8.join() === 'Ocho segundos,Ocho segundos' && s12.join() === 'Ocho segundos,Ocho segundos,Doce segundos', JSON.stringify({ vset, tried, ph0, s8, s12 }));
+  await u.keyboard.press('Escape');
+  await u.evaluate(() => window.Fridrich.showView('ajustes'));
+  await u.uncheck('#setVoice');
+  await u.evaluate(() => window.Fridrich.showView('crono'));
+  await inspect();
+  await u.evaluate(() => { window.Fridrich._.timer.insp0 -= 8500; });
+  await u.waitForTimeout(200);
+  check('voice: off in Ajustes, silence', (await said()).length === 3);
+  await u.keyboard.press('Escape');
+  await vo.ctx.close();
 
   // Phone.
   const ph = await open({ ...devices['Pixel 7'] });
