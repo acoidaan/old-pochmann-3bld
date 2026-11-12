@@ -173,6 +173,21 @@
     if (!audio) return;
     try {
       const t0 = audio.currentTime + 0.02;
+      // 'phase': a very soft, short, low touch at the end of each phase, there without calling for attention.
+      if (short === 'phase') {
+        const o = audio.createOscillator();
+        const g = audio.createGain();
+        o.type = 'sine';
+        o.frequency.value = 660;
+        g.gain.setValueAtTime(0.0001, t0);
+        g.gain.exponentialRampToValueAtTime(0.045, t0 + 0.008);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.12);
+        o.connect(g).connect(audio.destination);
+        o.start(t0);
+        o.stop(t0 + 0.15);
+        fxLog.push('phase');
+        return;
+      }
       // A tick, the solved chime, or a little fanfare for a record.
       // 'bad': two low notes going down (a turn off the way, with your eyes closed).
       const notes = short === 'pb' ? [[1047, 0], [1319, 0.09], [1568, 0.18], [2093, 0.3], [1568, 0.42], [2093, 0.52]]

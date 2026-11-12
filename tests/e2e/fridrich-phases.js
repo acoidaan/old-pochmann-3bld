@@ -123,6 +123,7 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
   await q.keyboard.press(' ');   // straight after: a bounce, nothing
   const c1 = await clk();
   check('by phases: it says the phase and what to press for; a second press at once is a bounce', c0.ph === 'Cruz · 1/4' && /al acabar la cruz/.test(c0.sub) && c1.ph === 'F2L · 2/4' && /al acabar el F2L/.test(c1.sub) && /Cruz\s*\d+\.\d\d/.test(c1.pace), JSON.stringify({ c0, c1 }));
+  check('by phases: a soft touch at the end of a phase', (await q.evaluate(() => window.Fridrich.cube().fxLog.filter((x) => x === 'phase').length)) === 1, JSON.stringify(await q.evaluate(() => window.Fridrich.cube().fxLog)));
   await q.waitForTimeout(300);
   await tap();   // F2L
   await tap();   // OLL
@@ -155,7 +156,15 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
   check('by phases: «Última capa» keeps its two, in its own list', ll.r && ll.r.m === 'll' && ll.r.ph && ll.r.ph.length === 2 && ll.row.every((x) => /^\d+\.\d\d$/.test(x)), JSON.stringify(ll));
   await q.selectOption('#scrMode', 'pll');
   check('by phases: not for «Solo PLL» (one phase)', await q.evaluate(() => document.getElementById('setPhasesRow').hidden));
+  // The touch can be turned off (Ajustes), and goes with the sound.
+  await q.evaluate(() => window.Fridrich.showView('ajustes'));
+  await q.uncheck('#setPhaseSound');
+  await q.uncheck('#setSound');
+  const offSet = await q.evaluate(() => document.getElementById('setPhaseSound').disabled);
+  await q.check('#setSound');
+  await q.evaluate(() => window.Fridrich.showView('crono'));
   // «Solo F2L»: the cross comes done; by phases, one press per pair.
+  const fxBefore = await q.evaluate(() => window.Fridrich.cube().fxLog.filter((x) => x === 'phase').length);
   await q.selectOption('#scrMode', 'f2l');
   await modeReady(q, 'f2l');
   const f2s = await q.evaluate(() => {
@@ -173,6 +182,7 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
     row: [...document.querySelector('#history tbody tr').cells].slice(3, 7).map((c) => c.textContent),
     splits: document.getElementById('splits').innerText.replace(/\s+/g, ' '),
   }));
+  check('the soft touch off in Ajustes (and greyed out without the sound): no touch', offSet && (await q.evaluate(() => window.Fridrich.cube().fxLog.filter((x) => x === 'phase').length)) === fxBefore);
   check('solo F2L by hand: pair by pair, in its own list with a column for each', p1.ph === 'Pareja 1 · 1/4' && /al acabar la 1\.ª pareja/.test(p1.sub) && f2.r && f2.r.ph.length === 4 && /P1\s*P2\s*P3\s*P4/i.test(f2.head) && f2.row.every((x) => /^\d+\.\d\d$/.test(x)) && /Tu F2L por parejas/i.test(f2.splits), JSON.stringify({ p1, f2 }));
   // «Cruz + F2L»: a whole scramble (the shortest cross to see), the cross and the F2L.
   await q.selectOption('#scrMode', 'cf2l');
@@ -231,6 +241,8 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
   const r2 = vr.r || {};
   check('solo F2L with the cube: it stops when the F2L is done (the cube not solved yet)', vr.clock === 'done' && !vr.solved && r2.m === 'f2l' && r2.sp && r2.sp.s[1], JSON.stringify({ clock: vr.clock, solved: vr.solved, r: r2 }).slice(0, 300));
   check('solo F2L with the cube: each pair, adding up to the time', Array.isArray(r2.ph) && r2.ph.length === 4 && r2.ph.reduce((a, x) => a + x, 0) === r2.t, JSON.stringify(r2.ph));
+  const fxF = await v.evaluate(() => window.Fridrich.cube().fxLog.slice());
+  check('solo F2L with the cube: a soft touch for each pair, and the chime at the end', fxF.filter((x) => x === 'phase').length >= 1 && fxF.filter((x) => x === 'phase').length <= 3 && fxF[fxF.length - 1] === 'chime', JSON.stringify(fxF));
   check('solo F2L with the cube: each pair against the shortest, no cross or last layer, and its turns', /Tu F2L · cruz blanca/i.test(vr.splits) && /Pareja 1/.test(vr.splits) && !/Cruz \d/.test(vr.splits) && !/OLL/.test(vr.splits) && /de eficiencia/.test(vr.splits) && /Reconstrucción/.test(vr.splits), vr.splits.slice(0, 400));
   check('solo F2L with the cube: the history with each pair and the turns', vr.row.slice(3, 7).every((x) => /^\d+\.\d\d$/.test(x)) && /\d+ giros · \d+ %/.test(vr.row[7]), JSON.stringify(vr.row));
   await vc.ctx.close();
@@ -269,6 +281,8 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
   }));
   const r3 = wr.r || {};
   check('cruz + F2L with the cube: it stops when the F2L is done, the cross and the F2L adding up to the time', wr.clock === 'done' && !wr.solved && r3.m === 'cf2l' && Array.isArray(r3.ph) && r3.ph.length === 2 && r3.ph[0] + r3.ph[1] === r3.t, JSON.stringify({ clock: wr.clock, solved: wr.solved, ph: r3.ph, t: r3.t, m: r3.m }));
+  const fxC = await w.evaluate(() => window.Fridrich.cube().fxLog.slice());
+  check('cruz + F2L with the cube: a soft touch when the cross is done, then the chime', fxC.filter((x) => x === 'phase').length === 1 && fxC[fxC.length - 1] === 'chime', JSON.stringify(fxC));
   check('cruz + F2L with the cube: the cross and each pair against the shortest, no last layer', /Tu cruz y tu F2L/i.test(wr.splits) && /Cruz \d/.test(wr.splits) && /Pareja 1/.test(wr.splits) && !/OLL/.test(wr.splits) && /Reconstrucción/.test(wr.splits), wr.splits.slice(0, 400));
   check('cruz + F2L with the cube: the history with the cross, the F2L and the turns', wr.row.slice(3, 5).every((x) => /^\d+\.\d\d$/.test(x)) && /\d+ giros · \d+ %/.test(wr.row[5]), JSON.stringify(wr.row));
   await vc2.ctx.close();

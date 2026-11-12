@@ -599,6 +599,7 @@ body.focus .clock-pb b { font-size: 24px; }
 .fr-scr-mode .fr-phases-set { flex: 1 1 100%; align-items: flex-start; line-height: 1.35; }
 .fr-scr-mode .fr-phases-set input { margin-top: 1px; flex: none; }
 .fr-phases-set[hidden] { display: none; }
+.fr-settings .fr-sub-check { margin-left: 24px; }   /* under the sound it depends on */
 .fr-hist-mode { margin-top: 6px; flex-wrap: wrap; }
 .fr .history tr.fr-note-row > td { white-space: normal; padding-top: 0; }
 .fr-note-text { font-size: 13px; font-style: italic; color: var(--muted); }

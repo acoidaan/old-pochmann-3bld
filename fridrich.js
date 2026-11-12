@@ -32,7 +32,7 @@
   };
   const load = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; } catch (e) { return d; } };
   const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* this visit only */ } };
-  const settings = { inspect: false, help: true, sound: true, vibrate: true, cross: 'U', timed: true, trMode: 'cube', chart: 50, pace: 'avg', celebrate: true, peek: {}, scrMode: 'full', scrCases: 'kl', phases: false, ...load(K.set, {}) };
+  const settings = { inspect: false, help: true, sound: true, vibrate: true, cross: 'U', timed: true, trMode: 'cube', chart: 50, pace: 'avg', celebrate: true, peek: {}, scrMode: 'full', scrCases: 'kl', phases: false, phaseSound: true, ...load(K.set, {}) };
   if (!['full', 'cf2l', 'f2l', 'll', 'pll'].includes(settings.scrMode)) settings.scrMode = 'full';
   if (!['known', 'kl', 'all'].includes(settings.scrCases)) settings.scrCases = 'kl';
   // The algorithm in view is chosen case by case (the eye on each case); the old switch for all of them goes.
@@ -510,6 +510,8 @@
     timer.startState = startState || (cube && cube.state);
     timer.names = timer.line ? null : handPhases(timer.mode);
     timer.marks = [];
+    timer.ticked = 0;
+    timer.ticked = phasesDone();   // what came done in the scramble (a pair, a skipped OLL) makes no sound
     track = null;
     resetProg();
     pace.ref = timer.mode === 'full' ? paceRef() : null;
@@ -674,6 +676,22 @@
     if (timer.mode === 'full' && settings.pace !== 'off') return ask;
     return [...timer.marks.map((m, i) => `${timer.names[i][2] || timer.names[i][0]} ${f1(m - (i ? timer.marks[i - 1] : 0))}`), ask].join(' · ');
   }
+  // A very soft touch when a phase is done (the last one, the end of the solve, has its own sound).
+  function phaseSound() { if (settings.sound && settings.phaseSound) window.SmartCube.chime('phase'); }
+  // With the cube: the phases done so far in the solve under way, but the last one (cross, F2L and OLL; in
+  // «Solo F2L» each pair; in «Cruz + F2L» the cross; in «Última capa» the OLL); the touch for each new one.
+  const TICK_AT = { full: [0, 1, 3], cf2l: [0], ll: [3], pll: [] };
+  function phasesDone() {
+    const reach = timer.line ? liveSplits() : null;
+    if (!reach) return 0;
+    return timer.mode === 'f2l' ? reach.pairs.filter((x) => x != null).length
+      : (TICK_AT[timer.mode] || TICK_AT.full).filter((i) => reach[i] != null).length;
+  }
+  function phaseTick() {
+    if (!timer.line || !settings.sound || !settings.phaseSound) return;
+    const n = phasesDone();
+    if (n > timer.ticked) { timer.ticked = n; phaseSound(); }
+  }
   // A press while running: by phases, the end of one (the last one stops); otherwise, stop.
   function splitOrStop() {
     if (!timer.names) { stopRun(); return; }
@@ -682,6 +700,7 @@
     if (timer.marks.length < timer.names.length - 1) {
       timer.marks.push(t);
       buzz([25]);
+      phaseSound();
       renderClock();
       return;
     }
@@ -738,6 +757,7 @@
       if (timer.phase === 'run' && timer.line) timer.line.push({ t: (at > timer.t0 ? at : now()) - timer.t0, st });
       // A turn the cube lost on the way, found when it is asked: if it was the last one, the solve ends there.
       if (timer.phase === 'run' && at > timer.t0 && finished(st)) stopRun(at);
+      else if (timer.phase === 'run') phaseTick();
       trSync();
       if (at > tr.ready && trActive() && tr.c && tr.ready && !tr.result) trMove(null, st, at);   // and so may a case
       renderAll();
@@ -749,7 +769,7 @@
       prevState = st;
       if (timer.phase === 'run') {
         if (timer.line) timer.line.push({ t: t - timer.t0, st, m: mv, c: ct });
-        if (finished(st)) stopRun(t);
+        if (finished(st)) stopRun(t); else phaseTick();
       } else if (settings.timed && view === 'crono' && done(follow) && (timer.phase === 'idle' || timer.phase === 'inspect' || timer.phase === 'done') && !trActive() && !ctActive()) {
         // The first turn after scrambling starts the clock.
         startRun(t, before);
@@ -1053,7 +1073,7 @@
     if (splitsMemo.line === timer.line && splitsMemo.n === timer.line.length) return splitsMemo.out;
     const sp = C.splits(timer.line, settings.cross);
     const out = sp ? sp.steps.map((s) => (s.done ? s.end : null)) : null;
-    if (out) out.skip = sp.steps.map((s) => !!(s.done && s.skip));
+    if (out) { out.skip = sp.steps.map((s) => !!(s.done && s.skip)); out.pairs = sp.pairsAt; }
     splitsMemo = { line: timer.line, n: timer.line.length, out };
     return out;
   }
@@ -3685,6 +3705,8 @@
     $('setInspect').checked = settings.inspect;
     $('setHelp').checked = settings.help;
     $('setSound').checked = settings.sound;
+    $('setPhaseSound').checked = settings.phaseSound !== false;
+    $('setPhaseSound').disabled = !settings.sound;
     $('setVibrate').checked = settings.vibrate;
     $('setVibrateRow').hidden = !canVibrate;
     $('setCelebrate').checked = settings.celebrate !== false;
@@ -3698,7 +3720,13 @@
   $('setVibrate').addEventListener('change', (e) => { settings.vibrate = e.target.checked; saveSettings(); });
   $('setCelebrate').addEventListener('change', (e) => { settings.celebrate = e.target.checked; saveSettings(); });
   $('setPace').addEventListener('change', (e) => { settings.pace = e.target.value; saveSettings(); renderPace(); if (timer.last && (timer.last.sp || timer.last.ph)) renderSplits(timer.last); });
-  $('setSound').addEventListener('change', (e) => { settings.sound = e.target.checked; saveSettings(); if (settings.sound) window.SmartCube.unlockAudio(); });
+  $('setSound').addEventListener('change', (e) => { settings.sound = e.target.checked; saveSettings(); if (settings.sound) window.SmartCube.unlockAudio(); renderSettings(); });
+  $('setPhaseSound').addEventListener('change', (e) => {
+    settings.phaseSound = e.target.checked;
+    saveSettings();
+    window.SmartCube.unlockAudio();
+    if (settings.phaseSound) window.SmartCube.chime('phase');   // so you hear how soft it is
+  });
   $('setCross').addEventListener('change', (e) => { settings.cross = e.target.value; saveSettings(); renderCross(); track = null; tr.c = null; });
   document.querySelectorAll('[data-theme-set]').forEach((b) => b.addEventListener('click', () => {
     const v = b.dataset.themeSet;
