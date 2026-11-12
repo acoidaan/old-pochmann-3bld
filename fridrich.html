@@ -342,8 +342,7 @@
           <div class="fr-voice-set fr-sub-check">
             <label class="check"><input type="checkbox" id="setVoice"> Una voz que avisa a los 8 y a los 12 segundos de la inspección, como un juez (también al planear la cruz)</label>
             <div class="fr-voice-pick"><select id="setVoiceName" class="text-input" aria-label="Qué voz"></select><button class="btn" type="button" id="voiceTry">Probar</button></div>
-            <audio id="voiceEight" src="audio/eight.mp3" preload="none" hidden></audio>
-            <audio id="voiceTwelve" src="audio/twelve.mp3" preload="none" hidden></audio>
+            <template id="voiceClips"><audio data-k="eight" src="audio/eight.mp3"></audio><audio data-k="twelve" src="audio/twelve.mp3"></audio></template>
             <span class="hint" id="voiceNote"></span>
           </div>
           <label class="check"><input type="checkbox" id="setHelp"> Con el cubo, decirme el caso y el algoritmo también mientras corre el crono</label>

@@ -472,10 +472,12 @@
     // The first touch also wakes the page's audio, for the recorded voice.
     const prime = () => { if (!primed && ok) { primed = true; speak(' ', 0); } if (window.SmartCube) window.SmartCube.unlockAudio(); };
     ['click', 'keydown', 'touchend'].forEach((t) => document.addEventListener(t, prime, { capture: true, passive: true }));
-    // The recorded ones: their versioned addresses come in the page (hidden <audio>, never played as such).
-    const CLIPS = { eight: $('voiceEight'), twelve: $('voiceTwelve') };
+    // The recorded ones: their versioned addresses come in the page, in a <template> (inert: no media in the
+    // document for anything to load or wait for).
+    const tpl = $('voiceClips');
+    const CLIPS = { eight: 1, twelve: 1 };
     const WORDS = { eight: 'Ocho segundos', twelve: 'Doce segundos' };
-    const clipUrl = (k) => (CLIPS[k] ? CLIPS[k].getAttribute('src') : null);
+    const clipUrl = (k) => { const a = tpl && tpl.content.querySelector(`[data-k="${k}"]`); return a ? a.getAttribute('src') : null; };
     const recorded = () => settings.voiceSrc !== 'tts' && !!clipUrl('eight');
     const preload = () => { if (recorded() && window.SmartCube) Object.keys(CLIPS).forEach((k) => window.SmartCube.loadClip(clipUrl(k))); };
     // One of the two calls; the browser's voice if the recorded one cannot play.
