@@ -13,13 +13,18 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const SCR = "U' L2 D' U R2 B' D' U' L2 B2 R' U' B' F' L U2 F R2 U'";
 const DAY = 86400000;
-// Fourteen days of attempts, two a day, every fourth one a DNF; the memo gets quicker.
+// Fourteen days of attempts, two a day, every fourth one a DNF; the memo gets quicker. Each on its own day
+// whatever the time the suite runs: today's between midnight and now, the others' at midday.
 function history(now) {
   const out = [];
+  const d0 = new Date(now);
+  d0.setHours(0, 0, 0, 0);
+  const today = d0.getTime();
   for (let d = 13; d >= 0; d--) {
     for (let k = 0; k < 2; k++) {
       const i = out.length;
-      out.push({ at: now - d * DAY - (2 - k) * 3600000, memo: 60000 - i * 1000, exec: 50000, ok: i % 4 !== 3, scr: SCR });
+      const at = d ? today - d * DAY + (12 + k) * 3600000 : today + Math.round(((now - today) * (k + 1)) / 3);
+      out.push({ at, memo: 60000 - i * 1000, exec: 50000, ok: i % 4 !== 3, scr: SCR });
     }
   }
   return out;
