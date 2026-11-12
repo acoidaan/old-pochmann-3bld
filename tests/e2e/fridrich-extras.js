@@ -52,6 +52,17 @@ const SOLVE = ["D R' F2 L", "U R U' R'", "U' F' U F", "L' U' L", "U B U' B'", "F
   await p.waitForTimeout(100);
   check('focus: a tap stops it', await p.evaluate(() => document.getElementById('clock').dataset.phase === 'done' && JSON.parse(localStorage.getItem('cfop:times:v1')).length === 1));
   check('focus: today and the last time at the bottom', /Hoy 1/.test(await p.evaluate(() => document.getElementById('focusStats').innerText)));
+  // Another one: today's solves in a row at the bottom, the oldest on the left, the last one on the right.
+  await p.mouse.down(); await p.waitForTimeout(380); await p.mouse.up();
+  await p.waitForTimeout(250);
+  await p.mouse.down(); await p.mouse.up();
+  await p.waitForTimeout(150);
+  const rec = await p.evaluate(() => ({
+    items: [...document.querySelectorAll('#focusRecent > span:not(.sr-only)')].map((x) => [x.textContent, x.className]),
+    times: JSON.parse(localStorage.getItem('cfop:times:v1')).map((r) => (r.t / 1000).toFixed(2)),
+    shown: getComputedStyle(document.getElementById('focusRecent')).display !== 'none',
+  }));
+  check('focus: today’s solves in a row at the bottom, the last one on the right, the best marked', rec.shown && rec.items.map((x) => x[0]).join() === rec.times.join() && /last/.test(rec.items[1][1]) && rec.items.filter((x) => /best/.test(x[1])).length === 1, JSON.stringify(rec));
   await p.keyboard.press('Escape');
   check('focus: Esc leaves', await p.evaluate(() => !document.body.classList.contains('focus')));
   await p.keyboard.press('f');

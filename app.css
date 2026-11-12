@@ -358,6 +358,15 @@ body.focus .clock:focus-visible { outline: none; }
 .focus-stats { margin: 0; font-size: 15px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .focus-stats b { color: var(--ink); }
 .focus-hint { margin: 0; font-size: 13px; color: var(--muted); }
+/* Today's last solves in a row: fits its content, centred; when too long, the oldest slide out on the left. */
+.focus-recent {
+  margin: 0 0 4px; display: inline-flex; justify-content: flex-end; align-items: baseline; gap: .95em;
+  max-width: 100%; overflow: hidden; white-space: nowrap; font-family: var(--font-mono);
+  font-size: clamp(13px, 2.4vw, 17px); color: var(--muted); font-variant-numeric: tabular-nums;
+}
+.focus-recent > * { flex: none; }
+.focus-recent:empty { display: none; }
+@media (max-width: 480px) { .focus-recent > :nth-last-child(n+7):not(.sr-only) { display: none; } }   /* a phone: the last six, whole */
 .focus-hint .on-touch { display: none; }
 @media (hover: none) { .focus-hint .on-touch { display: inline; } .focus-hint .on-keys { display: none; } }
 /* With a smart cube: the turns and the letters as they happen, at the bottom. */
@@ -397,6 +406,7 @@ body.focus:not([data-timer="idle"]) .focus-bottom { visibility: hidden; }
   body.focus .verdict { bottom: max(8px, env(safe-area-inset-bottom, 0px)); gap: 6px 10px; font-size: 15px; }
   body.focus .verdict .btn { font-size: 15px; padding: 8px 14px; }
   body.focus .focus-bottom { gap: 2px; }
+  body.focus .focus-recent { margin-bottom: 0; font-size: 13px; }
   body.focus[data-timer="idle"] .focus-moves { bottom: calc(max(8px, env(safe-area-inset-bottom, 0px)) + 44px); }
   .focus-case { display: none; }   /* no room for it on a phone on its side */
 }
@@ -461,6 +471,10 @@ body.focus .clock[data-phase="ready"] .clock-time, body.focus .clock[data-phase=
 body.focus .view[data-view="crono"] > .panel:has(.clock[data-phase="inspect"]) { box-shadow: inset 0 0 0 2px rgba(251, 191, 36, .55); }
 body.focus .focus-stats, body.focus .focus-hint { color: var(--cb-muted); }
 body.focus .focus-stats b { color: var(--cb-ink); }
+body.focus .focus-recent { color: var(--cb-muted); }
+body.focus .focus-recent .best { color: var(--cb-ready); }
+body.focus .focus-recent .dnf { color: var(--cb-hold); }
+body.focus .focus-recent .last { color: var(--cb-ink); font-weight: 700; }
 body.focus .focus-hint kbd {
   background: var(--cb-glass); color: var(--cb-ink); border: 1px solid var(--cb-line); border-radius: 6px; padding: 1px 6px; box-shadow: none;
 }

@@ -3606,6 +3606,17 @@
     }
     if (timer.last) parts.push(`último <b>${fmtRes(timer.last)}</b>`);
     $('focusStats').innerHTML = parts.join(' · ');
+    // Today's last solves in a row, the oldest on the left and the last one on the right (when they do not fit,
+    // the oldest slide out on the left); today's best in green.
+    const recent = today.slice(-12);
+    const bestV = ok.length ? Math.min(...ok.map(value)) : null;
+    const row = recent.map((t, i) => {
+      const cls = [t.pen === 'dnf' ? 'dnf' : value(t) === bestV ? 'best' : '', i === recent.length - 1 ? 'last' : ''].filter(Boolean).join(' ');
+      return `<span${cls ? ` class="${cls}"` : ''}>${esc(fmtRes(t))}</span>`;
+    }).join('');
+    const fr = $('focusRecent');
+    const html = row ? `<span class="sr-only">Tus últimos solves de hoy:</span>${row}` : '';
+    if (fr.dataset.h !== html) { fr.dataset.h = html; fr.innerHTML = html; }
     $('focusNew').disabled = $('newScr').disabled;
     // With the cube and the help on: the step and the case, in one line.
     // Without the clock (or before a solve), the case of the cube as it is, the same as the help shows.
