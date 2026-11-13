@@ -313,8 +313,9 @@ const SOLVE = ["D R' F2 L", "U R U' R'", "U' F' U F", "L' U' L", "U B U' B'", "F
   await p.click('#trModeHand');
   await p.waitForFunction(() => window.Fridrich._.tr.hand && document.getElementById('trHClock'), null, { timeout: 30000 });
   // A scramble that leaves the case (it is not named), then the clock as in a solve, then what it was.
-  const h1 = await p.evaluate(() => ({ id: window.Fridrich._.tr.hand.c.id, name: window.Fridrich._.tr.hand.c.name, text: document.getElementById('trBox').innerText, answers: document.querySelectorAll('[data-answer]').length }));
-  check('train/hand: a scramble for a solved cube and a clock, the case not named nor guessed', /blanco abajo y verde delante, mezcla:/.test(h1.text) && /0\.00/.test(h1.text) && h1.answers === 0 && !h1.text.includes(h1.name), h1.text.slice(0, 200));
+  // Not named: no card with its name (a one-letter name like «T» or «U» is in «CON TU CUBO» anyway).
+  const h1 = await p.evaluate(() => ({ id: window.Fridrich._.tr.hand.c.id, name: window.Fridrich._.tr.hand.c.name, text: document.getElementById('trBox').innerText, answers: document.querySelectorAll('[data-answer]').length, named: !!document.querySelector('#trBox .fr-case-name, #trBox .fr-train-card') }));
+  check('train/hand: a scramble for a solved cube and a clock, the case not named nor guessed', /blanco abajo y verde delante, mezcla:/.test(h1.text) && /0\.00/.test(h1.text) && h1.answers === 0 && !h1.named, h1.text.slice(0, 200).replace(/\s+/g, ' '));
   await p.keyboard.down(' ');
   await p.waitForTimeout(450);
   const held = await p.evaluate(() => document.getElementById('trHClock').dataset.phase);
