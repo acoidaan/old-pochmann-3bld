@@ -854,6 +854,11 @@
   clockEl.addEventListener('pointerdown', (ev) => { if (ev.button === 0 && press()) { ev.preventDefault(); if (clockEl.setPointerCapture) clockEl.setPointerCapture(ev.pointerId); } });
   clockEl.addEventListener('pointerup', () => release());
   clockEl.addEventListener('pointercancel', () => { if (timer.phase === 'hold' || timer.phase === 'ready') cancel(); });
+  // A finger held still is a long press to the phone (iOS: its menu or the magnifier; Android: the context menu),
+  // which cancels the touch and put the clock back to rest: the clock keeps the whole touch.
+  const keepTouch = (ev) => { if (ev.cancelable) ev.preventDefault(); };
+  clockEl.addEventListener('touchstart', keepTouch, { passive: false });
+  clockEl.addEventListener('contextmenu', keepTouch);
   clockEl.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') ev.preventDefault(); });
   clockEl.addEventListener('click', (ev) => ev.preventDefault());
 

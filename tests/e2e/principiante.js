@@ -155,6 +155,11 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
   await p.evaluate((s) => window.Principiante.cube().link.turn(s.split(' ').slice(5).join(' ')), SCR);
   const ready = await p.evaluate(() => ({ hint: document.getElementById('scrHint').innerText, clock: document.getElementById('clockPhase').innerText, title: (document.querySelector('#liveNow .pr-plan-title') || {}).innerText, cur: document.querySelector('#liveSteps li.cur') && document.querySelector('#liveSteps li.cur').innerText }));
   check('resolver: scrambled → «Mezclado», the clock armed, and the first thing to do (the daisy)', /Mezclado/.test(ready.hint) && /empieza al girar/i.test(ready.clock) && /margarita/i.test(ready.title || '') && /Cruz/.test(ready.cur || ''), JSON.stringify(ready));
+  check('clock: it keeps the whole touch, so a finger held still is no long-press menu that would cancel the hold', await p.evaluate(() => {
+    const el = document.getElementById('clock');
+    const kept = (type) => !el.dispatchEvent(new Event(type, { bubbles: true, cancelable: true }));
+    return getComputedStyle(el).touchAction === 'none' && kept('touchstart') && kept('contextmenu');
+  }));
   // Doing what it says, half a plan first: it follows each turn.
   const first = await p.evaluate(() => window.Principiante._.live.info.plan);
   const firstHand = first.hand;

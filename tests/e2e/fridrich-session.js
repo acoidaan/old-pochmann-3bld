@@ -322,6 +322,28 @@ const keys = (d) => ({ 'cfop:times:v1': d.times, 'cfop:trlog:v1': d.trlog, 'cfop
   check('phone, «Cubo normal» at full screen: no switch of the way to train, a big clock, the whole screen starts and stops it, big answers', fs0.head === 'none' && fs0.clock > 0.3 && /cualquier sitio de la pantalla/.test(fs0.hint) && fs1 === 'run' && fs2.hp === 'done' && fs2.ok >= 70 && fs2.lost >= 70, JSON.stringify({ fs0, fs1, fs2 }));
   await fq.screenshot({ path: `${SHOTS}/fridrich-session-hand-full-pixel7.png` });
   await fq.click('#trHandOk');
+  // A real touch held still on the clock, which is drawn anew under the finger as the hold goes on (a long press
+  // to the phone, whose menu or magnifier would cancel it: the clock and the panel keep the touch), then a tap.
+  await fq.waitForFunction(() => window.Fridrich._.tr.hand && (window.Fridrich._.tr.hp || 'scr') === 'scr' && document.getElementById('trHClock'), null, { timeout: 30000 });
+  const cdp = await ph.ctx.newCDPSession(fq);
+  const hold = async (sel, ms) => {
+    await fq.evaluate((s) => document.querySelector(s).scrollIntoView({ block: 'center' }), sel);
+    const b = await fq.locator(sel).boundingBox();
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: b.x + b.width / 2, y: b.y + b.height / 2 }] });
+    await fq.waitForTimeout(ms);
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await fq.waitForTimeout(200);
+    return fq.evaluate(() => window.Fridrich._.tr.hp);
+  };
+  const ft = [await hold('#trHClock', 900), await hold('.fr-hand .field-title', 40)];
+  const fk = await fq.evaluate(() => {
+    const k = (el, type) => !el.dispatchEvent(new Event(type, { bubbles: true, cancelable: true }));
+    const clock = document.getElementById('trHClock');
+    const title = document.querySelector('.fr-hand .field-title');
+    return { clock: k(clock, 'touchstart') && k(clock, 'contextmenu'), panel: k(title, 'touchstart') && k(title, 'contextmenu'), bar: k(document.getElementById('sessBar'), 'touchstart') };
+  });
+  check('phone, «Cubo normal» at full screen: a finger held still on the clock and let go starts it, a tap stops it; the clock and the panel keep the touch, the bar does not', ft[0] === 'run' && ft[1] === 'done' && fk.clock && fk.panel && !fk.bar, JSON.stringify({ ft, fk }));
+  await fq.click('#trHandOk');
   await fq.keyboard.press('Escape');
   check('phone: leaving full screen, the switch is back', await fq.evaluate(() => getComputedStyle(document.querySelector('#trPanel > .panel-head')).display !== 'none'));
   await ph.ctx.close();

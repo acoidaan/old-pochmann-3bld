@@ -792,6 +792,12 @@
   clockEl.addEventListener('pointerdown', (ev) => { if (ev.button === 0 && press()) { ev.preventDefault(); clockEl.setPointerCapture && clockEl.setPointerCapture(ev.pointerId); } });
   clockEl.addEventListener('pointerup', () => release());
   clockEl.addEventListener('pointercancel', () => { if (timer.phase === 'hold' || timer.phase === 'ready') cancel(); });
+  // A finger held still is a long press to the phone: iOS brings up its menu or the magnifier, Android its
+  // context menu, and either cancels the touch, so the clock went back to rest half a second in. The clocks keep
+  // the whole touch to themselves (they never scroll anyway: touch-action: none).
+  const keepTouch = (ev) => { if (ev.cancelable) ev.preventDefault(); };
+  clockEl.addEventListener('touchstart', keepTouch, { passive: false });
+  clockEl.addEventListener('contextmenu', keepTouch);
   clockEl.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') ev.preventDefault(); });
   clockEl.addEventListener('click', (ev) => ev.preventDefault());
 
@@ -2295,10 +2301,11 @@
     }
     html += `</div><p class="hint">${esc(trainLine(c.id))}</p>${sessHtml()}`;
     box.innerHTML = html;
+    // Held here, let go anywhere (holdHand): this clock is drawn anew at each step of the hold.
     const clock = $('trHClock');
-    clock.addEventListener('pointerdown', (ev) => { ev.preventDefault(); handDown(); });
-    clock.addEventListener('pointerup', (ev) => { ev.preventDefault(); handUp(); });
-    clock.addEventListener('pointerleave', () => { if (handPhase() === 'hold' || handPhase() === 'ready') { clearTimeout(tr.hHold); tr.hp = 'scr'; renderTrain(); } });
+    clock.addEventListener('pointerdown', (ev) => { if (ev.button !== 0) return; ev.preventDefault(); holdHand(); });
+    clock.addEventListener('touchstart', keepTouch, { passive: false });
+    clock.addEventListener('contextmenu', keepTouch);
     if (ph === 'done') {
       $('trHandOk').addEventListener('click', () => handResult(true));
       $('trHandLost').addEventListener('click', () => handResult(false));
@@ -2318,6 +2325,17 @@
     }
   }
   const f2 = (ms) => (ms / 1000).toFixed(2);
+  // Held on the case's clock (or, at full screen, anywhere on the screen), let go anywhere: the clock is drawn
+  // anew at each step of the hold, so the one pressed may no longer be there when the finger leaves. A touch the
+  // browser cancels (a swipe that scrolls) puts it back to the scramble.
+  let handHeld = false;
+  function holdHand() { handHeld = true; handDown(); }
+  window.addEventListener('pointerup', () => { if (!handHeld) return; handHeld = false; handUp(); });
+  window.addEventListener('pointercancel', () => {
+    if (!handHeld) return;
+    handHeld = false;
+    if (handPhase() === 'hold' || handPhase() === 'ready') { clearTimeout(tr.hHold); tr.hp = 'scr'; renderTrain(); }
+  });
   function handDown() {
     const ph = handPhase();
     if (ph === 'run') { tr.hms = Math.round(now() - tr.ht0); tr.hp = 'done'; tr.answered = true; lastAns = { ok: 1, t: tr.hms, name: tr.hand.c.name, guess: '' }; buzz([40]); renderTrain(); emit('train', null); return; }
@@ -3690,21 +3708,14 @@
   $('sessFull').addEventListener('click', () => setTrFull(!trFull));
   // «Cubo normal» at full screen: with the cube in your hands, the whole screen is the clock, as in competition
   // mode (but not its buttons, links, the algorithm, the session bar or your set): hold anywhere and let go to
-  // start, tap anywhere to stop. A swipe still scrolls: the browser cancels the touch, back to the scramble.
+  // start, tap anywhere to stop. The case's panel keeps the whole touch, as the clocks do (no scroll, no long
+  // press); a swipe from the session bar or your set still scrolls.
   const trView = document.querySelector('.view[data-view="entrenar"]');
-  let trViewHold = false;
   const trFree = (t) => !t.closest('button, a, summary, details, input, select, textarea, label, #sessBar, #sessPanel');
-  trView.addEventListener('pointerdown', (ev) => {
-    if (!trFull || settings.trMode !== 'hand' || !tr.hand || ev.button !== 0 || !trFree(ev.target)) return;
-    trViewHold = true;
-    handDown();
-  });
-  window.addEventListener('pointerup', () => { if (!trViewHold) return; trViewHold = false; handUp(); });
-  window.addEventListener('pointercancel', () => {
-    if (!trViewHold) return;
-    trViewHold = false;
-    if (handPhase() === 'hold' || handPhase() === 'ready') { clearTimeout(tr.hHold); tr.hp = 'scr'; renderTrain(); }
-  });
+  const trHolds = (ev) => trFull && settings.trMode === 'hand' && !!tr.hand && trFree(ev.target);
+  trView.addEventListener('pointerdown', (ev) => { if (ev.button === 0 && trHolds(ev)) holdHand(); });
+  trView.addEventListener('touchstart', (ev) => { if (trHolds(ev) && ev.target.closest('#trPanel')) keepTouch(ev); }, { passive: false });
+  trView.addEventListener('contextmenu', (ev) => { if (trHolds(ev)) keepTouch(ev); });
   document.addEventListener('keydown', (ev) => {
     if (typing(ev.target) || ev.ctrlKey || ev.metaKey || ev.altKey || view !== 'entrenar') return;
     if ((ev.key === 'f' || ev.key === 'F') && session && !ev.repeat) { ev.preventDefault(); setTrFull(!trFull); return; }

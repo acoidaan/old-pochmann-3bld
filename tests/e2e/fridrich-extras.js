@@ -48,7 +48,11 @@ const SOLVE = ["D R' F2 L", "U R U' R'", "U' F' U F", "L' U' L", "U B U' B'", "F
   await p.mouse.down(); await p.waitForTimeout(380); await p.mouse.up();
   await p.waitForTimeout(200);
   check('focus: the whole screen is the button (hold and let go → running)', await p.evaluate(() => document.getElementById('clock').dataset.phase === 'run' && document.body.dataset.timer === 'run'));
-  check('focus: the clock takes the touch whole (no scroll, no pull to refresh, no long-press menu that would cancel it)', await p.evaluate(() => { const c = getComputedStyle(document.getElementById('clock')); return c.touchAction === 'none' && getComputedStyle(document.body).overscrollBehaviorY === 'none'; }));
+  check('focus: the clock takes the touch whole (no scroll, no pull to refresh, no long-press menu that would cancel it)', await p.evaluate(() => {
+    const el = document.getElementById('clock');
+    const kept = (type) => !el.dispatchEvent(new Event(type, { bubbles: true, cancelable: true }));
+    return getComputedStyle(el).touchAction === 'none' && getComputedStyle(document.body).overscrollBehaviorY === 'none' && kept('touchstart') && kept('contextmenu');
+  }));
   await p.mouse.down(); await p.mouse.up();
   await p.waitForTimeout(100);
   check('focus: a tap stops it', await p.evaluate(() => document.getElementById('clock').dataset.phase === 'done' && JSON.parse(localStorage.getItem('cfop:times:v1')).length === 1));
