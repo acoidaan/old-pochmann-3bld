@@ -674,7 +674,19 @@ body.trfocus #sessSet { align-content: start; }
   body.trfocus #sessPanel { grid-column: 2; grid-row: 2; align-self: stretch; overflow: auto; min-height: 0; }
 }
 @media (max-width: 999.98px) { body.trfocus .view[data-view="entrenar"] { grid-template-rows: auto auto auto; } body.trfocus #trPanel { align-self: start; } }
-body.trfocus #trPanel .panel-head { justify-content: center; }
+/* At full screen the way to train is already chosen: no switch here (it is back when you leave). */
+body.trfocus #trPanel > .panel-head { display: none !important; }
+/* «Cubo normal» at full screen: the whole screen is the clock (fridrich.js, trView), so nothing to select with a
+   long press; the clock big while it matters, and the two answers big enough to hit with the cube in your hands. */
+body.trfocus[data-trmode="hand"] .view[data-view="entrenar"] { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+body.trfocus .fr-hclock:not([data-phase="done"]) { min-height: clamp(170px, 36vh, 460px); align-content: center; }
+body.trfocus .fr-hclock .fr-hclock-t { font-size: clamp(56px, 15vw, 112px); }
+body.trfocus .fr-hand-acts { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; }
+body.trfocus .fr-hand-acts .btn { min-height: 84px; font-size: 19px; justify-content: center; }
+@media (max-height: 500px) and (orientation: landscape) {
+  body.trfocus .fr-hclock:not([data-phase="done"]) { min-height: 44vh; }
+  body.trfocus .fr-hand-acts .btn { min-height: 64px; }
+}
 body.trfocus .fr-big { font-size: clamp(26px, 4.6vw, 44px); }
 body.trfocus .fr-train-card .fr-top, body.trfocus .fr-quiz-pic .fr-top, body.trfocus .fr-try-pic .fr-top,
 body.trfocus .fr-peek .fr-top, body.trfocus .fr-quiz-pic .fr-iso { width: clamp(140px, 30vmin, 240px); height: auto; }

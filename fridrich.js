@@ -1945,6 +1945,7 @@
   const trActive = () => view === 'entrenar' && settings.trMode === 'cube' && cube && cube.on && !!tr.c && !ctActive();
   function renderTrMode() {
     const m = settings.trMode;
+    document.body.dataset.trmode = m;   // for the full-screen look of each way
     $('trModeCube').setAttribute('aria-pressed', String(m === 'cube'));
     $('trModeHand').setAttribute('aria-pressed', String(m === 'hand'));
     $('trModeLook').setAttribute('aria-pressed', String(m === 'look'));
@@ -2272,7 +2273,13 @@
     if (!t) { box.innerHTML = '<p class="fr-note">Preparando una mezcla…</p>'; return; }
     const ph = handPhase();
     const fam = c.step === 'f2l' ? 'F2L' : isFull(c.step) ? STEP_NAME[c.step] : STEP_NAME[c.step];
-    const msg = { scr: 'Mezcla y, cuando lo tengas, mantén pulsado (o Espacio) y suelta para empezar', hold: 'Mantén…', ready: 'Suelta para empezar', run: 'Toca (o Espacio) para parar · X si te has perdido', done: '' }[ph];
+    // At full screen the whole screen is the clock (see trView below).
+    const wide = document.body.classList.contains('trfocus');
+    const msg = {
+      scr: wide ? 'Mezcla y, cuando lo tengas, mantén el dedo en cualquier sitio de la pantalla y suéltalo para empezar' : 'Mezcla y, cuando lo tengas, mantén pulsado (o Espacio) y suelta para empezar',
+      hold: 'Mantén…', ready: 'Suelta para empezar',
+      run: wide ? 'Toca la pantalla donde sea para parar · X si te has perdido' : 'Toca (o Espacio) para parar · X si te has perdido', done: '',
+    }[ph];
     // Its eye: seen at any point before the clock stops, the attempt is practice.
     if (ph !== 'done' && peekOn(c.id)) tr.hPeek = true;
     let html = `<div class="fr-train-head fr-hand">
@@ -2283,7 +2290,7 @@
       <button type="button" class="fr-hclock" id="trHClock" data-phase="${ph}" aria-label="Cronómetro del caso"><span class="fr-hclock-t" id="trHTime">${ph === 'done' ? f2(tr.hms) : ph === 'run' ? f2(now() - tr.ht0) : '0.00'}</span>${msg ? `<span class="hint">${msg}</span>` : ''}</button>`;
     if (ph === 'done') {
       html += `<div class="fr-train-card">${pictureOf(c, t.g, `Así estaba: ${c.name}`)}<div><b class="fr-case-name">${esc(c.name)}</b><p class="fr-note">${tryHow(t)}</p>${tr.hPeek ? '<p class="hint">Con el algoritmo a la vista: cuenta como práctica, aparte de tus tiempos.</p>' : ''}${!tr.hPeek && session && session.per[c.id] && tr.hms > htOf(c.id, session.per[c.id]) ? `<p class="hint">Más que su objetivo (${secs(session.per[c.id].ht)}): si te ha salido bien, cuenta para tus tiempos, pero no suma a la racha.</p>` : ''}<p class="hint">${esc(c.look)}</p></div></div>
-        <div class="actions"><button class="btn primary" type="button" id="trHandOk">✓ Bien <kbd>Espacio</kbd></button><button class="btn" type="button" id="trHandLost">✗ Me he perdido <kbd>X</kbd></button></div>
+        <div class="actions fr-hand-acts"><button class="btn primary" type="button" id="trHandOk">✓ Bien <kbd>Espacio</kbd></button><button class="btn" type="button" id="trHandLost">✗ Me he perdido <kbd>X</kbd></button></div>
         <p class="hint">«Me he perdido» (o X) lo apunta como fallo: resuelve el cubo como sea y sigue con otro.</p>`;
     }
     html += `</div><p class="hint">${esc(trainLine(c.id))}</p>${sessHtml()}`;
@@ -2296,6 +2303,14 @@
       $('trHandOk').addEventListener('click', () => handResult(true));
       $('trHandLost').addEventListener('click', () => handResult(false));
     }
+    // At full screen (a phone on its side, say), what matters now in sight if it is not: the scramble, or the
+    // answers.
+    if (wide && tr.hpShown !== ph) {
+      const el = ph === 'done' ? $('trHandOk') : ph === 'scr' ? box.querySelector('.fr-setup') : null;
+      const r = el ? el.getBoundingClientRect() : null;
+      if (r && (r.top < 0 || r.bottom > window.innerHeight) && el.scrollIntoView) el.scrollIntoView({ block: ph === 'done' ? 'nearest' : 'center' });
+    }
+    tr.hpShown = ph;
     cancelAnimationFrame(handRaf);
     if (ph === 'run') {
       const tick = () => { const el = $('trHTime'); if (!el || handPhase() !== 'run') return; el.textContent = f2(now() - tr.ht0); handRaf = requestAnimationFrame(tick); };
@@ -3670,8 +3685,26 @@
     } catch (e) { /* the layout alone is enough */ }
     if (on) { try { history.pushState({ frTrFull: true }, ''); } catch (e) { /* sandboxed */ } } else if (!fromHistory) { try { if (history.state && history.state.frTrFull) history.back(); } catch (e) { /* sandboxed */ } }
     window.scrollTo(0, 0);
+    if (settings.trMode === 'hand') { tr.hpShown = null; renderTrain(); }   // its texts for the whole screen
   }
   $('sessFull').addEventListener('click', () => setTrFull(!trFull));
+  // «Cubo normal» at full screen: with the cube in your hands, the whole screen is the clock, as in competition
+  // mode (but not its buttons, links, the algorithm, the session bar or your set): hold anywhere and let go to
+  // start, tap anywhere to stop. A swipe still scrolls: the browser cancels the touch, back to the scramble.
+  const trView = document.querySelector('.view[data-view="entrenar"]');
+  let trViewHold = false;
+  const trFree = (t) => !t.closest('button, a, summary, details, input, select, textarea, label, #sessBar, #sessPanel');
+  trView.addEventListener('pointerdown', (ev) => {
+    if (!trFull || settings.trMode !== 'hand' || !tr.hand || ev.button !== 0 || !trFree(ev.target)) return;
+    trViewHold = true;
+    handDown();
+  });
+  window.addEventListener('pointerup', () => { if (!trViewHold) return; trViewHold = false; handUp(); });
+  window.addEventListener('pointercancel', () => {
+    if (!trViewHold) return;
+    trViewHold = false;
+    if (handPhase() === 'hold' || handPhase() === 'ready') { clearTimeout(tr.hHold); tr.hp = 'scr'; renderTrain(); }
+  });
   document.addEventListener('keydown', (ev) => {
     if (typing(ev.target) || ev.ctrlKey || ev.metaKey || ev.altKey || view !== 'entrenar') return;
     if ((ev.key === 'f' || ev.key === 'F') && session && !ev.repeat) { ev.preventDefault(); setTrFull(!trFull); return; }

@@ -300,6 +300,28 @@ const keys = (d) => ({ 'cfop:times:v1': d.times, 'cfop:trlog:v1': d.trlog, 'cfop
   const pm = await ph.p.evaluate(() => ({ over: document.documentElement.scrollWidth - window.innerWidth, mini: getComputedStyle(document.getElementById('sessMini')).display, n: document.querySelectorAll('#sessMini span').length, text: document.getElementById('sessMini').innerText }));
   check('phone: the session fits, and the bar shows each case of the set with its progress', pm.over <= 0 && pm.mini === 'flex' && pm.n === 5 && /[●○]/.test(pm.text), JSON.stringify(pm));
   await ph.p.screenshot({ path: `${SHOTS}/fridrich-session-pixel7.png` });
+  // «Cubo normal» at full screen on the phone: no switch of the way to train; the whole screen is the clock
+  // (hold anywhere and let go, tap anywhere to stop) and the answers are big.
+  const fq = ph.p;
+  await fq.click('#trModeHand');
+  await fq.waitForFunction(() => window.Fridrich._.tr.hand && document.getElementById('trHClock'), null, { timeout: 30000 });
+  await fq.click('#sessFull');
+  await fq.waitForTimeout(300);
+  const fs0 = await fq.evaluate(() => ({ head: getComputedStyle(document.querySelector('#trPanel > .panel-head')).display, clock: document.getElementById('trHClock').getBoundingClientRect().height / window.innerHeight, hint: document.getElementById('trHClock').innerText }));
+  const spot = async (sel) => { const b = await fq.locator(sel).boundingBox(); await fq.mouse.move(b.x + 10, b.y + b.height / 2); };
+  await spot('.fr-setup');
+  await fq.mouse.down(); await fq.waitForTimeout(400); await fq.mouse.up();
+  await fq.waitForTimeout(300);
+  const fs1 = await fq.evaluate(() => window.Fridrich._.tr.hp);
+  await spot('.fr-hand .field-title');
+  await fq.mouse.down(); await fq.mouse.up();
+  await fq.waitForTimeout(200);
+  const fs2 = await fq.evaluate(() => ({ hp: window.Fridrich._.tr.hp, ok: document.getElementById('trHandOk').getBoundingClientRect().height, lost: document.getElementById('trHandLost').getBoundingClientRect().height }));
+  check('phone, «Cubo normal» at full screen: no switch of the way to train, a big clock, the whole screen starts and stops it, big answers', fs0.head === 'none' && fs0.clock > 0.3 && /cualquier sitio de la pantalla/.test(fs0.hint) && fs1 === 'run' && fs2.hp === 'done' && fs2.ok >= 70 && fs2.lost >= 70, JSON.stringify({ fs0, fs1, fs2 }));
+  await fq.screenshot({ path: `${SHOTS}/fridrich-session-hand-full-pixel7.png` });
+  await fq.click('#trHandOk');
+  await fq.keyboard.press('Escape');
+  check('phone: leaving full screen, the switch is back', await fq.evaluate(() => getComputedStyle(document.querySelector('#trPanel > .panel-head')).display !== 'none'));
   await ph.ctx.close();
 
   results.forEach((r) => console.log(r));
