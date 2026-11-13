@@ -317,6 +317,8 @@ const keys = (d) => ({ 'cfop:times:v1': d.times, 'cfop:trlog:v1': d.trlog, 'cfop
   await fq.mouse.down(); await fq.mouse.up();
   await fq.waitForTimeout(200);
   const fs2 = await fq.evaluate(() => ({ hp: window.Fridrich._.tr.hp, ok: document.getElementById('trHandOk').getBoundingClientRect().height, lost: document.getElementById('trHandLost').getBoundingClientRect().height }));
+  const touch = await fq.evaluate(() => ({ panel: getComputedStyle(document.getElementById('trPanel')).touchAction, bar: getComputedStyle(document.getElementById('sessBar')).touchAction }));
+  check('phone, «Cubo normal» at full screen: held, a finger that moves a little does not scroll (nor cancel the touch); the bar still scrolls', touch.panel === 'none' && touch.bar !== 'none', JSON.stringify(touch));
   check('phone, «Cubo normal» at full screen: no switch of the way to train, a big clock, the whole screen starts and stops it, big answers', fs0.head === 'none' && fs0.clock > 0.3 && /cualquier sitio de la pantalla/.test(fs0.hint) && fs1 === 'run' && fs2.hp === 'done' && fs2.ok >= 70 && fs2.lost >= 70, JSON.stringify({ fs0, fs1, fs2 }));
   await fq.screenshot({ path: `${SHOTS}/fridrich-session-hand-full-pixel7.png` });
   await fq.click('#trHandOk');
