@@ -56,6 +56,11 @@ const SOLVE = ["D R' F2 L", "U R U' R'", "U' F' U F", "L' U' L", "U B U' B'", "F
         await p.click('[data-case="f2l23"] [data-try]');
         await p.evaluate(() => { document.querySelector('[data-case="f2l23"] .fr-alts').open = true; });
         await run('casos · F2L');
+        await p.click('[data-case-set="nota"]');
+        await p.waitForSelector('#notation .nt-cube polygon');
+        await p.click('[data-nt-ex="R U R\' U\'"]');
+        await p.waitForFunction(() => /Ya está/.test(document.querySelector('.nt-now').textContent), null, { timeout: 15000 });
+        await run('casos · notación');
         await p.click('[data-case-set="ll"]');
       }
     }

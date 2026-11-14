@@ -18,6 +18,10 @@ const VIEWS = ['practicar', 'crono', 'entrenar', 'progreso', 'aprender', 'tabla'
     for (const v of VIEWS) {
       await page.evaluate((x) => window.OP3.showView(x), v);
       await page.waitForTimeout(250);
+      if (v === 'aprender') {
+        await page.evaluate(() => { document.getElementById('notationBox').open = true; });
+        await page.waitForSelector('#notationBox .nt-cube polygon');
+      }
       const ov = await page.evaluate(() => {
         const W = document.documentElement.clientWidth;
         const out = [];

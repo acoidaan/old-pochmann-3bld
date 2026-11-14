@@ -33,6 +33,8 @@ let problems = 0;
       problems += bad.length ? 1 : 0;
     };
     await p.click('#basics summary');
+    await p.click('#notationBox summary');
+    await p.waitForSelector('#notationBox .nt-cube polygon');
     await p.check('[data-known="cross"]');
     await run('aprender');
     await p.evaluate(() => window.Principiante.showView('resolver'));

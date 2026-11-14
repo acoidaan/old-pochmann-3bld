@@ -14,6 +14,7 @@
   "e2e/fridrich-stats.js": 15,
   "e2e/fridrich.js": 25,
   "e2e/history-theme-retos.js": 11,
+  "e2e/notation.js": 22,
   "e2e/overlay-memo.js": 5,
   "e2e/overlay-obs.js": 18,
   "e2e/overlay-two-windows.js": 31,

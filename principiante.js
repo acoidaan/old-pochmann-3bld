@@ -498,7 +498,7 @@
       <p><b>Cómo se sujeta.</b> Todo el método se hace con el <b>amarillo arriba</b> y el <b>blanco abajo</b>. «Delante» es la cara que te mira. Cuando una explicación dice «pon el rojo delante», gira el cubo entero (sin girar capas) hasta que el centro rojo te mire.</p>
       <p><b>Cómo se leen los giros.</b> Cada letra es una cara: <b>R</b> derecha, <b>L</b> izquierda, <b>U</b> arriba, <b>D</b> abajo, <b>F</b> delante y <b>B</b> detrás. La letra sola es un cuarto de vuelta como las agujas del reloj, mirando esa cara de frente; con <b>'</b> (R') es al revés, y con <b>2</b> (R2), media vuelta.</p>
       <div class="pr-turns">${['R', "R'", 'U', "U'", 'F', 'F2', 'L', 'D'].map(turn).join('')}</div>
-      <p class="hint">Cada dibujo es el cubo resuelto después de ese giro, con el amarillo arriba y el verde delante.</p>
+      <p class="hint">Cada dibujo es el cubo resuelto después de ese giro, con el amarillo arriba y el verde delante. En «La notación», aquí debajo, los ves girar en 3D, y también los demás (M, x, y, z…).</p>
       <p><b>Cómo se mezcla.</b> Las mezclas de la app se hacen con el <b>blanco arriba</b> y el <b>verde delante</b> (como el cubo nuevo). Después le das la vuelta para resolverlo con el amarillo arriba.</p>
     </div>`;
   }

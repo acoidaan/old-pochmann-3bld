@@ -1154,6 +1154,73 @@ body.focus .memo-ask input { width: 100%; font-size: 18px; }
 .at-dots i { width: 12px; height: 12px; border-radius: 50%; background: var(--line); }
 .at-dots i.on { background: var(--accent); }
 
+/* ---------- La notación: each move on a cube in 3D (notation.js), in every section ---------- */
+.nt { display: grid; gap: 24px; }
+.nt-play { display: grid; gap: 16px 28px; align-items: start; }
+.nt-stage { margin: 0; display: grid; justify-items: center; gap: 8px; text-align: center; }
+/* The cube stays in sight while the keys and the player scroll: beside them from 700 px (under the menu once
+   it is at the top), above them on a phone held upright (on its side it is too short for that). */
+@media (min-width: 700px) {
+  .nt-play { grid-template-columns: minmax(220px, 300px) minmax(0, 1fr); }
+  .nt-stage { position: sticky; top: 12px; }
+}
+@media (min-width: 861px) { .nt-stage { top: 76px; } }
+@media (max-width: 699px) { .nt-now { font-size: 14px; } }
+@media (max-width: 699px) and (min-height: 600px) {
+  .nt-stage {
+    position: sticky; top: 0; z-index: 3; margin: 0 -14px; padding: 8px 14px 10px;
+    background: var(--surface); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); border-bottom: 1px solid var(--line);
+  }
+}
+/* Dragged round with a finger: the touch is the cube's (no scroll, long-press menu or magnifier). */
+.nt-cube {
+  display: block; width: min(100%, 300px); height: auto; aspect-ratio: 1; cursor: grab;
+  touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+}
+.nt-cube.drag { cursor: grabbing; }
+@media (max-width: 699px) { .nt-cube { width: min(100%, 220px); } }
+@media (max-height: 500px) and (orientation: landscape) { .nt-cube { width: min(100%, 210px); } }
+.nt-now { min-height: 4.2em; margin: 0; font-size: 15px; line-height: 1.4; max-width: 34em; }
+.nt-now b { font-family: var(--font-mono); font-weight: 600; font-size: 19px; margin-right: 4px; }
+.nt-view { display: flex; flex-wrap: wrap; gap: 8px; }
+.nt-held { margin: -6px 0 0; max-width: 34em; }
+.nt-rows { display: grid; grid-template-columns: repeat(2, minmax(0, max-content)); gap: 14px 22px; }
+.nt-faces, .nt-wide { grid-column: 1 / -1; }
+.nt-pad { display: grid; gap: 14px; align-content: start; }
+.nt-mod { justify-self: start; flex-wrap: wrap; max-width: 100%; }
+.nt-row { display: grid; gap: 6px; }
+.nt-row-t { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.nt-keys { display: flex; flex-wrap: wrap; gap: 6px; }
+.nt-key {
+  min-width: 46px; min-height: 46px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--line);
+  background: var(--raise); color: var(--ink); font-family: var(--font-mono); font-weight: 600; font-size: 18px;
+  cursor: pointer; touch-action: manipulation;
+}
+.nt-key:hover { border-color: var(--muted); }
+.nt-key[data-on] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.nt h3 { margin: 0 0 10px; font-size: 16px; }
+.nt-alg { margin-top: 8px; }
+.nt-text ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 46em; }
+.nt-alg-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.nt-alg-row .text-input { flex: 1 1 220px; width: auto; font-family: var(--font-mono); }
+.nt-ex { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.nt-ex .btn { font-size: 13px; padding: 5px 10px; }
+.nt-err { margin: 10px 0 0; }
+.nt-chips { display: flex; flex-wrap: wrap; gap: 4px; margin: 12px 0 0; padding: 0; list-style: none; }
+.nt-chip {
+  min-width: 38px; min-height: 36px; padding: 0 7px; border-radius: 7px; border: 1px solid var(--line);
+  background: var(--surface); color: var(--ink); font-family: var(--font-mono); font-weight: 600; font-size: 15px; cursor: pointer;
+}
+.nt-chip.done { color: var(--muted); }
+.nt-chip[aria-current] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+/* Where it is a panel that opens (3BLD and principiante, «Aprender»). */
+.nt-box > summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px; }
+.nt-box > summary::-webkit-details-marker { display: none; }
+.nt-box > summary::before { content: '▸'; color: var(--muted); font-size: 14px; }
+.nt-box[open] > summary::before { content: '▾'; }
+.nt-box > summary h2 { margin: 0; font-size: 17px; }
+.nt-box[open] > summary { margin-bottom: 16px; }
+
 /* ================= «Carbón» theme (Ajustes → Tema) =================
    The look of competition mode for the whole page, after Tagda Timer's Carbon: charcoal with big soft grey
    shapes drifting behind, panels of frosted glass and white for the accent. It starts from the dark theme

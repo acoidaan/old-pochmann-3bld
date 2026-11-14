@@ -262,5 +262,8 @@
     startScrambler, requestScramble, solveState, simplifyAlg, withTimeout, randomMoveScramble,
     scramblerReady: () => scrIsReady,
     CENTERS, ROTATIONS, CUBIES, norm, fromFacelets, toFacelets,
+    // Each move letter as [axis, layers, quarter turns (right-handed) of the letter alone]: what draws a
+    // turn as it happens (notation.js) turns the same little cubes the same way.
+    TURNS: BASE,
   };
 })();

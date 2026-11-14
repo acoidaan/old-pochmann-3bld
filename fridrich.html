@@ -194,6 +194,7 @@
         <button type="button" data-case-set="f2l" aria-pressed="false">F2L <span class="muted">41</span></button>
         <button type="button" data-case-set="foll" data-only="full" aria-pressed="false">OLL <span class="muted">57</span></button>
         <button type="button" data-case-set="fpll" data-only="full" aria-pressed="false">PLL <span class="muted">21</span></button>
+        <button type="button" data-case-set="nota" aria-pressed="false">Notación</button>
       </div>
       <section class="panel" aria-labelledby="hMethod" id="caseMethod">
         <div class="panel-head"><h2 id="hMethod">El método, en 6 pasos</h2></div>
@@ -216,6 +217,10 @@
         <div class="panel-head"><h2 id="hFullIntro">CFOP completo: el OLL y el PLL de una vez</h2></div>
         <p>El paso siguiente al de 2 looks: cada OLL (57) orienta toda la cara de arriba con un solo algoritmo, y cada PLL (21) la deja resuelta. Así te ahorras un reconocimiento y un algoritmo en cada paso.</p>
         <p class="hint">Numerados y con el nombre que usa todo el mundo, con los algoritmos de J Perm (<a href="https://www.jperm.net/algs/oll" target="_blank" rel="noopener">OLL</a> y <a href="https://www.jperm.net/algs/pll" target="_blank" rel="noopener">PLL</a>) y agrupados por cómo se ve la cara de arriba. Muchos ya los usas en 2 looks: la Sune es el OLL 27, la T-perm, la Y-perm, las U, la H y la Z son PLL. Para aprenderlos, márcalos como «Aprendiendo» y entrénalos en «Entrenar».</p>
+      </section>
+      <section class="panel" aria-labelledby="hNotation" id="caseNotation" hidden>
+        <div class="panel-head"><h2 id="hNotation">La notación: qué hace cada letra</h2></div>
+        <div id="notation"></div>
       </section>
       <div id="caseGroups"></div>
     </div>
@@ -480,6 +485,7 @@
 </div>
 
 <script src="cubemodel.js"></script>
+<script src="notation.js"></script>
 <script src="follow.js"></script>
 <script src="cfop.js"></script>
 <script src="cfopf2l.js"></script>

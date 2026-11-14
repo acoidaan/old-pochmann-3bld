@@ -1802,16 +1802,23 @@
           </div>
           <div class="fr-try" hidden></div>
         </article>`;
-  // Casos shows one set at a time: the last layer (16) or the F2L (41), in its six groups.
-  // Each page remembers its own: the last layer of its method or the F2L.
+  // Casos shows one set at a time: the last layer (16) or the F2L (41), in its six groups, or the notation.
+  // Each page remembers its own: the last layer of its method, the F2L or the notation.
   const SET_KEY = FULL ? 'caseSetFull' : 'caseSet';
-  if (!(FULL ? ['foll', 'fpll', 'f2l'] : ['ll', 'f2l']).includes(settings[SET_KEY])) settings[SET_KEY] = FULL ? 'foll' : 'll';
+  if (!(FULL ? ['foll', 'fpll', 'f2l', 'nota'] : ['ll', 'f2l', 'nota']).includes(settings[SET_KEY])) settings[SET_KEY] = FULL ? 'foll' : 'll';
   const caseSet = () => settings[SET_KEY];
   function renderCases() {
     document.querySelectorAll('[data-case-set]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.caseSet === caseSet())));
     $('caseMethod').hidden = caseSet() !== 'll';
     $('caseF2lIntro').hidden = caseSet() !== 'f2l';
     $('caseFullIntro').hidden = !isFull(caseSet());
+    // «Notación»: what each letter does, on a cube that turns it (notation.js), instead of the cases.
+    $('caseNotation').hidden = caseSet() !== 'nota';
+    if (caseSet() === 'nota') {
+      window.CubeNotation.mount($('notation'), { up: 'yellow' });
+      $('caseGroups').innerHTML = '';
+      return;
+    }
     const full = caseSet() === 'foll' ? [FU.OLL_GROUPS, FU.OLL] : [FU.PLL_GROUPS, FU.PLL];
     const groups = isFull(caseSet())
       ? full[0].map((gr) => {
