@@ -2155,7 +2155,7 @@
   // «Ver el algoritmo»: open, it stays in view each time this case comes up, until hidden.
   const peekBox = (c, note) => {
     const shown = peekOn(c.id);
-    return `<details class="fr-peek" id="trPeek"${shown ? ' open' : ''}><summary>${shown ? 'Ocultar el algoritmo' : 'Ver el algoritmo'}</summary>${casePicture(c)}<p><b>${esc(c.name)}</b> ${algHtml(c.alg)}</p><p class="hint">${esc(c.look)}</p><p class="hint">Se queda a la vista cada vez que salga este caso, hasta que lo ocultes (también con su ojo, en tu set). ${note} Los demás casos no cambian.</p></details>`;
+    return `<details class="fr-peek" id="trPeek" data-case="${c.id}"${shown ? ' open' : ''}><summary>${shown ? 'Ocultar el algoritmo' : 'Ver el algoritmo'}</summary>${casePicture(c)}<p><b>${esc(c.name)}</b> ${algHtml(c.alg)}</p><p class="hint">${esc(c.look)}</p><p class="hint">Se queda a la vista cada vez que salga este caso, hasta que lo ocultes (también con su ojo, en tu set). ${note} Los demás casos no cambian.</p></details>`;
   };
   function quizPicture() {
     const c = tr.c;
@@ -2228,10 +2228,20 @@
     }
   }
   // Opening or closing «Ver el algoritmo» is this case's eye (toggle does not bubble: caught on the way down).
+  // Only the one on screen, of the case on now: a toggle event comes later, when it may have been redrawn.
   $('trBox').addEventListener('toggle', (ev) => {
     const d = ev.target;
-    if (d.id !== 'trPeek' || !tr.c || peekOn(tr.c.id) === d.open) return;
+    if (d.id !== 'trPeek' || !d.isConnected || !tr.c || d.dataset.case !== tr.c.id || peekOn(tr.c.id) === d.open) return;
     setPeek(tr.c.id, d.open);
+  }, true);
+  // …and only when the finger (or the mouse) went down on it. With «Cubo normal» the trainer is drawn anew as
+  // the clock starts and stops, and the click a phone sends after a hold or a tap elsewhere could land on the
+  // new «Ver el algoritmo» and open it unseen, making the attempt practice. A key (detail 0) still opens it.
+  let peekPress = null;
+  document.addEventListener('pointerdown', (ev) => { peekPress = ev.target.closest && ev.target.closest('#trPeek > summary'); }, true);
+  $('trBox').addEventListener('click', (ev) => {
+    const s = ev.target.closest('#trPeek > summary');
+    if (s && ev.detail > 0 && s !== peekPress) ev.preventDefault();
   }, true);
   $('trBox').addEventListener('click', (ev) => {
     const b = ev.target.closest('[data-answer]');

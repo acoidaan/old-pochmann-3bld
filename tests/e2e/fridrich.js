@@ -355,6 +355,13 @@ const SOLVE = ["D R' F2 L", "U R U' R'", "U' F' U F", "L' U' L", "U B U' B'", "F
   await p.waitForFunction(() => window.Fridrich._.tr.hand && (window.Fridrich._.tr.hp || 'scr') === 'scr', null, { timeout: 30000 });
   const h4 = await p.evaluate(() => window.Fridrich._.tr.hand.c);
   const hn0 = await p.evaluate((id) => (JSON.parse(localStorage.getItem('cfop:train:v1'))[id] || {}).hn || 0, h4.id);
+  // A click that lands on it without the finger going down on it (the phone's, after a hold on the clock that
+  // redraws the trainer) does not open it; the eye stays off.
+  await p.locator('.fr-hand .field-title').dispatchEvent('pointerdown');
+  await p.locator('#trPeek summary').dispatchEvent('click', { detail: 1 });
+  await p.waitForTimeout(150);
+  const ghost = await p.evaluate(() => ({ open: document.getElementById('trPeek').open, eye: !!(JSON.parse(localStorage.getItem('cfop:settings:v1')).peek || {})[window.Fridrich._.tr.hand.c.id] }));
+  check('train/hand: a stray click on «Ver el algoritmo» (not pressed on it) neither opens it nor turns its eye on', !ghost.open && !ghost.eye, JSON.stringify(ghost));
   await p.click('#trPeek summary');
   await p.waitForTimeout(150);
   const hpk = await p.evaluate(() => ({ open: document.getElementById('trPeek').open, text: document.getElementById('trPeek').innerText, scr: !!document.querySelector('.fr-setup') }));
