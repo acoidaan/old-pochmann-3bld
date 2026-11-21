@@ -687,11 +687,16 @@ body.focus .verdict .btn.primary { background: var(--cb-ink); color: var(--cb-bg
     content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg);
   }
   .app { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  /* Stuck to the top, from one side of the screen to the other (not a box inside the page's margins). */
   .rail {
     top: env(safe-area-inset-top, 0px);
     z-index: 5;
     background: var(--bg);
     padding-block: 10px;
+    margin-left: calc(-1 * max(16px, env(safe-area-inset-left, 0px)));
+    margin-right: calc(-1 * max(16px, env(safe-area-inset-right, 0px)));
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
     border-bottom: 1px solid var(--line);
     gap: 6px;
   }
@@ -1346,6 +1351,10 @@ body.focus .memo-ask input { width: 100%; font-size: 18px; }
     top: 8px; margin-top: -12px; padding: 6px; border: 1px solid var(--line); border-radius: 999px;
     background: rgba(26, 26, 26, .92); box-shadow: 0 8px 24px rgba(0, 0, 0, .35);
   }
+}
+/* 3BLD on a phone: the algorithms' bar stuck at the top, an opaque dark strip (whatever scrolls under it must not show through). */
+@media (max-width: 860px) {
+  :root[data-theme="carbon"] .rail { background: #181818; box-shadow: 0 8px 24px rgba(0, 0, 0, .3); }
 }
 :root[data-theme="carbon"] .btn.primary { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 :root[data-theme="carbon"] .clock-time { font-family: var(--font-mono); font-weight: 600; }

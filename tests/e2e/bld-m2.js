@@ -150,10 +150,11 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
     await p.locator('.sx-btn:visible').first().click();
     const ph = await p.evaluate(() => {
       const m = [...document.querySelectorAll('.sx-menu')].find((x) => !x.hidden).getBoundingClientRect();
-      return { over: document.documentElement.scrollWidth - window.innerWidth, menuIn: m.left >= 0 && m.right <= window.innerWidth };
+      const r = document.getElementById('rail').getBoundingClientRect();
+      return { over: document.documentElement.scrollWidth - window.innerWidth, menuIn: m.left >= 0 && m.right <= window.innerWidth, railFull: Math.round(r.left) === 0 && Math.round(r.right) === window.innerWidth };
     });
     await p.screenshot({ path: `${SHOTS}/bld-m2-${name}.png` });
-    check(`${name}: M2 with no sideways scroll, and the sections menu inside the screen`, ph.over <= 0 && ph.menuIn, JSON.stringify(ph));
+    check(`${name}: M2 with no sideways scroll, the sections menu inside the screen, and the algorithms' bar from edge to edge`, ph.over <= 0 && ph.menuIn && ph.railFull, JSON.stringify(ph));
     await ctx.close();
   }
 
