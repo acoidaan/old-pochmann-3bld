@@ -100,7 +100,10 @@
   function render() {
     if (O.currentView() !== 'progreso') return;
     const all = O.data.times();
-    const list = all.filter((t) => B.partOf(t) === 'full');
+    // Each method of the edges on its own (chosen here or in the crono).
+    const em = B.edgeMethod ? B.edgeMethod() : 'op';
+    const list = all.filter((t) => B.partOf(t) === 'full' && (!B.methodOf || B.methodOf(t) === em));
+    $('bpEm').textContent = `Intentos completos, con las aristas en ${em === 'm2' ? 'M2' : 'Old Pochmann'}`;
     const practice = window.Practice ? window.Practice.days() : {};
     const train = O.data.train();
     const trained = ['edge', 'corner'].some((k) => Object.values((train && train[k]) || {}).some((st) => st && (st.seen || st.dnf)));
@@ -235,6 +238,6 @@
   }
 
   O.onView('progreso', render);
-  ['op3:result', 'op3:changed'].forEach((ev) => document.addEventListener(ev, () => setTimeout(render, 0)));
+  ['op3:result', 'op3:changed', 'op3:em'].forEach((ev) => document.addEventListener(ev, () => setTimeout(render, 0)));
   render();
 })();

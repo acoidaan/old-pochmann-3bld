@@ -919,8 +919,19 @@
     return best;
   }
   const fmtV = (v) => (v == null ? '—' : Number.isFinite(v) ? fmt(v) : 'DNF');
-  // Whether these letters solve this scramble (the check of «Comprobar memo», without touching the page).
-  function memoSolves(scr, e, c) {
+  // The edges' method of an attempt: Old Pochmann (as always) or M2 (m2.js, marked em: 'm2').
+  const methodOf = (t) => (t.em === 'm2' ? 'm2' : 'op');
+  // Whether these letters solve this scramble (the check of «Comprobar memo», without touching the page). With
+  // M2, the edges as M2 does them (buffer DF; window.BldM2), then parity, then the corners as always.
+  function memoSolves(scr, e, c, em = crono.em) {
+    if (em === 'm2' && window.BldM2) {
+      if (e.some((L) => !(L in EDGE_POS) || ['U', 'K'].includes(L))) return false;
+      if (c.some((L) => !(L in CORNER_POS) || MODES.corner.buffer.includes(L))) return false;
+      let st2;
+      try { st2 = apply(solved(), scr); } catch (err) { return false; }
+      st2 = apply(st2, [window.BldM2.execEdges(e), ...c.map((L) => conjugate(CORNER_SETUP[L], ALGS.Y.moves))].filter(Boolean).join(' '));
+      return st2.every((v, i) => v === i);
+    }
     if (e.some((L) => !(L in EDGE_POS) || MODES.edge.buffer.includes(L))) return false;
     if (c.some((L) => !(L in CORNER_POS) || MODES.corner.buffer.includes(L))) return false;
     let st;
@@ -933,6 +944,10 @@
   // What the crono times: a whole attempt, or only the memo (then you write it down and it is checked).
   const CRONO_KEY = 'op3bld:crono:v1';
   const crono = { mode: (() => { try { return localStorage.getItem(CRONO_KEY) === 'memo' ? 'memo' : 'full'; } catch (e) { return 'full'; } })() };
+  // …and with which method for the edges: each one has its own lists and numbers (corners only are the same).
+  const EM_KEY = 'op3bld:em:v1';
+  crono.em = (() => { try { return localStorage.getItem(EM_KEY) === 'm2' ? 'm2' : 'op'; } catch (e) { return 'op'; } })();
+  const sameMethod = (t, part) => part === 'corners' || methodOf(t) === crono.em;
   const esc = (txt) => String(txt).replace(/[&<>'"]/g, (ch) => '&#' + ch.charCodeAt(0) + ';');
   function fmt(ms) {
     if (ms == null || !isFinite(ms)) return '—';
@@ -1063,9 +1078,10 @@
     if (timer.phase !== 'done') return;
     const entry = { at: Date.now(), memo: Math.round(timer.t1 - timer.t0), exec: Math.round(timer.t2 - timer.t1), ok, scr: timer.scramble };
     // Keep the memo with the attempt when it fits the scramble that was timed.
-    if ($('scr').value.trim() === timer.scramble && checkMemo(true)) {
+    if ($('scr').value.trim() === timer.scramble && (crono.em === 'm2' ? memoNow() : checkMemo(true))) {
       entry.mem = `${pairs(lettersOf($('memoE').value))} · ${pairs(lettersOf($('memoC').value))}`;
     }
+    if (crono.em === 'm2') entry.em = 'm2';
     if (OP3.timerTag) entry.reto = OP3.timerTag;
     if (OP3.resultExtra) Object.assign(entry, OP3.resultExtra(ok));
     times.push(entry);
@@ -1091,7 +1107,7 @@
     const e = lettersOf($('maE').value);
     const c = lettersOf($('maC').value);
     const ok = memoSolves(timer.scramble, e, c);
-    const entry = { at: Date.now(), memo: Math.round(timer.t1 - timer.t0), exec: 0, ok, scr: timer.scramble, m: 'memo', mem: `${pairs(e) || '—'} · ${pairs(c) || '—'}` };
+    const entry = { at: Date.now(), memo: Math.round(timer.t1 - timer.t0), exec: 0, ok, scr: timer.scramble, m: 'memo', mem: `${pairs(e) || '—'} · ${pairs(c) || '—'}`, ...(crono.em === 'm2' ? { em: 'm2' } : {}) };
     times.push(entry);
     saveTimes();
     timer.phase = 'idle';
@@ -1102,9 +1118,9 @@
     $('clock').dataset.phase = 'idle';
     $('clockPhase').textContent = ok ? 'Memo correcto' : 'Memo con fallos';
     $('afterText').hidden = false;
-    $('afterText').textContent = ok ? `Correcto: con ese memo el cubo queda resuelto (${fmt(entry.memo)}).` : 'Ese memo no resuelve el cubo. Míralo letra a letra en «Practicar».';
+    $('afterText').textContent = ok ? `Correcto: con ese memo el cubo queda resuelto (${fmt(entry.memo)}).` : crono.em === 'm2' ? 'Ese memo no resuelve el cubo con M2 (aristas desde DF). Repasa la memo en Aprender → M2.' : 'Ese memo no resuelve el cubo. Míralo letra a letra en «Practicar».';
     $('afterText').className = `after-text ${ok ? 'ok' : 'ko'}`;
-    $('afterCheck').hidden = ok;
+    $('afterCheck').hidden = ok || crono.em === 'm2';   // «Practicar» checks Old Pochmann memos
     $('shareLast').hidden = true;
     $('afterResult').hidden = false;
     lastEntry = entry;
@@ -1126,10 +1142,12 @@
   }
   function renderCronoMode() {
     document.querySelectorAll('[data-cm]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.cm === crono.mode)));
+    document.querySelectorAll('[data-em]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.em === crono.em)));
     const kind = scrKindOf($('scr').value.trim());
-    $('cronoKind').textContent = crono.mode === 'memo'
+    const m2 = crono.em === 'm2' && kind !== 'corners' ? ' Aristas con M2 (memo desde DF): con sus propios números.' : '';
+    $('cronoKind').textContent = (crono.mode === 'memo'
       ? 'Memoriza, para el reloj y escribe tu memo: se comprueba solo.'
-      : kind === 'full' ? '' : `Scramble ${kind === 'edges' ? 'solo de aristas' : 'solo de esquinas'}: va a su propia lista.`;
+      : kind === 'full' ? '' : `Scramble ${kind === 'edges' ? 'solo de aristas' : 'solo de esquinas'}: va a su propia lista.`) + m2;
     renderClockMemo();
   }
   let lastEntry = null;
@@ -1148,7 +1166,7 @@
     if (!hist.part) hist.part = crono.mode === 'memo' ? 'memo' : scrKindOf($('scr').value.trim());
     const memoOnly = hist.part === 'memo';
     document.querySelectorAll('[data-part]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.part === hist.part)));
-    const all = times.map((t, idx) => ({ t, idx })).filter(({ t }) => partOf(t) === hist.part);
+    const all = times.map((t, idx) => ({ t, idx })).filter(({ t }) => partOf(t) === hist.part && sameMethod(t, hist.part));
     const list = all.map((x) => x.t);
     const n = list.length;
     const okList = list.filter((t) => t.ok);
@@ -1781,6 +1799,17 @@
     renderTimes();
   }));
   document.querySelectorAll('[data-cm]').forEach((b) => b.addEventListener('click', () => setCronoMode(b.dataset.cm)));
+  // The edges' method: Old Pochmann or M2. Its own lists and numbers here and in Progreso.
+  function setEdgeMethod(em) {
+    if (timer.phase !== 'idle' && timer.phase !== 'done') return;
+    crono.em = em === 'm2' ? 'm2' : 'op';
+    try { localStorage.setItem(EM_KEY, crono.em); } catch (e) { /* this visit */ }
+    hist.limit = HIST_PAGE;
+    renderCronoMode();
+    renderTimes();
+    emit('em', crono.em);
+  }
+  document.querySelectorAll('[data-em]').forEach((b) => b.addEventListener('click', () => setEdgeMethod(b.dataset.em)));
   $('memoAsk').addEventListener('submit', (ev) => { ev.preventDefault(); markMemo(); });
   $('afterCheck').addEventListener('click', () => {
     if (!lastEntry || !lastEntry.mem) return;
@@ -2086,7 +2115,7 @@
     refreshFocus: () => { if (focus.on) renderFocus(); },
     resultExtra: null, scrHtml: null,
     // The numbers of the crono, for «Progreso».
-    bld: { partOf, valueOf, mo3Of, bestMo3Of, fmtV, PART_NAME },
+    bld: { partOf, methodOf, edgeMethod: () => crono.em, setEdgeMethod, valueOf, mo3Of, bestMo3Of, fmtV, PART_NAME },
     scramble: () => $('scr').value.trim(),
     data: {
       times: () => times,

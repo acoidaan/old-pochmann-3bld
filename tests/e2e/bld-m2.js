@@ -95,6 +95,33 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
   check('memo drill: a wrong one is said, the right one (with spaces, any case) is good', /No resuelve/.test(wrong) && /✓ Bien/.test(right), `${wrong} | ${right}`);
   await ctx.close();
 
+  // ================= Timed with M2 =================
+  ({ ctx, p } = await open({ viewport: { width: 1200, height: 900 } }, '/#crono'));
+  await p.waitForFunction(() => window.OP3 && window.BldM2);
+  await p.waitForFunction(() => document.getElementById('scr').value.trim().length > 10, null, { timeout: 20000 });
+  await p.click('[data-cm="memo"]');
+  await p.click('[data-em="m2"]');
+  const memo = await p.evaluate(() => {
+    const st = window.CubeModel.apply(window.CubeModel.solved(), document.getElementById('scr').value.trim());
+    return { e: window.BldM2.trace(st, 'edge', ['U', 'K']).join(''), c: window.BldM2.trace(st, 'corner', ['E', 'A', 'R']).join(''), hint: document.getElementById('cronoKind').textContent };
+  });
+  const sp = async () => { await p.keyboard.press(' '); await p.waitForTimeout(150); };
+  await sp(); await p.waitForTimeout(250); await sp();
+  await p.fill('#maE', memo.e);
+  await p.fill('#maC', memo.c);
+  await p.press('#maC', 'Enter');
+  const t1 = await p.evaluate(() => JSON.parse(localStorage.getItem('op3bld:times:v1') || '[]').slice(-1)[0]);
+  const st = (q) => q.evaluate(() => Object.fromEntries([...document.querySelectorAll('#stats .stat')].map((x) => [x.querySelector('span').textContent, x.querySelector('b').textContent])));
+  const withM2 = await st(p);
+  await p.click('[data-em="op"]');
+  const withOp = await st(p);
+  await p.click('[data-em="m2"]');
+  await p.evaluate(() => window.OP3.showView('progreso'));
+  await p.waitForTimeout(200);
+  const bp = await p.evaluate(() => ({ em: document.getElementById('bpEm').textContent, pressed: document.querySelector('#bpSummary') && document.querySelector('[data-view="progreso"] [data-em="m2"]').getAttribute('aria-pressed') }));
+  check('crono with M2: an M2 memo checked as M2 (from DF) is right and saved as M2, with its own numbers apart from Old Pochmann; Progreso follows', t1 && t1.ok && t1.em === 'm2' && t1.m === 'memo' && withM2.Intentos === '1' && !withOp.Intentos && /M2/.test(memo.hint) && /M2/.test(bp.em) && bp.pressed === 'true', JSON.stringify({ t1, withM2, withOp, memo, bp }));
+  await ctx.close();
+
   // ================= The sections =================
   ({ ctx, p } = await open({ viewport: { width: 1200, height: 800 } }, '/cfop#crono'));
   await p.waitForFunction(() => window.Fridrich);

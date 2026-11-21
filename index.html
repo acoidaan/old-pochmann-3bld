@@ -223,6 +223,10 @@
           <button type="button" data-cm="full" aria-pressed="true">Intento completo</button>
           <button type="button" data-cm="memo" aria-pressed="false">Solo memo</button>
         </div>
+        <div class="seg small" role="group" aria-label="Método de las aristas">
+          <button type="button" data-em="op" aria-pressed="true">Old Pochmann</button>
+          <button type="button" data-em="m2" aria-pressed="false">M2</button>
+        </div>
         <span class="hint" id="cronoKind"></span>
       </div>
       <div class="focus-top focus-only" id="focusTop">
@@ -351,7 +355,8 @@
 
     <div class="view" data-view="progreso" hidden>
       <section class="panel" aria-labelledby="hBpSum">
-        <div class="panel-head"><h2 id="hBpSum">Cómo vas</h2><span class="hint">Intentos completos</span></div>
+        <div class="panel-head"><h2 id="hBpSum">Cómo vas</h2><div class="seg small" role="group" aria-label="Método de las aristas"><button type="button" data-em="op" aria-pressed="true">Old Pochmann</button><button type="button" data-em="m2" aria-pressed="false">M2</button></div></div>
+        <p class="hint bp-em" id="bpEm">Intentos completos</p>
         <div id="bpSummary"></div>
       </section>
       <section class="panel" aria-labelledby="hBpWeeks" id="bpWeeksPanel">
