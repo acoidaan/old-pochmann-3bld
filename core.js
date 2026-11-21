@@ -1219,7 +1219,7 @@
   }
   function renderCronoMode() {
     document.querySelectorAll('[data-cm]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.cm === crono.mode)));
-    document.querySelectorAll('[data-em]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.em === method.em)));
+    document.querySelectorAll('button[data-em]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.em === method.em)));
     const kind = scrKindOf($('scr').value.trim());
     const m2 = method.em === 'm2' && kind !== 'corners' ? ' Aristas con M2 (memo desde DF): con sus propios números.' : '';
     $('cronoKind').textContent = (crono.mode === 'memo'
@@ -1921,10 +1921,10 @@
   function renderMethod() {
     const m2 = method.em === 'm2';
     document.documentElement.dataset.em = method.em;
-    document.querySelectorAll('[data-em]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.em === method.em)));
+    document.querySelectorAll('button[data-em]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.em === method.em)));
     $('hBoard').textContent = m2 ? 'Tabla de setups · aristas con M2' : 'Tabla de setups';
   }
-  document.querySelectorAll('[data-em]').forEach((b) => b.addEventListener('click', () => setEdgeMethod(b.dataset.em)));
+  document.querySelectorAll('button[data-em]').forEach((b) => b.addEventListener('click', () => setEdgeMethod(b.dataset.em)));
   $('memoAsk').addEventListener('submit', (ev) => { ev.preventDefault(); markMemo(); });
   $('afterCheck').addEventListener('click', () => {
     if (!lastEntry || !lastEntry.mem) return;
