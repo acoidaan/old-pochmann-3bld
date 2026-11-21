@@ -3,7 +3,7 @@ const { chromium } = require('playwright');
 const fs = require('fs');
 const { SITE_PLAIN: SITE } = require('../env');
 const axeSrc = fs.readFileSync(require.resolve('axe-core/axe.min.js'), 'utf8');
-const VIEWS = ['practicar', 'crono', 'entrenar', 'progreso', 'aprender', 'tabla', 'retos', 'ajustes'];
+const VIEWS = ['practicar', 'crono', 'entrenar', 'progreso', 'aprender', 'aprender-m2', 'tabla', 'retos', 'ajustes'];
 
 (async () => {
   const browser = await chromium.launch();
@@ -16,7 +16,8 @@ const VIEWS = ['practicar', 'crono', 'entrenar', 'progreso', 'aprender', 'tabla'
     await page.goto(`${SITE}/#practicar`);
     await page.waitForTimeout(400);
     for (const v of VIEWS) {
-      await page.evaluate((x) => window.OP3.showView(x), v);
+      await page.evaluate((x) => window.OP3.showView(x.replace('-m2', '')), v);
+      await page.evaluate((x) => { const b = document.querySelector(`[data-course="${x === 'aprender-m2' ? 'm2' : 'op'}"]`); if (b) b.click(); }, v);
       await page.waitForTimeout(250);
       if (v === 'aprender') {
         await page.evaluate(() => { document.getElementById('notationBox').open = true; });

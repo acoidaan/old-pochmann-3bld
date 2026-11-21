@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="es">
+<html lang="es" data-section="cfop">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -8,7 +8,7 @@
 <meta name="op3-build" content="__BUILD__">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Old Pochmann 3BLD">
-<meta property="og:title" content="Fridrich reducido">
+<meta property="og:title" content="CFOP · 2 looks">
 <meta property="og:description" content="CFOP en 2 pasos con los algoritmos de J Perm: tiempos por fase, casos reconocidos por el cubo inteligente y entrenador.">
 <meta property="og:url" content="https://old-pochmann-3bld.vercel.app/fridrich">
 <meta property="og:locale" content="es_ES">
@@ -20,7 +20,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Fridrich">
-<title>Fridrich reducido</title>
+<title>CFOP · 2 looks</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Martian+Mono:wght@400;600&family=Unbounded:wght@500;700&display=swap">
@@ -31,15 +31,24 @@
 <div class="fr-app">
   <header class="fr-head">
     <div class="brand">
-      <h1>Fridrich reducido</h1>
-      <p>CFOP en 2 pasos · algoritmos de J Perm</p>
+      <h1>CFOP</h1>
+      <p>Última capa en 2 looks · algoritmos de J Perm</p>
     </div>
     <span class="fr-modepill" id="modePill" aria-live="polite"></span>
     <button class="btn install" type="button" hidden>Instalar app</button>
-    <a class="fr-switch" href="./">Old Pochmann 3BLD<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
-    <a class="fr-switch" href="principiante">Principiante<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
-    <a class="fr-switch" data-only="reduced" href="cfop">CFOP completo<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
-    <a class="fr-switch" data-only="full" href="fridrich">Fridrich reducido<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+    <div class="sx-bar">
+      <nav class="sx" aria-label="Secciones de la app">
+        <button type="button" class="sx-btn" aria-expanded="false" aria-controls="sxMenu"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></svg><span>CFOP</span><svg class="sx-chev" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>
+        <ul class="sx-menu" id="sxMenu" hidden>
+          <li><a href="./" data-sx="bld">A ciegas<small>3BLD: Old Pochmann y M2</small></a></li>
+          <li><a href="fridrich" data-sx="cfop">CFOP<small>Cronómetro, casos y entrenador</small></a></li>
+          <li><a href="principiante" data-sx="beg">Principiante<small>Resolverlo desde cero, capa a capa</small></a></li>
+        </ul>
+      </nav>
+      <nav class="sx-level" aria-label="Última capa">
+        <a href="fridrich" data-lv="2l">2 looks</a><a href="cfop" data-lv="full">Completa</a>
+      </nav>
+    </div>
   </header>
 
   <nav class="tabs" id="tabs" aria-label="Secciones">
@@ -484,6 +493,7 @@
   <button class="x" type="button" id="updateLater" aria-label="Ahora no" title="Ahora no">×</button>
 </div>
 
+<script src="sections.js"></script>
 <script src="cubemodel.js"></script>
 <script src="notation.js"></script>
 <script src="follow.js"></script>

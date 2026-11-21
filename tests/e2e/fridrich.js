@@ -38,7 +38,7 @@ const SOLVE = ["D R' F2 L", "U R U' R'", "U' F' U F", "L' U' L", "U B U' B'", "F
   await p.waitForFunction(() => window.Fridrich && window.Fridrich.scramble().split(' ').length >= 15, null, { timeout: 30000 });
   const scr0 = await p.evaluate(() => window.Fridrich.scramble());
   check('page: a random-state scramble', scr0.split(' ').length >= 15 && scr0.split(' ').length <= 24, scr0);
-  check('page: link back to the 3BLD app', await p.evaluate(() => { const a = document.querySelector('.fr-switch'); return !!a && new URL(a.href).pathname === '/'; }));
+  check('page: the section menu, with the 3BLD app, and the level of the last layer', await p.evaluate(() => { const a = document.querySelector('.sx-menu a[data-sx="bld"]'); const lv = document.querySelector('.sx-level a[aria-current="page"]'); return !!a && new URL(a.href).pathname === '/' && !!lv && lv.dataset.lv === '2l' && document.querySelector('h1').textContent === 'CFOP'; }));
 
   // ================= Timer without a cube =================
   await p.keyboard.down(' ');
@@ -564,8 +564,8 @@ const SOLVE = ["D R' F2 L", "U R U' R'", "U' F' U F", "L' U' L", "U B U' B'", "F
 
   // ================= From the 3BLD app =================
   const bld = await open({}, `${SITE}/#practicar`);
-  const href = await bld.p.evaluate(() => { const a = document.querySelector('.to-fr'); return a ? new URL(a.href).pathname : null; });
-  check('3BLD app: links to /fridrich', href === '/fridrich', href);
+  const href = await bld.p.evaluate(() => { const a = document.querySelector('.sx-menu a[data-sx="cfop"]'); return a ? new URL(a.href).pathname : null; });
+  check('3BLD app: its section menu leads to CFOP at the level last used (here 2 looks, /fridrich)', href === '/fridrich', href);
   await bld.ctx.close();
 
   results.forEach((r) => console.log(r));

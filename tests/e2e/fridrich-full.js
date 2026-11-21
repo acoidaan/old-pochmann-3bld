@@ -76,9 +76,9 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
     title: document.title, h1: document.querySelector('h1').textContent, full: document.documentElement.dataset.cfop,
     sets: [...document.querySelectorAll('[data-case-set]')].filter((b) => b.offsetParent).map((b) => b.dataset.caseSet).join(),
     picks: [...document.querySelectorAll('[data-pick]')].filter((b) => b.offsetParent || b.closest('details')).filter((b) => getComputedStyle(b).display !== 'none').map((b) => b.dataset.pick).join(),
-    back: !!document.querySelector('a.fr-switch[href="fridrich"]'),
+    back: !!document.querySelector('.sx-level a[href="fridrich"]') && document.querySelector('.sx-level a[aria-current="page"]').dataset.lv === 'full',
   }));
-  check('page: /cfop is «CFOP completo», with only OLL, PLL and F2L (no 2-look; and the notation) and a link back to Fridrich reducido', head.title === 'CFOP completo' && head.h1 === 'CFOP completo' && head.full === 'full' && head.sets === 'f2l,foll,fpll,nota' && head.picks === 'f2l,foll,fpll,learning' && head.back, JSON.stringify(head));
+  check('page: /cfop is «CFOP completo», with only OLL, PLL and F2L (no 2-look; and the notation) and a link back to Fridrich reducido', head.title === 'CFOP completo' && head.h1 === 'CFOP' && head.full === 'full' && head.sets === 'f2l,foll,fpll,nota' && head.picks === 'f2l,foll,fpll,learning' && head.back, JSON.stringify(head));
   // The «Carbón» theme (Ajustes → Tema): the competition-mode look for the whole page, kept per device.
   await p.evaluate(() => document.querySelector('[data-theme-set="carbon"]').click());
   await p.waitForTimeout(800);   // the page background fades
@@ -141,9 +141,9 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
   cs = await rp.evaluate(() => ({
     title: document.title, n: document.querySelectorAll('#caseGroups .fr-card').length, method: !document.getElementById('caseMethod').hidden,
     sets: [...document.querySelectorAll('[data-case-set]')].filter((b) => b.offsetParent).map((b) => b.dataset.caseSet).join(),
-    link: !!document.querySelector('a.fr-switch[href="cfop"]'), learn: JSON.parse(localStorage.getItem('cfop:learn:v1') || '{}')['pll-Aa'],
+    link: !!document.querySelector('.sx-level a[href="cfop"]'), sxCfop: new URL(document.querySelector('.sx-menu a[data-sx="cfop"]').href).pathname, learn: JSON.parse(localStorage.getItem('cfop:learn:v1') || '{}')['pll-Aa'],
   }));
-  check('fridrich: still «Fridrich reducido», the 16 of 2-look and the F2L only (and the notation), a link to CFOP completo; what you marked here is there too', cs.title === 'Fridrich reducido' && cs.n === 16 && cs.method && cs.sets === 'll,f2l,nota' && cs.link && cs.learn === 'learning', JSON.stringify(cs));
+  check('fridrich: still «Fridrich reducido», the 16 of 2-look and the F2L only (and the notation), a link to CFOP completo; what you marked here is there too', cs.title === 'CFOP · 2 looks' && cs.sxCfop === '/fridrich' && cs.n === 16 && cs.method && cs.sets === 'll,f2l,nota' && cs.link && cs.learn === 'learning', JSON.stringify(cs));
   await rp.close();
 
   // ================= Entrenar: «Reconocer» =================

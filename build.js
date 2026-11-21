@@ -17,7 +17,7 @@ for (const f of fs.readdirSync(path.join(__dirname, 'vendor')).filter((x) => !x.
 }
 
 // Static files get a content hash in their URL, so browsers and the service worker never keep stale copies.
-const ASSETS = ['audio/eight.mp3', 'audio/twelve.mp3', 'app.css', 'cubemodel.js', 'notation.js', 'follow.js', 'core.js', 'learn.js', 'syncplan.js', 'social.js', 'stream.js', 'cube.js', 'fridrich.css', 'cfop.js', 'cfopf2l.js', 'cfopfull.js', 'cfopstats.js', 'smartcube.js', 'practice.js', 'fridrich-progreso.js', 'fridrich-cruz.js', 'fridrich-sync.js', 'fridrich.js', 'lbl.js', 'principiante.css', 'principiante.js', 'cubefab.js', 'bldprogress.js', 'bldalgs.js', 'awake.js'];
+const ASSETS = ['audio/eight.mp3', 'audio/twelve.mp3', 'app.css', 'sections.js', 'cubemodel.js', 'notation.js', 'follow.js', 'core.js', 'learn.js', 'm2.js', 'syncplan.js', 'social.js', 'stream.js', 'cube.js', 'fridrich.css', 'cfop.js', 'cfopf2l.js', 'cfopfull.js', 'cfopstats.js', 'smartcube.js', 'practice.js', 'fridrich-progreso.js', 'fridrich-cruz.js', 'fridrich-sync.js', 'fridrich.js', 'lbl.js', 'principiante.css', 'principiante.js', 'cubefab.js', 'bldprogress.js', 'bldalgs.js', 'awake.js'];
 const versions = {};
 const all = crypto.createHash('sha1');
 for (const f of ASSETS) {
@@ -41,16 +41,15 @@ for (const page of PAGES) {
 // Full CFOP (/cfop): the Fridrich page in its full mode (data-cfop="full": the 57 OLL and 21 PLL instead of
 // 2-look), with its own name. Each replacement has to find its text, or the page would keep the other name.
 const FULL_CFOP = [
-  ['<html lang="es">', '<html lang="es" data-cfop="full">'],
+  ['<html lang="es" data-section="cfop">', '<html lang="es" data-section="cfop" data-cfop="full">'],
   [/<meta name="description" content="[^"]*">/, '<meta name="description" content="CFOP completo, con los 57 OLL y los 21 PLL de J Perm: cronómetro con tiempos por fase, casos reconocidos por el cubo inteligente y entrenador.">'],
-  ['<meta property="og:title" content="Fridrich reducido">', '<meta property="og:title" content="CFOP completo">'],
+  ['<meta property="og:title" content="CFOP · 2 looks">', '<meta property="og:title" content="CFOP completo">'],
   [/<meta property="og:description" content="[^"]*">/, '<meta property="og:description" content="CFOP con los 57 OLL y los 21 PLL de J Perm: casos, entrenador y cronómetro.">'],
   ['vercel.app/fridrich"', 'vercel.app/cfop"'],
   ['href="fridrich.webmanifest"', 'href="cfop.webmanifest"'],
   ['content="Fridrich">', 'content="CFOP">'],
-  ['<title>Fridrich reducido</title>', '<title>CFOP completo</title>'],
-  ['<h1>Fridrich reducido</h1>', '<h1>CFOP completo</h1>'],
-  ['<p>CFOP en 2 pasos · algoritmos de J Perm</p>', '<p>57 OLL y 21 PLL · algoritmos de J Perm</p>'],
+  ['<title>CFOP · 2 looks</title>', '<title>CFOP completo</title>'],
+  ['<p>Última capa en 2 looks · algoritmos de J Perm</p>', '<p>Última capa completa: 57 OLL y 21 PLL · algoritmos de J Perm</p>'],
 ];
 pages['cfop.html'] = FULL_CFOP.reduce((html, [from, to]) => {
   if (typeof from === 'string' ? !html.includes(from) : !from.test(html)) throw new Error(`cfop.html: no encuentro ${from}`);

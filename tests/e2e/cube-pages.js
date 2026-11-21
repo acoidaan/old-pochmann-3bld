@@ -21,9 +21,11 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
   const frame = () => p.frames().find((f) => f !== p.mainFrame());
   await p.evaluate(() => window.Fridrich._.setScramble('R U F'));
   const path = () => p.evaluate(() => location.pathname);
+  // The sections are in the header's menu (sections.js): open it, then the link.
+  const via = async (f, sx) => { await f.locator('.sx-btn:visible').first().click(); await f.locator(`.sx-menu:not([hidden]) a[data-sx="${sx}"]`).click(); };
 
   // ---- To principiante: in a frame, with the same connection ----
-  await p.click('a[href="principiante"]');
+  await via(p, 'beg');
   await p.waitForFunction(() => {
     const f = document.querySelector('.sc-frame');
     const w = f && f.contentWindow;
@@ -50,13 +52,13 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
   check('turns reach the section on screen; the page below keeps the state but sleeps', s.frame && s.below && before === 0 && s.pos === 0, JSON.stringify(s));
 
   // ---- From the frame to 3BLD, then back to Fridrich ----
-  await frame().click('a[href="./"]');
+  await via(frame(), 'bld');
   await p.waitForFunction(() => {
     const w = document.querySelector('.sc-frame') && document.querySelector('.sc-frame').contentWindow;
     return w && w.OP3 && w.OP3.cube && w.OP3.cube.status === 'on';
   }, null, { timeout: 10000 });
   check('a link inside the frame (to 3BLD) → still in the frame, still connected', await path() === '/' && await p.evaluate(() => document.querySelector('.sc-frame').contentWindow.OP3.cube.link === window.Fridrich.cube().link));
-  await frame().click('a[href="fridrich"]');
+  await via(frame(), 'cfop');
   await p.waitForFunction(() => !document.querySelector('.sc-frame'), null, { timeout: 5000 }).catch(() => {});
   s = await p.evaluate(() => ({ frame: !!document.querySelector('.sc-frame'), path: location.pathname, on: window.Fridrich.cube().on, hosting: document.documentElement.classList.contains('sc-hosting'), pos: window.Fridrich._.follow().pos }));
   check('back to Fridrich → the frame goes, the page wakes where the cube is (2 turns of the scramble), still connected', !s.frame && !s.hosting && s.path === '/fridrich' && s.on && s.pos === 2, JSON.stringify(s));
@@ -76,7 +78,7 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
   check('«Desconectar» in the frame → 3BLD becomes the page, disconnected', s.path === '/' && s.op3 && !s.frame && s.status === 'off', JSON.stringify(s));
 
   // ---- Without a cube, a link just navigates ----
-  await Promise.all([p.waitForNavigation(), p.click('a[href="fridrich"]')]);
+  await Promise.all([p.waitForNavigation(), via(p, 'cfop')]);
   await p.waitForFunction(() => window.Fridrich);
   check('no cube connected → a link navigates as always', await path() === '/fridrich' && await p.evaluate(() => !document.querySelector('.sc-frame')));
   // On Bluefy in flight, changing tabs must stay within the current document.

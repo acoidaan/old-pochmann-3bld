@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="es">
+<html lang="es" data-section="beg">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -36,9 +36,13 @@
       <p>El método de principiantes: capa a capa, en 7 pasos</p>
     </div>
     <button class="btn install" type="button" hidden>Instalar app</button>
-    <nav class="pr-switches" aria-label="Otras páginas">
-      <a class="fr-switch" href="./">Old Pochmann 3BLD<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
-      <a class="fr-switch" href="fridrich">Fridrich reducido<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+    <nav class="sx" aria-label="Secciones de la app">
+      <button type="button" class="sx-btn" aria-expanded="false" aria-controls="sxMenu"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></svg><span>Principiante</span><svg class="sx-chev" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>
+      <ul class="sx-menu" id="sxMenu" hidden>
+        <li><a href="./" data-sx="bld">A ciegas<small>3BLD: Old Pochmann y M2</small></a></li>
+        <li><a href="fridrich" data-sx="cfop">CFOP<small>Cronómetro, casos y entrenador</small></a></li>
+        <li><a href="principiante" data-sx="beg">Principiante<small>Resolverlo desde cero, capa a capa</small></a></li>
+      </ul>
     </nav>
   </header>
 
@@ -240,6 +244,7 @@
   <button class="x" type="button" id="updateLater" aria-label="Ahora no" title="Ahora no">×</button>
 </div>
 
+<script src="sections.js"></script>
 <script src="cubemodel.js"></script>
 <script src="notation.js"></script>
 <script src="follow.js"></script>

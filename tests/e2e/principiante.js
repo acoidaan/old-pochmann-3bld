@@ -300,10 +300,10 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
   const hp = await H.newPage();
   hp.on('pageerror', (e) => errs.push(e.message));
   await hp.goto(`${SITE}/`);
-  const fromHome = await hp.evaluate(() => [...document.querySelectorAll('a[href="principiante"]')].length);
+  const fromHome = await hp.evaluate(() => [...document.querySelectorAll('.sx-menu a[href="principiante"]')].length);
   await hp.goto(`${SITE}/fridrich`);
-  const fromFr = await hp.evaluate(() => !!document.querySelector('.fr-head a[href="principiante"]'));
-  check('links: the 3BLD page and Fridrich link to it', fromHome >= 1 && fromFr, `${fromHome} ${fromFr}`);
+  const fromFr = await hp.evaluate(() => !!document.querySelector('.fr-head .sx-menu a[href="principiante"]'));
+  check('links: the section menu of the 3BLD page and of CFOP leads here', fromHome >= 1 && fromFr, `${fromHome} ${fromFr}`);
   await H.close();
   const P = await open({ ...devices['Pixel 7'] }, 'aprender');
   const views = {};

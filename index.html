@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="es" data-practice="op3bld">
+<html lang="es" data-section="bld" data-practice="op3bld">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -24,7 +24,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="OP 3BLD">
-<title>Old Pochmann 3BLD</title>
+<title>A ciegas · 3BLD</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Martian+Mono:wght@400;600&family=Unbounded:wght@500;700&display=swap">
@@ -34,15 +34,29 @@
 <div class="app">
   <aside class="rail" id="rail" aria-label="Algoritmos fijos">
     <div class="brand">
-      <h1>Old Pochmann 3BLD</h1>
-      <p>Speffz · blanco arriba, verde delante</p>
-      <a class="to-fr" href="fridrich">Speedcubing: Fridrich reducido <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
-      <a class="to-fr" href="principiante">Aprender desde cero: método principiante <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+      <h1>A ciegas</h1>
+      <p>3BLD · Speffz · blanco arriba, verde delante</p>
+      <nav class="sx" aria-label="Secciones de la app">
+      <button type="button" class="sx-btn" aria-expanded="false" aria-controls="sxMenu"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></svg><span>A ciegas</span><svg class="sx-chev" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>
+      <ul class="sx-menu" id="sxMenu" hidden>
+        <li><a href="./" data-sx="bld">A ciegas<small>3BLD: Old Pochmann y M2</small></a></li>
+        <li><a href="fridrich" data-sx="cfop">CFOP<small>Cronómetro, casos y entrenador</small></a></li>
+        <li><a href="principiante" data-sx="beg">Principiante<small>Resolverlo desde cero, capa a capa</small></a></li>
+      </ul>
+    </nav>
       <button class="btn install" type="button" hidden>Instalar app</button>
     </div>
     <div class="rail-head">
       <span class="eyebrow">Algoritmos fijos</span>
       <span class="rail-tools">
+        <nav class="sx" aria-label="Secciones de la app">
+      <button type="button" class="sx-btn" aria-label="Secciones de la app: estás en A ciegas" aria-expanded="false" aria-controls="sxMenu2"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></svg><span>A ciegas</span><svg class="sx-chev" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>
+      <ul class="sx-menu" id="sxMenu2" hidden>
+        <li><a href="./" data-sx="bld">A ciegas<small>3BLD: Old Pochmann y M2</small></a></li>
+        <li><a href="fridrich" data-sx="cfop">CFOP<small>Cronómetro, casos y entrenador</small></a></li>
+        <li><a href="principiante" data-sx="beg">Principiante<small>Resolverlo desde cero, capa a capa</small></a></li>
+      </ul>
+    </nav>
         <button class="rail-toggle" id="railToggle" type="button" aria-expanded="true">Ocultar</button>
         <button class="rail-gear" type="button" data-go="ajustes" aria-label="Ajustes"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2.2"/><circle cx="9" cy="17" r="2.2"/></svg></button>
       </span>
@@ -75,7 +89,7 @@
       <button type="button" class="tab tab-tabla" data-go="tabla"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2.5"/><path d="M4 9.3h16M4 14.7h16M9.3 4v16M14.7 4v16"/></svg><span>Tabla</span></button>
       <button type="button" class="tab tab-ajustes" data-go="ajustes"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2.2"/><circle cx="9" cy="17" r="2.2"/></svg><span>Ajustes</span></button>
     </nav>
-    <div class="mobile-brand"><h1>Old Pochmann 3BLD</h1><a class="to-fr" href="fridrich">Fridrich reducido <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a><a class="to-fr" href="principiante">Principiante <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a><button class="btn install" type="button" hidden>Instalar app</button></div>
+    <div class="mobile-brand"><h1>A ciegas</h1><button class="btn install" type="button" hidden>Instalar app</button></div>
 
     <div class="view" data-view="practicar">
     <section class="panel" aria-labelledby="hLookup">
@@ -359,7 +373,18 @@
     </div>
 
     <div class="view" data-view="aprender" hidden>
-      <section class="panel learn-panel" aria-labelledby="hLearn">
+      <div class="seg learn-course" role="group" aria-label="Qué método aprender">
+        <button type="button" data-course="op" aria-pressed="true">Old Pochmann</button>
+        <button type="button" data-course="m2" aria-pressed="false">M2 · aristas</button>
+      </div>
+      <section class="panel m2-panel" aria-labelledby="hM2" id="m2Panel" hidden>
+        <div class="panel-head">
+          <h2 id="hM2">M2 para las aristas</h2>
+          <span class="hint" id="m2Progress"></span>
+        </div>
+        <div class="m2" id="m2"></div>
+      </section>
+      <section class="panel learn-panel" aria-labelledby="hLearn" id="learnPanel">
         <div class="panel-head">
           <h2 id="hLearn">Aprender Old Pochmann</h2>
           <span class="hint" id="learnProgress"></span>
@@ -494,11 +519,13 @@
   <button class="x" type="button" id="updateLater" aria-label="Ahora no" title="Ahora no">×</button>
 </div>
 
+<script src="sections.js"></script>
 <script src="cubemodel.js"></script>
 <script src="notation.js"></script>
 <script src="follow.js"></script>
 <script src="core.js"></script>
 <script src="learn.js"></script>
+<script src="m2.js"></script>
 <script src="syncplan.js"></script>
 <script src="social.js"></script>
 <script src="stream.js"></script>

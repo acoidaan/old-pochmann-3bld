@@ -254,6 +254,58 @@
     </div>`;
   }
 
+  // Drag to go round it. The touch is the cube's: no scroll, long-press menu or magnifier from it.
+  function draggable(svg, cube, moved) {
+    let drag = null;
+    svg.addEventListener('pointerdown', (ev) => {
+      if (ev.button !== 0) return;
+      drag = { id: ev.pointerId, x: ev.clientX, y: ev.clientY, yaw: cube.cam.yaw, pitch: cube.cam.pitch };
+      if (svg.setPointerCapture) svg.setPointerCapture(ev.pointerId);
+      svg.classList.add('drag');
+    });
+    svg.addEventListener('pointermove', (ev) => {
+      if (!drag || ev.pointerId !== drag.id) return;
+      cube.cam.yaw = drag.yaw - (ev.clientX - drag.x) * 0.011;
+      cube.cam.pitch = Math.max(-1.3, Math.min(1.3, drag.pitch + (ev.clientY - drag.y) * 0.011));
+      moved();
+      if (!cube.busy) cube.paint();
+    });
+    const drop = () => { drag = null; svg.classList.remove('drag'); };
+    svg.addEventListener('pointerup', drop);
+    svg.addEventListener('pointercancel', drop);
+    svg.addEventListener('touchstart', (ev) => { if (ev.cancelable) ev.preventDefault(); }, { passive: false });
+    svg.addEventListener('contextmenu', (ev) => ev.preventDefault());
+  }
+  // A cube on its own, for other pages (the M2 lessons in 3BLD): an algorithm turning on it, from the cube as
+  // held (or from a state), each move told by onMove(i) and onMove(-1) at the end.
+  function player(el, opts = {}) {
+    const base = opts.up === 'white' ? M.solved() : M.apply(M.solved(), 'z2');
+    el.innerHTML = `<svg class="nt-cube" viewBox="-82 -82 164 164" role="img" aria-label="${esc(opts.label || 'El cubo')}"></svg>`;
+    const svg = el.querySelector('svg');
+    const cube = makeCube(el, svg, base, (st) => { el.dataset.facelets = M.toFacelets(st); });
+    draggable(svg, cube, () => {});
+    let job = 0;
+    cube.set(base);
+    return {
+      base,
+      set(state) { job++; cube.set(state || base); },
+      async play(alg, o = {}) {
+        const id = ++job;
+        const moves = M.parseAlg(alg);
+        cube.set(o.from || base);
+        for (let i = 0; i < moves.length; i++) {
+          if (o.onMove) o.onMove(i);
+          const ok = await cube.turn(moves[i], msFor(moves[i], o.slow ? 'key' : 'alg'));
+          if (!ok || id !== job) return false;
+          if (i < moves.length - 1) await wait(SPEED.gap);
+          if (id !== job) return false;
+        }
+        if (o.onMove) o.onMove(-1);
+        return true;
+      },
+    };
+  }
+
   let made = 0;
   const mounted = new WeakSet();
   function mount(el, opts = {}) {
@@ -396,26 +448,7 @@
     });
     chips.addEventListener('click', (ev) => { const b = ev.target.closest('[data-nt-at]'); if (b) jump(Number(b.dataset.ntAt)); });
 
-    // Drag to go round it. The touch is the cube's: no scroll, long-press menu or magnifier from it.
-    let drag = null;
-    svg.addEventListener('pointerdown', (ev) => {
-      if (ev.button !== 0) return;
-      drag = { id: ev.pointerId, x: ev.clientX, y: ev.clientY, yaw: cube.cam.yaw, pitch: cube.cam.pitch };
-      if (svg.setPointerCapture) svg.setPointerCapture(ev.pointerId);
-      svg.classList.add('drag');
-    });
-    svg.addEventListener('pointermove', (ev) => {
-      if (!drag || ev.pointerId !== drag.id) return;
-      cube.cam.yaw = drag.yaw - (ev.clientX - drag.x) * 0.011;
-      cube.cam.pitch = Math.max(-1.3, Math.min(1.3, drag.pitch + (ev.clientY - drag.y) * 0.011));
-      camBtn.disabled = false;
-      if (!cube.busy) cube.paint();
-    });
-    const drop = () => { drag = null; svg.classList.remove('drag'); };
-    svg.addEventListener('pointerup', drop);
-    svg.addEventListener('pointercancel', drop);
-    svg.addEventListener('touchstart', (ev) => { if (ev.cancelable) ev.preventDefault(); }, { passive: false });
-    svg.addEventListener('contextmenu', (ev) => ev.preventDefault());
+    draggable(svg, cube, () => { camBtn.disabled = false; });
 
     cube.set(base);
   }
@@ -446,5 +479,5 @@
     if (d instanceof HTMLDetailsElement && d.open && d.dataset.notation !== undefined) mount(d.querySelector('[data-notation-body]'), { up: d.dataset.notation });
   }, true);
 
-  window.CubeNotation = { mount, read, says, _check: check };
+  window.CubeNotation = { mount, player, read, says, _check: check };
 })();
