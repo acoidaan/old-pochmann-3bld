@@ -7,7 +7,9 @@
 //   npm run audit              accessibility (axe-core) and layout audits (a11y/)
 //   npm run shots              the screenshots in ../docs/img
 //   node run.js --all          the suites and the audits together
-//   node run.js --all --shard=2/4   the 2nd of 4 parts that take about as long (what the GitHub Action runs)
+//   node run.js --all --shard=2/6   the 2nd of 6 parts that take about as long (what the GitHub Action runs)
+//   --jobs=3                   suites at the same time (default: 2, or 1 with --shots); each one with its own
+//                              servers (8793/8792, 8795/8794…), so their fake API stores do not mix
 //
 // Exit code 1 if any check fails, a page throws, or an audit finds a problem.
 const fs = require('fs');
@@ -27,11 +29,13 @@ const SITE = 'http://localhost:8793';
 const SITE_PLAIN = 'http://localhost:8792';
 const SHOTS = process.env.SHOTS || path.join(__dirname, 'shots');
 const TIMEOUT = 10 * 60 * 1000;
+const jobsArg = args.find((a) => a.startsWith('--jobs='));
+const JOBS = mode === 'shots' ? 1 : Math.max(1, Math.min(4, Number(jobsArg ? jobsArg.slice(7) : process.env.JOBS || 2) || 1));
 
 function suites() {
   if (mode === 'shots') return [path.join(__dirname, 'docs-shots.js')];
   const list = (mode === 'all' ? ['a11y', 'e2e'] : [mode])
-    .flatMap((d) => fs.readdirSync(path.join(__dirname, d)).filter((f) => f.endsWith('.js')).map((f) => `${d}/${f}`))
+    .flatMap((d) => fs.readdirSync(path.join(__dirname, d)).filter((f) => f.endsWith('.js') && !f.startsWith('_')).map((f) => `${d}/${f}`))
     .filter((f) => !filters.length || filters.some((x) => path.basename(f).includes(x)))
     .sort();
   return (SHARD ? shard(list, +SHARD[1], +SHARD[2]) : list).map((f) => path.join(__dirname, f));
@@ -52,11 +56,11 @@ function shard(list, k, n) {
   return parts[k - 1].files.sort();
 }
 
-function runOne(file) {
+function runOne(file, site = SITE, plain = SITE_PLAIN) {
   return new Promise((resolve) => {
     const child = spawn(process.execPath, [file], {
       cwd: __dirname,
-      env: { ...process.env, SITE, SITE_PLAIN, SHOTS, SW_FILE: path.join(PUBLIC, 'sw.js') },
+      env: { ...process.env, SITE: site, SITE_PLAIN: plain, SHOTS, SW_FILE: path.join(PUBLIC, 'sw.js') },
     });
     let out = '';
     child.stdout.on('data', (d) => { out += d; });
@@ -82,21 +86,31 @@ function verdict(out, code) {
   console.log('Construyendo public/ …');
   execFileSync(process.execPath, ['build.js'], { cwd: ROOT, stdio: 'inherit' });
   fs.mkdirSync(SHOTS, { recursive: true });
-  const servers = [
-    await start({ root: PUBLIC, port: 8792, cubejs: false }),
-    await start({ root: PUBLIC, port: 8793, cubejs: true }),
-  ];
   const list = suites();
+  // One pair of servers per suite running at once (worker w: 8793+2w with the scramble generator, 8792+2w
+  // without), so a suite's sync, ranking or retos never see another's.
+  const jobs = Math.min(JOBS, Math.max(1, list.length));
+  const servers = [];
+  const slots = [];
+  for (let w = 0; w < jobs; w++) {
+    servers.push(await start({ root: PUBLIC, port: 8792 + 2 * w, cubejs: false }), await start({ root: PUBLIC, port: 8793 + 2 * w, cubejs: true }));
+    slots.push({ site: `http://localhost:${8793 + 2 * w}`, plain: `http://localhost:${8792 + 2 * w}` });
+  }
   if (!list.length && SHARD) { console.log('Esta parte no tiene ninguna prueba.'); process.exit(0); }
   if (!list.length) { console.error('No hay ninguna prueba con ese nombre.'); process.exit(1); }
   if (SHARD) console.log(`Parte ${SHARD[1]} de ${SHARD[2]}: ${list.map((f) => path.relative(__dirname, f)).join(', ')}`);
+  if (jobs > 1) console.log(`${jobs} a la vez`);
   let checks = 0;
   const bad = [];
   const t0 = Date.now();
-  for (const file of list) {
+  // The slowest first (durations.json), so the long ones do not end up alone at the end.
+  const secs = JSON.parse(fs.readFileSync(path.join(__dirname, 'durations.json'), 'utf8'));
+  const cost = (f) => secs[path.relative(__dirname, f)] || 20;
+  const queue = jobs > 1 ? [...list].sort((a, b) => cost(b) - cost(a)) : [...list];
+  const one = async (file, slot) => {
     const name = path.relative(__dirname, file);
     const t = Date.now();
-    const { code, out } = await runOne(file);
+    const { code, out } = await runOne(file, slot.site, slot.plain);
     const v = verdict(out, code);
     checks += v.checks;
     const secs = Math.round((Date.now() - t) / 1000);
@@ -109,7 +123,8 @@ function verdict(out, code) {
         : lines.filter((l) => !/: (axe )?clean$|^Capturas|^0 problems/.test(l));
       console.log((detail.length ? detail : out.split('\n').slice(-25)).map((l) => `    ${l}`).join('\n'));
     }
-  }
+  };
+  await Promise.all(slots.map(async (slot) => { while (queue.length) await one(queue.shift(), slot); }));
   servers.forEach((s) => s.close());
   const mins = ((Date.now() - t0) / 60000).toFixed(1);
   console.log(bad.length

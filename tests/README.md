@@ -16,7 +16,8 @@ npm test -- smart-cube    # solo las que tienen «smart-cube» en el nombre
 npm run audit             # accesibilidad y maquetación
 npm run lint              # ESLint de todo el repo (no se despliega: solo para desarrollo)
 npm run shots             # vuelve a hacer las capturas de docs/img
-node run.js --all --shard=2/4   # la parte 2 de 4 de suites + auditorías, como en la GitHub Action
+node run.js --all --shard=2/6   # la parte 2 de 6 de suites + auditorías, como en la GitHub Action
+node run.js fridrich --jobs=3   # tres suites a la vez (por defecto, dos), cada una con sus servidores
 ```
 
 `run.js` construye la web en `../public` con `build.js`, la sirve con una API falsa en dos puertos y lanza cada suite en su propio proceso. Al final dice cuántas comprobaciones han pasado; si algo falla, enseña qué y sale con código 1.
@@ -32,7 +33,7 @@ Las capturas que hacen las suites (útiles para revisar a ojo) quedan en `tests/
 
 ## En GitHub
 
-- **«Pruebas»** (`.github/workflows/pruebas.yml`), en cada push a `main` y en cada pull request: ESLint por un lado y las suites con las auditorías repartidas en 4 partes que corren a la vez (unos 3 min en vez de 10). `--shard` reparte con los segundos de `durations.json`, medidos en la Action, para que las partes tarden lo mismo; una suite nueva cuenta 20 s hasta que la apuntes ahí. El último trabajo, **«Todo bien»**, solo pasa si ha pasado todo: es el Deployment Check de Vercel, así que un push a `main` no llega a producción hasta que sale en verde (y si sale en rojo, sigue la versión anterior). Si algo falla, las capturas de esa parte quedan en la ejecución como `capturas-N`.
+- **«Pruebas»** (`.github/workflows/pruebas.yml`), en cada push a `main` y en cada pull request: ESLint por un lado y las suites con las auditorías repartidas en 6 partes que corren a la vez, cada una con dos suites a la vez y Chromium guardado en caché. `--shard` reparte con los segundos de `durations.json`, medidos en la Action, para que las partes tarden lo mismo; una suite nueva cuenta 20 s hasta que la apuntes ahí. El último trabajo, **«Todo bien»**, solo pasa si ha pasado todo: es el Deployment Check de Vercel, así que un push a `main` no llega a producción hasta que sale en verde (y si sale en rojo, sigue la versión anterior). Si algo falla, las capturas de esa parte quedan en la ejecución como `capturas-N`.
 - **«Capturas»** (`.github/workflows/capturas.yml`), solo a mano (Actions → Capturas → Run workflow): hace `npm run shots` y sube las capturas de `docs/img` a la rama. No va sola porque cada vez salen scrambles distintos y habría un commit de imágenes en cada push: lánzala cuando cambie el aspecto de lo que sale en ellas. Su commit no pasa «Pruebas», así que Vercel no lo publica; da igual, porque solo cambia el README, y el siguiente push publica normal.
 
 ## Qué comprueba cada suite
@@ -72,7 +73,7 @@ Las capturas que hacen las suites (útiles para revisar a ojo) quedan en `tests/
 | `a11y/smart-cube.js` | Lo mismo con el cubo conectado: seguimiento, informe de DNF y diálogo de la MAC. |
 | `a11y/trainer-guide.js` | Lo mismo en Entrenar con el cubo, en Practicar siguiendo el cubo y en la ejecución guiada. |
 | `a11y/principiante.js` | Lo mismo en Aprende a resolver el cubo: Aprender con lo básico abierto, la solución de una mezcla, la ayuda en directo a mitad de una resolución, una resolución acabada con sus pasos, Entrenar con el cubo y con uno normal, Progreso y Ajustes. |
-| `a11y/fridrich.js` | Lo mismo en todas las vistas de Fridrich, con el cubo en la última capa, un solve entero con su análisis y su reconstrucción, los entrenadores, y con un historial: un solve récord con su ritmo, Progreso, «Qué entrenar hoy», elegir los casos, una sesión de entrenamiento (y cambiar sus casos) y su resumen, y el ranking (empezar, una liga y un detalle). |
+| `a11y/fridrich-1.js` … `fridrich-5.js` (`_fridrich.js`, una pantalla cada una) | Lo mismo en todas las vistas de Fridrich, con el cubo en la última capa, un solve entero con su análisis y su reconstrucción, los entrenadores, y con un historial: un solve récord con su ritmo, Progreso, «Qué entrenar hoy», elegir los casos, una sesión de entrenamiento (y cambiar sus casos) y su resumen, y el ranking (empezar, una liga y un detalle). |
 
 ## Cómo están hechas
 

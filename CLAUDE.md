@@ -5,7 +5,7 @@ App web de cubo de Rubik de Aco, en tres secciones: A ciegas (3BLD con Old Pochm
 ## Forma de trabajar
 
 - Habla con Aco en español. Los textos de la app, en español de España; los comentarios del código, en inglés.
-- Cada push a `main` se construye solo en Vercel, pero no llega a producción hasta que la GitHub Action «Pruebas» (`.github/workflows/pruebas.yml`: lint y suites + auditoría en 4 partes a la vez) sale en verde: su último trabajo, «Todo bien», es el Deployment Check del proyecto. Antes de subir, pasa las suites que toque (ver abajo). Después, comprueba que «Todo bien» pasa y que el despliegue queda `READY` y publicado. Si cambias el nombre de ese trabajo, hay que cambiarlo también en Vercel (Settings → Build and Deployment → Deployment Checks).
+- Cada push a `main` se construye solo en Vercel, pero no llega a producción hasta que la GitHub Action «Pruebas» (`.github/workflows/pruebas.yml`: lint y suites + auditoría en 6 partes a la vez, cada una con dos suites a la vez) sale en verde: su último trabajo, «Todo bien», es el Deployment Check del proyecto. Antes de subir, pasa las suites que toque (ver abajo). Después, comprueba que «Todo bien» pasa y que el despliegue queda `READY` y publicado. Si cambias el nombre de ese trabajo, hay que cambiarlo también en Vercel (Settings → Build and Deployment → Deployment Checks).
 - Commits en español: un título corto y un cuerpo que explique el qué y el porqué.
 - Un cambio visible lleva su comprobación en una suite de `tests/e2e/` (y una línea en la tabla de `tests/README.md` si es una suite nueva). Mira también el móvil (Pixel 7) y el iPhone 14 en horizontal (750×340, poca altura): nada de scroll horizontal ni cosas que se pisen.
 - Sin frameworks ni empaquetador. HTML, CSS y JS a mano.
@@ -22,7 +22,7 @@ npm run lint                          # ESLint de todo el repo (config en eslint
 ```
 
 - `run.js` levanta su propio servidor en los puertos 8793 (con generador de scrambles) y 8792 (sin él). Si dejaste un `node server.js` en marcha, páralo antes o choca el puerto.
-- La Action reparte las suites con `--shard` según `tests/durations.json`; una suite nueva que tarde más de ~20 s, apúntala ahí con lo que tarda en la Action.
+- La Action reparte las suites con `--shard` según `tests/durations.json` y pasa dos a la vez en cada parte (`--jobs=2`; en local también, por defecto). Cada suite a la vez tiene sus propios servidores (8793/8792, 8795/8794…), así que no fijes puertos en una suite: usa `SITE`. Una suite nueva que tarde más de ~20 s, apúntala en `durations.json` con lo que tarda en la Action. La auditoría de CFOP está en `a11y/_fridrich.js` y se pasa en cinco trozos, una pantalla cada uno (`fridrich-1.js`…`fridrich-5.js`).
 - Las capturas del README (`docs/img`) no se rehacen solas: si cambias el aspecto de algo que sale en ellas, lanza la Action «Capturas» (o `npm run shots` y súbelas).
 - En las sesiones en la nube, `.claude/hooks/session-start.sh` instala las dependencias de `tests/` y deja `PLAYWRIGHT_BROWSERS_PATH` apuntando a un Chromium que acepta el Playwright fijado: no hace falta `npx playwright install`.
 

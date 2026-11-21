@@ -185,7 +185,7 @@ const fakeWakeLock = () => {
       await p.click('#retoCreate');
       await wait(1500);
       const link = await p.evaluate(() => navigator.clipboard.readText());
-      check('shared reto link is /r/<id>', /^http:\/\/localhost:879[0-9]\/r\/[a-z0-9]{8}$/.test(link), link);
+      check('shared reto link is /r/<id>', /^http:\/\/localhost:\d+\/r\/[a-z0-9]{8}$/.test(link), link);
       const p2 = await ctx.newPage();
       await p2.goto(link);
       await p2.waitForSelector('#retoCard h2', { timeout: 10000 }).catch(() => {});

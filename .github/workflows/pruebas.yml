@@ -1,5 +1,6 @@
 # The checks for every change: ESLint, and the browser suites (tests/e2e) with the accessibility audits
-# (tests/a11y) split into 4 parts that run at the same time (run.js --shard, balanced with tests/durations.json).
+# (tests/a11y) split into 6 parts that run at the same time (run.js --shard, balanced with tests/durations.json),
+# each running two suites at once (--jobs=2, each with its own servers). Chromium is kept in the cache.
 # «Todo bien» passes only when all of them did: it is the project's Deployment Check in Vercel, so production
 # waits for it. Renaming that job means changing it there too.
 name: Pruebas
@@ -33,14 +34,14 @@ jobs:
       - run: npm run lint
 
   pruebas:
-    name: Parte ${{ matrix.parte }} de 4
+    name: Parte ${{ matrix.parte }} de 6
     # Not ubuntu-latest: since it became 26.04, the pinned Playwright (1.56.1) can't install Chromium there.
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
-        parte: [1, 2, 3, 4]
+        parte: [1, 2, 3, 4, 5, 6]
     defaults:
       run:
         working-directory: tests
@@ -52,8 +53,20 @@ jobs:
           cache: npm
           cache-dependency-path: tests/package-lock.json
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
-      - run: node run.js --all --shard=${{ matrix.parte }}/4
+      # Chromium from the cache when this Playwright already downloaded it; its system libraries only if the
+      # runner lacks them (it usually has them).
+      - id: pw
+        run: echo "version=$(node -p "require('playwright/package.json').version")" >> "$GITHUB_OUTPUT"
+      - id: pwcache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-24.04-${{ steps.pw.outputs.version }}
+      - if: steps.pwcache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+      - if: steps.pwcache.outputs.cache-hit == 'true'
+        run: node -e "require('playwright').chromium.launch().then((b) => b.close())" || npx playwright install-deps chromium
+      - run: node run.js --all --shard=${{ matrix.parte }}/6 --jobs=2
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

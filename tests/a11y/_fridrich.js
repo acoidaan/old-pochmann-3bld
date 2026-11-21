@@ -1,5 +1,6 @@
-// axe-core and horizontal overflow on «Fridrich reducido»: every view, phone and desktop, light and dark,
-// with the cube following a solve and both trainers, and with a history (Progreso, «Qué entrenar hoy»).
+// axe-core and horizontal overflow on CFOP (/fridrich): every view, phone and desktop, light and dark, with
+// the cube following a solve and both trainers, and with a history (Progreso, «Qué entrenar hoy»). Run in
+// parts, each with some of the screens (FR_SIZES, set by fridrich-1.js…fridrich-5.js, one screen each), so they go at once.
 const { chromium, devices } = require('playwright');
 const { SITE } = require('../env');
 const fs = require('fs');
@@ -10,7 +11,8 @@ const SOLVE = ["D R' F2 L", "U R U' R'", "U' F' U F", "L' U' L", "U B U' B'", "F
 (async () => {
   const b = await chromium.launch();
   const sizes = [['pixel7', { ...devices['Pixel 7'] }, 'light'], ['iphone14-landscape', { ...devices['iPhone 14 landscape'] }, 'dark'], ['pixel7', { ...devices['Pixel 7'] }, 'dark'], ['1280', { viewport: { width: 1280, height: 900 } }, 'dark'], ['1280', { viewport: { width: 1280, height: 900 } }, 'light']];
-  for (const [label, opts, scheme] of sizes) {
+  const only = (process.env.FR_SIZES || '').split(',').filter(Boolean).map(Number);
+  for (const [label, opts, scheme] of sizes.filter((x, i) => !only.length || only.includes(i))) {
     const ctx = await b.newContext({ ...opts, colorScheme: scheme });
     await ctx.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
     const p = await ctx.newPage();

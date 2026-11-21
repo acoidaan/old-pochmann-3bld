@@ -460,7 +460,7 @@ npm test                         # todas las pruebas (unas 600 comprobaciones)
 
 **Despliegue.** Cada push a `main` se despliega solo en Vercel, y llega a producción cuando la GitHub Action «Pruebas» sale en verde (su trabajo «Todo bien» es el Deployment Check del proyecto). Vercel instala `package.json` (`@vercel/blob`, `@vercel/og`, `cubejs`), ejecuta `node build.js` y publica `public/` y `api/`. Hace falta un almacén conectado al proyecto: Redis de Upstash desde el Marketplace (Storage → Upstash for Redis, plan gratis, con el prefijo de variables por defecto, `KV_`) o Vercel Blob; sin ninguno, la app funciona igual pero sin retos, sincronización ni ranking. `vercel.json` sirve `cubejs` desde jsDelivr en el mismo dominio (para el generador sin conexión), traduce `/r/:id` a `/api/r`, sirve `/fridrich` y `/principiante` desde sus páginas y fija las cabeceras de caché de `sw.js` y `vendor/`.
 
-**Pruebas.** Veintiuna suites en Chromium con Playwright (unas 600 comprobaciones) y cinco auditorías con axe-core. La GitHub Action «Pruebas» las pasa en cada push, repartidas en 4 partes a la vez, y «Capturas» rehace las de este README cuando se lanza a mano; ver [tests/README.md](tests/README.md).
+**Pruebas.** Veintiuna suites en Chromium con Playwright (unas 600 comprobaciones) y cinco auditorías con axe-core. La GitHub Action «Pruebas» las pasa en cada push, repartidas en 6 partes a la vez (dos suites a la vez en cada una), y «Capturas» rehace las de este README cuando se lanza a mano; ver [tests/README.md](tests/README.md).
 
 ## Créditos y licencias
 
