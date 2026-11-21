@@ -6,7 +6,7 @@
   const O = window.OP3;
   if (!O || !document.getElementById('cubeBar') || !window.SmartCube || !window.CubeFollow) return;
   const $ = (id) => document.getElementById(id);
-  const { apply, parseAlg, invertAlg, solved, isSolved, faceOfSticker, MODES, ALGS, esc } = O;
+  const { apply, parseAlg, solved, isSolved, faceOfSticker, MODES, esc } = O;
 
   const CHECK_MS = 700;   // after a manual stop, wait this long for the last turn to arrive
   const QUIET_MS = 3000;  // after the cube stops the clock, presses are ignored this long
@@ -237,11 +237,21 @@
   });
 
   // ================= Where it went wrong =================
-  const CANDS = [
-    ...O.trainLetters('edge').map((L) => ({ kind: 'edge', L })),
-    { kind: 'parity' },
-    ...O.trainLetters('corner').map((L) => ({ kind: 'corner', L })),
-  ];
+  // Every letter that can come next, with what it does, after n edges (with M2 the specials depend on
+  // whether it is the first or the second of a pair). Kept per edge method and n's parity.
+  const candCache = {};
+  function cands(n = 0) {
+    const k = `${O.edgeMethod()}${n % 2}`;
+    if (!candCache[k]) {
+      candCache[k] = [
+        ...O.trainLetters('edge').map((L) => ({ kind: 'edge', L, ei: n % 2 })),
+        { kind: 'parity' },
+        ...O.trainLetters('corner').map((L) => ({ kind: 'corner', L })),
+      ].map((t) => ({ t, alg: O.tokenAlg(t) }));
+    }
+    return candCache[k];
+  }
+  const edgesIn = (done) => done.filter((t) => t.kind === 'edge').length;
   const same = (a, b) => !!a && !!b && a.kind === b.kind && a.L === b.L;
   const nounOf = (t) => (t.kind === 'edge' ? 'aristas' : 'esquinas');
   // The memo typed in «Practicar», when it belongs to this scramble: it solves it, or it was typed after the
@@ -261,13 +271,15 @@
     const bad = (kind, L) => !(L in MODES[kind].posOf) || MODES[kind].buffer.includes(L);
     if (e.some((L) => bad('edge', L)) || c.some((L) => bad('corner', L))) return null;
     if (!(memoAt > scrAt) && !(a.scrState && !O.traceMemo(a.scrState, e, c))) return null;
-    const toks = e.map((L) => ({ kind: 'edge', L }));
+    const toks = e.map((L, ei) => ({ kind: 'edge', L, ei }));
     if (e.length % 2) toks.push({ kind: 'parity' });
     c.forEach((L) => toks.push({ kind: 'corner', L }));
     return { e, c, toks, text: `${O.pairs(e)} · ${O.pairs(c)}` };
   }
   // Rebuilds the letters done from the states the cube went through: after each letter (setup, algorithm,
-  // undo) the cube must be exactly where shooting that letter leaves it.
+  // undo) the cube must be exactly where shooting that letter leaves it. The letters are followed as the cube
+  // is held (cur): with M2 the middle layer turns, so the centres move and the next letter is done with the
+  // cube upside down as the smart cube sees it (its states are always white up, norm).
   function retrace(a) {
     const at = new Map();
     a.states.forEach((s, i) => { const k = key(s); if (!at.has(k)) at.set(k, []); at.get(k).push(i); });
@@ -276,13 +288,20 @@
     let j = 0;
     let cur = a.states[0];
     for (let guard = 0; guard < 80; guard++) {
-      let best = null;
-      for (const t of CANDS) {
-        const s = apply(cur, O.tokenAlg(t));
-        const i = after(s, j);
-        if (i >= 0 && (!best || i < best.i)) best = { t, i, s };
+      const n = edgesIn(done);
+      const hits = [];
+      for (const { t, alg } of cands(n)) {
+        const s = apply(cur, alg);
+        const i = after(norm(s), j);
+        if (i >= 0) hits.push({ t, i, s });
       }
-      if (!best) break;
+      if (!hits.length) break;
+      // The first one reached, unless nothing follows it and a later one does: with M2, S starts with M2,
+      // which on its own is the A.
+      hits.sort((x, y) => x.i - y.i);
+      const last = a.states.length - 1;
+      const goesOn = (h) => h.i === last || cands(n + (h.t.kind === 'edge' ? 1 : 0)).some(({ alg }) => after(norm(apply(h.s, alg)), h.i) >= 0);
+      const best = hits.find(goesOn) || hits[0];
       done.push({ ...best.t, at: best.i, before: cur, from: j });
       j = best.i;
       cur = best.s;
@@ -291,14 +310,11 @@
   }
   // How far into one letter the solve got: setup, algorithm, undoing the setup.
   function stageOf(t, cur, j, after) {
-    const parity = t.kind === 'parity';
-    const mode = parity ? null : MODES[t.kind];
-    const setup = parity ? '' : mode.table[t.L] || '';
-    const algKey = parity ? 'P' : mode.alg;
-    const set = apply(cur, setup);
-    const k1 = setup ? after(norm(set), j) : j;
-    const k2 = k1 >= 0 ? after(norm(apply(set, ALGS[algKey].moves)), k1) : -1;
-    return { setup, undo: setup ? invertAlg(setup) : '', alg: ALGS[algKey].name, stage: k1 < 0 ? 'setup' : k2 < 0 ? 'alg' : 'undo' };
+    const p = t.kind === 'parity' ? { setup: '', undo: '', alg: O.parityAlg() } : O.letterParts(t.kind, t.L, t.ei || 0);
+    const set = apply(cur, p.setup);
+    const k1 = p.setup ? after(norm(set), j) : j;
+    const k2 = k1 >= 0 ? after(norm(apply(set, p.alg.moves)), k1) : -1;
+    return { setup: p.setup, undo: p.undo, alg: p.alg.name, stage: k1 < 0 ? 'setup' : k2 < 0 ? 'alg' : 'undo' };
   }
   function nth(toks, i) {
     const t = toks[i];
@@ -318,23 +334,29 @@
     return `Fallo en ${where}: el setup y el ${s.alg} estaban bien, pero al deshacer el setup (${code(s.undo)}) algo falló.`;
   }
   // ---- Live, during the attempt: the turns and each letter as soon as it is complete ----
-  const CAND_ALGS = CANDS.map((t) => ({ t, alg: O.tokenAlg(t) }));
-  function liveCands(st) {
+  // As the cube is held (h, see retrace): what each letter would leave, as the smart cube would see it.
+  function liveCands(h, n) {
     const m = new Map();
-    for (const { t, alg } of CAND_ALGS) {
-      const k = key(apply(st, alg));
-      if (!m.has(k)) m.set(k, t);
+    for (const { t, alg } of cands(n)) {
+      const s = apply(h, alg);
+      const k = key(norm(s));
+      if (!m.has(k)) m.set(k, { t, s });
     }
     return m;
   }
-  function liveStart(a, st) { a.live = { done: [], cands: liveCands(st) }; }
+  function liveStart(a, st) { a.live = { done: [], cands: liveCands(st, 0), prev: null }; }
   function liveMove(a, mv, st) {
     const L = a.live;
     if (!L) return;
-    const t = L.cands.get(key(st));
-    if (t) {
-      L.done.push(t);
-      L.cands = liveCands(st);
+    const k = key(st);
+    let hit = L.cands.get(k);
+    // A letter that turned out to be the start of a longer one (M2's A, and then the rest of the S): the
+    // longer one takes its place.
+    if (!hit && L.prev && L.prev.get(k)) { hit = L.prev.get(k); L.done.pop(); }
+    else if (hit) L.prev = L.cands;
+    if (hit) {
+      L.done.push(hit.t);
+      L.cands = liveCands(hit.s, edgesIn(L.done));
     }
   }
   function lettersLine(done) {
@@ -407,12 +429,17 @@
       const cur = r.cur;
       let next = null;
       let cycleBreak = null;   // the buffer held its own piece: any letter could have come next
+      // With M2 the edges are read from what the letters done amount to (O.traceShot), not from the cube.
+      const doneE = r.done.filter((t) => t.kind === 'edge').map((t) => t.L);
+      const look = (kind) => (kind === 'edge' && O.isVirtual('edge') && !r.done.some((t) => t.kind !== 'edge')
+        ? doneE.reduce((st, L, i) => O.traceShot('edge', st, L, i), a.states[0]) : cur);
       for (const kind of ['edge', 'corner']) {
         const mode = MODES[kind];
-        const id = cur[mode.posOf[mode.read]];
-        const pending = CUBIES.some((g) => g.length === (kind === 'edge' ? 2 : 3) && !g.every((p) => cur[p] === p));
+        const at = look(kind);
+        const id = at[mode.posOf[mode.read]];
+        const pending = CUBIES.some((g) => g.length === (kind === 'edge' ? 2 : 3) && !g.every((p) => at[p] === p));
         if (!pending) continue;
-        if (!mode.buffer.some((b) => mode.posOf[b] === id)) next = { kind, L: mode.letterOf[id] };
+        if (!mode.buffer.some((b) => mode.posOf[b] === id)) next = { kind, L: mode.letterOf[id], ei: kind === 'edge' ? doneE.length : 0 };
         else cycleBreak = kind;
         break;
       }
@@ -537,23 +564,37 @@
     const s = O.trainer.state();
     tr.path = null;
     if (!cube.state || !s.letter) return;
-    const mode = MODES[s.kind];
-    const setup = mode.table[s.letter] || '';
+    const p = O.letterParts(s.kind, s.letter, 0);
     tr.kind = s.kind; tr.letter = s.letter; tr.t0 = s.t0; tr.first = 0; tr.clean = true;
-    tr.setup = setup; tr.algName = ALGS[mode.alg].name;
-    tr.path = makePath(cube.state, setup ? [setup, ALGS[mode.alg].moves, invertAlg(setup)] : [ALGS[mode.alg].moves]);
+    tr.setup = p.special ? p.alg.moves : p.setup; tr.special = !!p.special; tr.algName = p.alg.name;
+    // With M2 every letter turns the middle layer half round: after one, the cube is held upside down (white
+    // centre at the bottom) unless you turn it back. Both ways are followed; the one you take is tried first
+    // next time.
+    const frames = s.kind === 'edge' && O.isVirtual('edge') ? (tr.flip ? [1, 0] : [0, 1]) : [0];
+    const held = (f) => (f ? apply(cube.state, 'x2') : cube.state);
+    tr.paths = frames.map((f) => Object.assign(makePath(held(f), [p.setup, p.alg.moves, p.undo].filter(Boolean)), { frame: f, clean: true }));
+    tr.path = tr.paths[0];
     tr.others = new Map();
-    O.trainLetters(s.kind).forEach((L) => { if (L !== s.letter) tr.others.set(key(apply(cube.state, O.tokenAlg({ kind: s.kind, L }))), L); });
+    frames.forEach((f) => O.trainLetters(s.kind).forEach((L) => {
+      const k = key(norm(apply(held(f), O.tokenAlg({ kind: s.kind, L }))));
+      if (L !== s.letter && !tr.others.has(k)) tr.others.set(k, L);
+    }));
   }
   function trMove(mv) {
-    const P = tr.path;
-    if (!P) return;
+    if (!tr.path) return;
     if (!tr.first) tr.first = performance.now();
-    pathMove(P, mv, cube.state);
-    if (P.off.length || P.lost) tr.clean = false;
+    tr.paths.forEach((P) => { pathMove(P, mv, cube.state); if (P.off.length || P.lost) P.clean = false; });
+    // The one being followed: on track first, then the furthest along.
+    const rank = (P) => (P.lost ? 1e6 : 0) + P.off.length * 1000 - P.pos;
+    tr.path = tr.paths.reduce((a, b) => (rank(b) < rank(a) ? b : a));
+    tr.clean = tr.path.clean;
     const k = key(cube.state);
-    if (k === P.end) trFinish(true);
-    else if (tr.others.has(k)) trFinish(false, tr.others.get(k));
+    const end = tr.paths.find((P) => k === P.end);
+    if (end) {
+      tr.clean = end.clean;
+      if (tr.paths.length > 1) tr.flip = end.frame ^ 1;
+      trFinish(true);
+    } else if (tr.others.has(k) && (tr.path.off.length || tr.path.lost)) trFinish(false, tr.others.get(k));
   }
   function trFinish(ok, other) {
     const now = performance.now();
@@ -564,7 +605,7 @@
     let html;
     if (ok && tr.clean) html = `✓ ${L} en ${f1(secs)} s (pensar ${f1(think)} · ejecutar ${f1(exec)}).`;
     else if (ok) html = `${L}: acabada, pero corrigiendo por el camino (${f1(secs)} s). Te saldrá más a menudo.`;
-    else html = `✗ Has hecho la ${other}, no la ${L}. La ${L} es <code>${esc(tr.setup || 'sin setup')}</code>.`;
+    else html = `✗ Has hecho la ${other}, no la ${L}. ${tr.special ? `Su algoritmo` : `La ${L} es`} <code>${esc(tr.setup || 'sin setup')}</code>.`;
     if (O.trainer.state().phase === 'ask') O.trainer.cubeAnswer({ ok, clean: tr.clean }, secs, html);
     O.trainer.next(true);   // the next letter, from wherever the cube is now
   }
@@ -588,7 +629,9 @@
       return;
     }
     if (tr.letter) {
-      const want = `Hazla en el cubo: el setup que lleva ${tr.letter} a <b>${MODES[tr.kind].swap}</b>, la ${tr.algName} y deshacer el setup.`;
+      const want = tr.special
+        ? `Hazla en el cubo: ${tr.letter} va en la capa del medio, así que su algoritmo especial (el de primera letra de pareja).`
+        : `Hazla en el cubo: el setup que lleva ${tr.letter} a <b>${MODES[tr.kind].swap}</b>, la ${tr.algName} y deshacer el setup.`;
       if (desc.innerHTML !== tr.descSet || tr.descFor !== want) {
         if (desc.innerHTML !== tr.descSet) tr.descSaved = desc.innerHTML;
         desc.innerHTML = want;
@@ -616,7 +659,7 @@
       + (hint ? `<p class="cube-hint ${tone}">${hint}</p>` : '')
       + (P.off.length || P.lost ? '<button class="btn" type="button" data-tr-restart>Empezar la letra desde aquí</button>' : '');
   }
-  $('trCubeLine').addEventListener('click', (ev) => { if (ev.target.closest('[data-tr-restart]')) { tr.clean = false; const keep = tr.t0; trStart(); tr.t0 = keep; tr.clean = false; renderTrain(); } });
+  $('trCubeLine').addEventListener('click', (ev) => { if (ev.target.closest('[data-tr-restart]')) { tr.clean = false; const keep = tr.t0; trStart(); tr.t0 = keep; tr.clean = false; (tr.paths || []).forEach((P) => { P.clean = false; }); renderTrain(); } });
   function trSync() {
     if (trActive()) {
       const s = O.trainer.state();
@@ -725,13 +768,13 @@
     const algs = [];
     toks.forEach((t, i) => {
       if (t.bad) return;
-      if (t.kind === 'parity') { algs.push(ALGS.P.moves); pr.segs.push({ i, step: 1, alg: ALGS.P }); return; }
-      const mode = MODES[t.kind];
-      const setup = parseAlg(mode.table[t.L] || '').map((m) => m.text);
+      if (t.kind === 'parity') { algs.push(O.parityAlg().moves); pr.segs.push({ i, step: 1, alg: O.parityAlg() }); return; }
+      const p = O.letterParts(t.kind, t.L, t.ei || 0);
+      const setup = parseAlg(p.setup).map((m) => m.text);
       setup.forEach((m, k) => { algs.push(m); pr.segs.push({ i, step: k + 1 }); });
-      algs.push(ALGS[mode.alg].moves);
-      pr.segs.push({ i, step: setup.length + 1, alg: ALGS[mode.alg] });
-      const undo = setup.length ? parseAlg(invertAlg(setup.join(' '))).map((m) => m.text) : [];
+      algs.push(p.alg.moves);
+      pr.segs.push({ i, step: setup.length + 1, alg: p.alg });
+      const undo = parseAlg(p.undo).map((m) => m.text);
       undo.forEach((m, k) => { algs.push(m); pr.segs.push({ i, step: setup.length + 2 + k }); });
     });
     pr.path = makePath(start, algs);
@@ -871,20 +914,20 @@
   // The memo for the virtual cube as it is now (the same method as the app's optimal memo).
   function simMemo(st) {
     const edges = O.generateFor('edge', st);
-    const mid = edges.letters.length % 2 ? apply(edges.state, ALGS.P.moves) : edges.state;
+    const mid = edges.letters.length % 2 ? apply(edges.state, O.parityAlg().moves) : edges.state;
     const corners = O.generateFor('corner', mid);
-    const toks = edges.letters.map((L) => ({ kind: 'edge', L }));
+    const toks = edges.letters.map((L, ei) => ({ kind: 'edge', L, ei }));
     if (edges.letters.length % 2) toks.push({ kind: 'parity' });
     corners.letters.forEach((L) => toks.push({ kind: 'corner', L }));
     return toks;
   }
   // One letter done wrong: the algorithm loses its last move (setup and undo are fine).
   function flawed(t) {
-    const parity = t.kind === 'parity';
-    const setup = parity ? '' : MODES[t.kind].table[t.L] || '';
-    const alg = parseAlg(ALGS[parity ? 'P' : MODES[t.kind].alg].moves).map((m) => m.text);
-    alg.pop();
-    return [setup, alg.join(' '), setup ? invertAlg(setup) : ''].filter(Boolean).join(' ');
+    const p = t.kind === 'parity' ? { setup: '', undo: '', alg: O.parityAlg() } : O.letterParts(t.kind, t.L, t.ei || 0);
+    const alg = parseAlg(p.alg.moves).map((m) => m.text);
+    // Its last move left out (M2 alone, done as M: leaving it out would just skip the letter).
+    if (alg.length === 1) alg[0] = alg[0].replace('2', ''); else alg.pop();
+    return [p.setup, alg.join(' '), p.undo].filter(Boolean).join(' ');
   }
   // The solution as a list of algorithms, optionally with one letter done wrong.
   function simSolution(st, mistakeAt) {

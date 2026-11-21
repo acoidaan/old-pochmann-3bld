@@ -68,10 +68,10 @@
   }
   // Where you fail: the letters that broke your attempts (found by the smart cube) and the ones you miss in
   // «Entrenar», worst first.
-  function fails(train, lettersOf) {
+  function fails(train, lettersOf, em) {
     const out = [];
     ['edge', 'corner'].forEach((kind) => {
-      const data = (train && train[kind]) || {};
+      const data = (train && train[kind === 'edge' && em === 'm2' ? 'm2' : kind]) || {};
       lettersOf(kind).forEach((L) => {
         const st = data[L];
         if (!st) return;
@@ -106,7 +106,7 @@
     $('bpEm').textContent = `Intentos completos, con las aristas en ${em === 'm2' ? 'M2' : 'Old Pochmann'}`;
     const practice = window.Practice ? window.Practice.days() : {};
     const train = O.data.train();
-    const trained = ['edge', 'corner'].some((k) => Object.values((train && train[k]) || {}).some((st) => st && (st.seen || st.dnf)));
+    const trained = ['edge', 'corner', 'm2'].some((k) => Object.values((train && train[k]) || {}).some((st) => st && (st.seen || st.dnf)));
     const empty = !all.length && !trained;
     ['bpWeeksPanel', 'bpFailsPanel', 'bpDaysPanel', 'bpTimePanel'].forEach((id) => { $(id).hidden = empty; });
     if (empty) {
@@ -135,7 +135,7 @@
       tile('Practicado', hm(P.real.total || P.timed.total), P.real.total ? 'en total' : 'cronometrado'),
     ].join('')}</div>`;
     renderWeeks(BldStats.weekly(list, now, 12));
-    renderFails(BldStats.fails(train, O.trainLetters));
+    renderFails(BldStats.fails(train, O.trainLetters, em));
     renderDays(act);
     renderTime(P);
   }
@@ -197,7 +197,7 @@
     const b = ev.target.closest('[data-bp-train]');
     if (!b) return;
     const kind = b.dataset.bpTrain;
-    const letters = BldStats.fails(O.data.train(), O.trainLetters).filter((x) => x.kind === kind).slice(0, 6).map((x) => x.L);
+    const letters = BldStats.fails(O.data.train(), O.trainLetters, B.edgeMethod ? B.edgeMethod() : 'op').filter((x) => x.kind === kind).slice(0, 6).map((x) => x.L);
     if (O.trainer.session) O.trainer.session(kind, letters);
     O.showView('entrenar');
   });

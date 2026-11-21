@@ -851,13 +851,13 @@ body.carbon .stage[data-learn] .scr-text .mv.next { color: #141414; }
       if (parity) {
         const p = document.createElement('span');
         p.className = 'par';
-        p.textContent = '+ R-perm';
+        p.textContent = m.em === 'm2' ? '+ paridad M2' : '+ R-perm';
         r.appendChild(p);
       }
       box.appendChild(r);
     };
     const edgeCount = (m.e || '').replace(/\s+/g, '').length;
-    row('Aristas', m.e, edgeCount % 2 === 1);
+    row(m.em === 'm2' ? 'Aristas M2' : 'Aristas', m.e, edgeCount % 2 === 1);
     row('Esquinas', m.c, false);
   }
   // A stored result keeps its memo as "OK TX · MV WF".

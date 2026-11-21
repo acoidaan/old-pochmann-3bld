@@ -542,7 +542,7 @@
     const train = JSON.parse(JSON.stringify(OP.data.train() || {}));
     let trainChanged = false;
     const rt = remote.train && typeof remote.train === 'object' ? remote.train : {};
-    ['edge', 'corner'].forEach((k) => {
+    ['edge', 'corner', 'm2'].forEach((k) => {
       const mine = train[k] || {};
       Object.entries(rt[k] || {}).forEach(([L, st]) => {
         if (st && typeof st.seen === 'number' && (!mine[L] || st.seen > mine[L].seen)) { mine[L] = st; trainChanged = true; }

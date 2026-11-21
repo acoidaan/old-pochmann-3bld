@@ -39,17 +39,76 @@
     L: "F2 R'", M: 'F', N: "R' F", O: 'R2 F', P: 'R F', Q: "R D'", S: "D F'", T: 'R', U: 'D',
     V: '', W: "D'", X: 'D2',
   };
+  // ---- M2 for the edges (Aprender → M2 explains it; checked in tests/e2e/bld-m2.js) ----
+  // Buffer DF (U, K); M2 swaps DF and UB (A). Every letter: a setup that takes it to UB without touching the
+  // middle layer, M2 and the setup undone; C, W, I and S, on the middle layer, have their own algorithm, and
+  // as the second letter of a pair (the layer upside down after an odd number of M2) C and W swap theirs, and
+  // so do I and S. Parity: D' L2 D M2 D' L2 D after the edges, then the corners as always.
+  const M2_ALG = {
+    A: 'M2', B: "R U R' U' M2 U R U' R'", C: "U2 M' U2 M'", D: "L' U' L U M2 U' L' U L",
+    E: "B L' B' M2 B L B'", F: "B L2 B' M2 B L2 B'", G: "B L B' M2 B L' B'", H: "L' B L B' M2 B L' B' L",
+    I: "D M' U R2 U' M U R2 U' D' M2", J: "U R U' M2 U R' U'", L: "U' L' U M2 U' L U",
+    M: "B' R B M2 B' R' B", N: "R' B' R B M2 B' R' B R", O: "B' R' B M2 B' R B", P: "B' R2 B M2 B' R2 B",
+    Q: "B' R B U R2 U' M2 U R2 U' B' R' B", R: "U' L U M2 U' L' U", S: "M2 D U R2 U' M' U R2 U' M D'",
+    T: "U R' U' M2 U R U'", V: "U R2 U' M2 U R2 U'", W: 'M U2 M U2', X: "U' L2 U M2 U' L2 U",
+  };
+  const M2_SPECIAL = { C: 'W', W: 'C', I: 'S', S: 'I' };
+  const M2_SETUP = Object.fromEntries(Object.entries(M2_ALG).filter(([L]) => !M2_SPECIAL[L])
+    .map(([L, a]) => { const t = a.split(' '); return [L, t.slice(0, t.indexOf('M2')).join(' ')]; }));
+  ALGS.M = { name: 'M2', moves: 'M2' };
+  ALGS.Q = { name: 'Paridad M2', moves: "D' L2 D M2 D' L2 D" };
+  // The edges, done one way or the other: MODES.edge is the one in use (Practicar, Entrenar, la Tabla, el
+  // crono and the smart cube follow it); MODES_OP keeps Old Pochmann's for its lessons in Aprender.
+  const EDGE_OP = {
+    noun: 'Arista', nounPl: 'aristas', table: EDGE_SETUP, letterOf: EDGE_LETTER, posOf: EDGE_POS,
+    buffer: ['B', 'M'], read: 'B', swap: 'D', alg: 'T', parity: 'P', special: null, full: null,
+  };
+  const EDGE_M2 = {
+    ...EDGE_OP, table: M2_SETUP, buffer: ['U', 'K'], read: 'U', swap: 'A', alg: 'M', parity: 'Q', special: M2_SPECIAL, full: M2_ALG,
+  };
+  const EM_KEY = 'op3bld:em:v1';
+  const method = { em: (() => { try { return localStorage.getItem(EM_KEY) === 'm2' ? 'm2' : 'op'; } catch (e) { return 'op'; } })() };
   const MODES = {
-    edge: {
-      noun: 'Arista', nounPl: 'aristas', table: EDGE_SETUP, letterOf: EDGE_LETTER, posOf: EDGE_POS,
-      buffer: ['B', 'M'], read: 'B', swap: 'D', alg: 'T',
-    },
+    edge: { ...(method.em === 'm2' ? EDGE_M2 : EDGE_OP) },
     corner: {
       noun: 'Esquina', nounPl: 'esquinas', table: CORNER_SETUP, letterOf: CORNER_LETTER, posOf: CORNER_POS,
       buffer: ['A', 'E', 'R'], read: 'E', swap: 'V', alg: 'Y',
     },
   };
+  const MODES_OP = { edge: EDGE_OP, corner: MODES.corner };
   const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWX'.split('');
+  const isSpecial = (kind, L) => kind === 'edge' && !!MODES.edge.special && !!MODES.edge.special[L];
+  // One letter as you do it: its setup, the algorithm and the setup undone. An M2 special has its own
+  // algorithm and no setup, the one of its partner when it is the second letter of a pair (i odd).
+  function letterParts(kind, L, i = 0) {
+    const mode = MODES[kind];
+    if (isSpecial(kind, L)) {
+      const use = i % 2 ? mode.special[L] : L;
+      return { setup: '', undo: '', special: true, use, alg: { name: use === L ? `Especial de ${L}` : `Especial de ${L} (la de ${use})`, moves: mode.full[use] } };
+    }
+    const setup = mode.table[L] || '';
+    return { setup, undo: setup ? invertAlg(setup) : '', alg: ALGS[mode.alg] };
+  }
+  const shot = (kind, L, i = 0) => { const p = letterParts(kind, L, i); return [p.setup, p.alg.moves, p.undo].filter(Boolean).join(' '); };
+  const parityAlg = () => ALGS[MODES.edge.parity];
+  // Tracing a memo follows what each letter does to the pieces. With Old Pochmann that is just doing it on
+  // the cube. M2 also turns the middle layer half round with every letter (the specials and the parity
+  // account for it), so there each letter is followed as what it amounts to: the buffer's piece and the
+  // letter's swapped, the rest as it was.
+  const virtual = (kind) => kind === 'edge' && MODES.edge.alg === 'M';
+  function swapIn(kind, st, L) {
+    const mode = MODES[kind];
+    const b = PIECE_OF[mode.posOf[mode.read]];
+    const t0 = mode.posOf[L];
+    const b0 = mode.posOf[mode.read];
+    const t = [t0, ...PIECE_OF[t0].filter((q) => q !== t0)];
+    const bb = [b0, ...b.filter((q) => q !== b0)];
+    const out = st.slice();
+    bb.forEach((q, k) => { out[t[k]] = st[q]; out[q] = st[t[k]]; });
+    return out;
+  }
+  const traceShot = (kind, st, L, i) => (virtual(kind) ? swapIn(kind, st, L) : apply(st, shot(kind, L, i)));
+  const doLetters = (kind, st, letters) => letters.reduce((s, L, i) => apply(s, shot(kind, L, i)), st);
   const DEFAULTS = {
     scr: "U' L2 D' U R2 B' D' U' L2 B2 R' U' B' F' L U2 F R2 U'",
     memoE: 'KD IE XO WJ HL QN X',
@@ -138,23 +197,21 @@
   }
 
   // ---- Steps for a letter / parity ----
-  function buildLetterSteps(letter) {
-    const mode = MODES[ui.mode];
-    const setup = mode.table[letter] || '';
+  function buildLetterSteps(letter, i = 0) {
+    const p = letterParts(ui.mode, letter, i);
     const steps = [{ kind: 'start', text: 'Inicio', alg: '' }];
-    parseAlg(setup).forEach((m) => steps.push({ kind: 'setup', text: m.text, alg: m.text }));
-    steps.push({ kind: 'alg', text: ALGS[mode.alg].name, alg: ALGS[mode.alg].moves });
-    parseAlg(setup ? invertAlg(setup) : '').forEach((m) => steps.push({ kind: 'undo', text: m.text, alg: m.text }));
+    parseAlg(p.setup).forEach((m) => steps.push({ kind: 'setup', text: m.text, alg: m.text }));
+    steps.push({ kind: 'alg', text: p.alg.name, alg: p.alg.moves, special: !!p.special });
+    parseAlg(p.undo).forEach((m) => steps.push({ kind: 'undo', text: m.text, alg: m.text }));
     return steps;
   }
   function buildParitySteps() {
-    return [{ kind: 'start', text: 'Inicio', alg: '' }, { kind: 'alg', text: ALGS.P.name, alg: ALGS.P.moves }];
+    return [{ kind: 'start', text: 'Inicio', alg: '' }, { kind: 'alg', text: parityAlg().name, alg: parityAlg().moves }];
   }
   const conjugate = (set, alg) => (set ? `${set} ${alg} ${invertAlg(set)}` : alg);
   function tokenAlg(t) {
-    if (t.kind === 'parity') return ALGS.P.moves;
-    if (t.kind === 'edge') return conjugate(EDGE_SETUP[t.L], ALGS.T.moves);
-    return conjugate(CORNER_SETUP[t.L], ALGS.Y.moves);
+    if (t.kind === 'parity') return parityAlg().moves;
+    return shot(t.kind, t.L, t.ei || 0);
   }
   function scrambleState() {
     try { return apply(solved(), $('scr').value); } catch (e) { return null; }
@@ -201,7 +258,9 @@
     if (!fromMemo) { ui.memoIdx = -1; renderTokens(); }
     ui.view = 'letter';
     ui.letter = letter;
-    ui.steps = buildLetterSteps(letter);
+    const tok = fromMemo && ui.memoIdx >= 0 ? ui.tokens[ui.memoIdx] : null;
+    ui.ei = tok && tok.kind === 'edge' ? tok.ei : 0;
+    ui.steps = buildLetterSteps(letter, ui.ei);
     const base = baseState();
     ui.states = computeStates(ui.steps, base);
     ui.track = { bufId: base[mode.posOf[mode.read]], tgtId: base[mode.posOf[letter]] };
@@ -252,7 +311,11 @@
       $('bigLetter').textContent = 'PAR';
       $('bigSw').style.background = 'var(--accent)';
       const n = ui.tokens.filter((t) => t.kind === 'edge').length;
-      $('whoTitle').textContent = 'Paridad: R-perm';
+      $('whoTitle').textContent = `Paridad: ${parityAlg().name}`;
+      if (MODES.edge.parity === 'Q') {
+        $('whoDesc').innerHTML = `Has hecho <b>${n}</b> letras de aristas (número impar), así que la capa del medio ha quedado dada la vuelta. <b>${esc(parityAlg().moves)}</b> la pone en su sitio y a cambio cruza las aristas UL ↔ UB; las Y-perm de las esquinas (también impares) las vuelven a dejar bien.`;
+        return;
+      }
       $('whoDesc').innerHTML = `Has hecho <b>${n}</b> T-perms (número impar). Cada T-perm cruza también las esquinas UFR ↔ UBR, así que ahora están cambiadas. La R-perm las devuelve a su sitio y a cambio cruza las aristas UL ↔ UB; las Y-perm de las esquinas (también impares) las vuelven a dejar bien.`;
       return;
     }
@@ -266,10 +329,12 @@
     $('bigSw').style.background = `var(--st-${face})`;
     $('whoTitle').textContent = `${mode.noun} ${piece} · pegatina en la cara ${face} (${COLOR_NAME[face]})`;
     const alg = ALGS[mode.alg].name;
-    const readDesc = ui.mode === 'edge'
-      ? 'la pegatina que lees en <b>B</b> (cara blanca de UR)'
-      : 'la pegatina que lees en <b>E</b> (cara naranja de UBL)';
-    if (!setup) {
+    const readDesc = ui.mode !== 'edge' ? 'la pegatina que lees en <b>E</b> (cara naranja de UBL)'
+      : mode.read === 'U' ? 'la pegatina que lees en <b>U</b> (cara amarilla de DF)' : 'la pegatina que lees en <b>B</b> (cara blanca de UR)';
+    if (isSpecial(ui.mode, L)) {
+      const p = letterParts(ui.mode, L, ui.ei || 0);
+      $('whoDesc').innerHTML = `${L} está en la capa del medio, la que mueve M2, así que no se lleva a ${mode.swap}: tiene su propio algoritmo, <b>${esc(p.alg.moves)}</b>${p.use !== L ? ` (el de ${p.use}, porque aquí es la segunda letra de su pareja)` : ''}, y ${readDesc} acaba en ${L}.`;
+    } else if (!setup) {
       $('whoDesc').innerHTML = `${L} ya está en la posición de intercambio: no hace falta setup. Haz directamente la ${alg} y ${readDesc} irá a ${L}.`;
     } else {
       $('whoDesc').innerHTML = `El setup <b>${setup}</b> lleva ${L} a la posición <b>${mode.swap}</b> sin tocar el buffer. La ${alg} intercambia ${mode.read} ↔ ${mode.swap}, así que ${readDesc} entra en ${mode.swap}. Al deshacer el setup (<b>${invertAlg(setup)}</b>) acaba justo en ${L}.`;
@@ -327,6 +392,11 @@
     const nSetup = ui.steps.filter((x) => x.kind === 'setup').length;
     const nUndo = ui.steps.filter((x) => x.kind === 'undo').length;
     const idxIn = (kind) => ui.steps.slice(0, ui.step + 1).filter((x) => x.kind === kind).length;
+    if (ui.view === 'parity' && MODES.edge.parity === 'Q') {
+      return s.kind === 'start'
+        ? (ui.base === 'scramble' ? 'Aristas terminadas: la capa del medio está dada la vuelta (un número impar de M2).' : 'Cubo de referencia, antes de la paridad.')
+        : 'Tras la paridad de M2, la capa del medio vuelve a su sitio; UL y UB quedan cruzadas hasta acabar las esquinas.';
+    }
     if (ui.view === 'parity') {
       if (ui.base === 'scramble') {
         return s.kind === 'start'
@@ -339,7 +409,8 @@
     }
     const L = ui.letter;
     const piece = pieceName(mode.posOf[L]);
-    const alg = ALGS[mode.alg].name;
+    const algStep = ui.steps.find((x) => x.kind === 'alg');
+    const alg = algStep ? algStep.text : ALGS[mode.alg].name;
     if (ui.base === 'scramble') {
       const readL = mode.letterOf[ui.track.bufId];
       const nextL = mode.letterOf[ui.track.tgtId];
@@ -371,17 +442,17 @@
         ? `Deshacer ${k}/${nUndo} · <b>${s.text}</b> → ${landed} En el buffer queda ${nextL}.${done}`
         : `Deshacer ${k}/${nUndo} · <b>${s.text}</b>`;
     }
-    if (s.kind === 'start') return `Antes del setup: ${L} está en ${piece}. El buffer muestra <b>${mode.read}</b>.`;
+    if (s.kind === 'start') return algStep && algStep.special ? `${L} está en ${piece}, en la capa del medio: sin setup, su algoritmo especial. El buffer muestra <b>${mode.read}</b>.` : `Antes del setup: ${L} está en ${piece}. El buffer muestra <b>${mode.read}</b>.`;
     if (s.kind === 'setup') {
       const k = idxIn('setup');
       return k === nSetup
-        ? `Setup ${k}/${nSetup} · <b>${s.text}</b> → ${L} ya está en ${mode.swap}. Ahora la ${ALGS[mode.alg].name}.`
+        ? `Setup ${k}/${nSetup} · <b>${s.text}</b> → ${L} ya está en ${mode.swap}. Ahora la ${alg}.`
         : `Setup ${k}/${nSetup} · <b>${s.text}</b>`;
     }
     if (s.kind === 'alg') {
       return nUndo
-        ? `${ALGS[mode.alg].name}: la pegatina del buffer (${mode.read}) entra en ${mode.swap} y ${L} se va al buffer.`
-        : `${ALGS[mode.alg].name}: la pegatina del buffer (${mode.read}) ya está en ${L}. Hecho.`;
+        ? `${alg}: la pegatina del buffer (${mode.read}) entra en ${mode.swap} y ${L} se va al buffer.`
+        : `${alg}: la pegatina del buffer (${mode.read}) ya está en ${L}. Hecho.`;
     }
     const k = idxIn('undo');
     return k === nUndo
@@ -426,8 +497,24 @@
   }
 
   function renderRail() {
-    const active = ui.view === 'parity' ? 'P' : MODES[ui.mode].alg;
+    const active = ui.view === 'parity' ? 'P' : ui.mode === 'edge' ? 'T' : 'Y';
     ['T', 'P', 'Y'].forEach((k) => $('alg' + k).classList.toggle('on', k === active));
+  }
+  // The rail's first two are the edges' algorithm and their parity: T-perm and R-perm, or M2 and its parity.
+  function renderRailAlgs() {
+    const m2 = MODES.edge.alg === 'M';
+    const set = (id, name, key, note) => {
+      const el = $(id);
+      el.querySelector('.alg-name').textContent = name;
+      el.querySelector('.moves').innerHTML = movesHtml(ALGS[key].moves);
+      el.querySelector('.alg-note').innerHTML = note;
+    };
+    set('algT', m2 ? 'M2' : 'T-perm', m2 ? 'M' : 'T', m2
+      ? 'Intercambia <b>U ↔ A</b> (DF ↔ UB). Cada letra: setup a UB, M2 y deshacer; <b>C, W, I y S</b> llevan el suyo.'
+      : 'Intercambia <b>B ↔ D</b> (UR ↔ UL). De paso cruza las esquinas UFR ↔ UBR.');
+    set('algP', m2 ? 'Paridad M2' : 'R-perm', m2 ? 'Q' : 'P', m2
+      ? 'Solo si hay un número <b>impar</b> de aristas: al acabarlas, <b>antes</b> de las esquinas.'
+      : 'Solo si hay un número <b>impar</b> de aristas. Hazla justo al acabar las aristas, <b>antes</b> de las esquinas.');
   }
 
   function renderBoard() {
@@ -447,7 +534,7 @@
         b.dataset.letter = L;
         const isBuf = mode.buffer.includes(L);
         const setup = mode.table[L];
-        const sub = isBuf ? 'buffer' : (setup || 'sin setup');
+        const sub = isBuf ? 'buffer' : isSpecial(ui.mode, L) ? 'especial' : (setup || 'sin setup');
         b.innerHTML = `<span class="k-l">${L}</span><span class="k-s">${sub}</span>`;
         b.disabled = isBuf;
         b.title = isBuf ? `${L}: buffer` : `${L} · ${pieceName(mode.posOf[L])} · ${sub}`;
@@ -478,7 +565,7 @@
   function buildTokens() {
     const e = lettersOf($('memoE').value);
     const c = lettersOf($('memoC').value);
-    const toks = e.map((L) => ({ kind: 'edge', L }));
+    const toks = e.map((L, ei) => ({ kind: 'edge', L, ei }));
     if (e.length % 2 === 1) toks.push({ kind: 'parity' });
     c.forEach((L) => toks.push({ kind: 'corner', L }));
     ui.tokens = toks;
@@ -512,7 +599,7 @@
       b.type = 'button';
       b.className = 'tok' + (t.kind === 'parity' ? ' parity' : '') + (tokenBad(t) || i === ui.errToken ? ' bad' : '')
         + (ui.memoIdx >= 0 && i < ui.memoIdx ? ' past' : '');
-      b.textContent = t.kind === 'parity' ? 'R-perm' : t.L;
+      b.textContent = t.kind === 'parity' ? (MODES.edge.parity === 'Q' ? 'Paridad' : 'R-perm') : t.L;
       if (i === ui.memoIdx) b.setAttribute('aria-current', 'true');
       if (tokenBad(t)) b.title = `${t.L} no es un objetivo válido de ${MODES[t.kind].nounPl}`;
       else if (i === ui.errToken) b.title = 'Aquí está el primer error del memo';
@@ -606,6 +693,10 @@
 
   // ---- Memo generator ----
   const setupLen = (table, L) => parseAlg(table[L] || '').length;
+  // A letter's cost in setup moves: half of what it adds to its algorithm (an M2 special, half of its extra).
+  const setupCost = (kind, L, i = 0) => (isSpecial(kind, L)
+    ? Math.round((parseAlg(shot(kind, L, i)).length - parseAlg(ALGS[MODES[kind].alg].moves).length) / 2)
+    : setupLen(MODES[kind].table, L));
 
   // Follows the buffer exactly as in a real solve. At every cycle break it tries
   // every unsolved sticker and keeps the one whose whole cycle needs the fewest
@@ -615,18 +706,18 @@
     const readPos = mode.posOf[mode.read];
     const bufPositions = mode.buffer.map((b) => mode.posOf[b]);
     const isBuf = (id) => bufPositions.includes(id);
-    const alg = ALGS[mode.alg].moves;
-    const shoot = (st, L) => apply(st, conjugate(mode.table[L], alg));
-    const cost = (L) => setupLen(mode.table, L);
+    const shoot = (st, L, i) => traceShot(kind, st, L, i);
+    const cost = (L) => setupCost(kind, L);
     const positions = Object.keys(mode.letterOf).map(Number);
     let st = start;
     const letters = [];
+    const read = (t) => t[readPos];
     for (let guard = 0; guard < 40; guard++) {
-      const id = st[readPos];
+      const id = read(st);
       if (!isBuf(id)) {
         const L = mode.letterOf[id];
+        st = shoot(st, L, letters.length);
         letters.push(L);
-        st = shoot(st, L);
         continue;
       }
       const open = positions.filter((pos) => !isBuf(pos) && !PIECE_OF[pos].every((q) => st[q] === q));
@@ -636,10 +727,10 @@
         const first = mode.letterOf[pos];
         const cyc = [first];
         let c = cost(first);
-        let t = shoot(st, first);
-        for (let g = 0; g < 30 && !isBuf(t[readPos]); g++) {
-          const L = mode.letterOf[t[readPos]];
-          cyc.push(L); c += cost(L); t = shoot(t, L);
+        let t = shoot(st, first, letters.length);
+        for (let g = 0; g < 30 && !isBuf(read(t)); g++) {
+          const L = mode.letterOf[read(t)];
+          t = shoot(t, L, letters.length + cyc.length); cyc.push(L); c += cost(L);
         }
         const key = cyc.join('');
         const c0 = cost(first);   // ties: prefer a cheap break target (D / V first), then alphabetical
@@ -650,7 +741,7 @@
       letters.push(...best.cyc);
       st = best.t;
     }
-    return { letters, state: st };
+    return { letters, state: virtual(kind) ? doLetters(kind, start, letters) : st };
   }
   const pairs = (letters) => letters.join('').replace(/(..)/g, '$1 ').trim();
   let previousMemo = null;
@@ -660,16 +751,14 @@
     if (!s0) return null;
     const edges = generateFor('edge', s0);
     let mid = edges.state;
-    if (edges.letters.length % 2) mid = apply(mid, ALGS.P.moves);
+    if (edges.letters.length % 2) mid = apply(mid, parityAlg().moves);
     const corners = generateFor('corner', mid);
     return { edges, corners };
   }
   // Moves a memo makes you do: setups (there and back) plus one algorithm per letter.
   function memoCost(kind, letters) {
-    const mode = MODES[kind];
-    const algLen = parseAlg(ALGS[mode.alg].moves).length;
-    const setup = letters.reduce((a, L) => a + setupLen(mode.table, L), 0);
-    return { n: letters.length, setup, total: letters.length * algLen + 2 * setup };
+    const setup = letters.reduce((a, L, i) => a + setupCost(kind, L, i), 0);
+    return { n: letters.length, setup, total: letters.reduce((a, L, i) => a + parseAlg(shot(kind, L, i)).length, 0) };
   }
   const ratio = (best, mine) => (mine <= best ? 100 : Math.min(99, Math.round((100 * best) / mine)));
   // Same number of letters: compare setups (the only part that can change).
@@ -717,8 +806,7 @@
     $('memoC').value = pairs(corners.letters);
     buildTokens(); ui.memoIdx = -1; renderTokens(); refreshViewer(); save();
     const ok = checkMemo(true);
-    const moves = edges.letters.reduce((a, L) => a + setupLen(EDGE_SETUP, L), 0)
-      + corners.letters.reduce((a, L) => a + setupLen(CORNER_SETUP, L), 0);
+    const moves = memoCost('edge', edges.letters).setup + memoCost('corner', corners.letters).setup;
     out.className = 'result ' + (ok ? 'ok' : 'ko');
     out.innerHTML = ok
       ? `<p><span class="score">100 % óptimo</span></p><p>Memo generado y comprobado: con él el cubo queda resuelto. ${edges.letters.length} aristas${edges.letters.length % 2 ? ' + paridad' : ''} y ${corners.letters.length} esquinas, ${moves} movimientos de setup en total.</p>`
@@ -745,7 +833,6 @@
     const isBuf = (id) => bufPos.includes(id);
     const positions = Object.keys(mode.letterOf).map(Number);
     const openLeft = (st) => positions.some((p) => !isBuf(p) && st[p] !== p);
-    const alg = ALGS[mode.alg].moves;
     let st = start;
     for (let i = 0; i < letters.length; i++) {
       const L = letters[i];
@@ -758,17 +845,17 @@
         if (!openLeft(st)) return { kind, i, got: L, why: 'extra', state: st };
         if (PIECE_OF[mode.posOf[L]].every((q) => st[q] === q)) return { kind, i, got: L, why: 'solved', state: st };
       }
-      st = apply(st, conjugate(mode.table[L], alg));
+      st = traceShot(kind, st, L, i);
     }
     const id = st[readPos];
     if (!isBuf(id)) return { kind, i: letters.length, want: mode.letterOf[id], why: 'missing', state: st };
     if (openLeft(st)) return { kind, i: letters.length, why: 'missingBreak', state: st };
-    return { kind, ok: true, state: st };
+    return { kind, ok: true, state: virtual(kind) ? doLetters(kind, start, letters) : st };
   }
   function traceMemo(start, e, c) {
     const te = traceKind('edge', start, e);
     if (!te.ok) return te;
-    const mid = e.length % 2 ? apply(te.state, ALGS.P.moves) : te.state;
+    const mid = e.length % 2 ? apply(te.state, parityAlg().moves) : te.state;
     const tc = traceKind('corner', mid, c);
     return tc.ok ? null : tc;
   }
@@ -826,9 +913,9 @@
       out.textContent = `No entiendo el scramble. ${err.message}.`;
       return false;
     }
-    for (const L of e) s = apply(s, conjugate(EDGE_SETUP[L], ALGS.T.moves));
-    if (e.length % 2) s = apply(s, ALGS.P.moves);
-    for (const L of c) s = apply(s, conjugate(CORNER_SETUP[L], ALGS.Y.moves));
+    e.forEach((L, i) => { s = apply(s, shot('edge', L, i)); });
+    if (e.length % 2) s = apply(s, parityAlg().moves);
+    for (const L of c) s = apply(s, shot('corner', L));
     const wrongE = new Set(); const wrongC = new Set(); let centers = false;
     for (let i = 0; i < 54; i++) {
       if (s[i] === i) continue;
@@ -923,31 +1010,21 @@
   const methodOf = (t) => (t.em === 'm2' ? 'm2' : 'op');
   // Whether these letters solve this scramble (the check of «Comprobar memo», without touching the page). With
   // M2, the edges as M2 does them (buffer DF; window.BldM2), then parity, then the corners as always.
-  function memoSolves(scr, e, c, em = crono.em) {
-    if (em === 'm2' && window.BldM2) {
-      if (e.some((L) => !(L in EDGE_POS) || ['U', 'K'].includes(L))) return false;
-      if (c.some((L) => !(L in CORNER_POS) || MODES.corner.buffer.includes(L))) return false;
-      let st2;
-      try { st2 = apply(solved(), scr); } catch (err) { return false; }
-      st2 = apply(st2, [window.BldM2.execEdges(e), ...c.map((L) => conjugate(CORNER_SETUP[L], ALGS.Y.moves))].filter(Boolean).join(' '));
-      return st2.every((v, i) => v === i);
-    }
+  function memoSolves(scr, e, c) {
     if (e.some((L) => !(L in EDGE_POS) || MODES.edge.buffer.includes(L))) return false;
     if (c.some((L) => !(L in CORNER_POS) || MODES.corner.buffer.includes(L))) return false;
     let st;
     try { st = apply(solved(), scr); } catch (err) { return false; }
-    for (const L of e) st = apply(st, conjugate(EDGE_SETUP[L], ALGS.T.moves));
-    if (e.length % 2) st = apply(st, ALGS.P.moves);
-    for (const L of c) st = apply(st, conjugate(CORNER_SETUP[L], ALGS.Y.moves));
+    e.forEach((L, i) => { st = apply(st, shot('edge', L, i)); });
+    if (e.length % 2) st = apply(st, parityAlg().moves);
+    for (const L of c) st = apply(st, shot('corner', L));
     return st.every((v, i) => v === i);
   }
   // What the crono times: a whole attempt, or only the memo (then you write it down and it is checked).
   const CRONO_KEY = 'op3bld:crono:v1';
   const crono = { mode: (() => { try { return localStorage.getItem(CRONO_KEY) === 'memo' ? 'memo' : 'full'; } catch (e) { return 'full'; } })() };
   // …and with which method for the edges: each one has its own lists and numbers (corners only are the same).
-  const EM_KEY = 'op3bld:em:v1';
-  crono.em = (() => { try { return localStorage.getItem(EM_KEY) === 'm2' ? 'm2' : 'op'; } catch (e) { return 'op'; } })();
-  const sameMethod = (t, part) => part === 'corners' || methodOf(t) === crono.em;
+  const sameMethod = (t, part) => part === 'corners' || methodOf(t) === method.em;
   const esc = (txt) => String(txt).replace(/[&<>'"]/g, (ch) => '&#' + ch.charCodeAt(0) + ';');
   function fmt(ms) {
     if (ms == null || !isFinite(ms)) return '—';
@@ -1078,10 +1155,10 @@
     if (timer.phase !== 'done') return;
     const entry = { at: Date.now(), memo: Math.round(timer.t1 - timer.t0), exec: Math.round(timer.t2 - timer.t1), ok, scr: timer.scramble };
     // Keep the memo with the attempt when it fits the scramble that was timed.
-    if ($('scr').value.trim() === timer.scramble && (crono.em === 'm2' ? memoNow() : checkMemo(true))) {
+    if ($('scr').value.trim() === timer.scramble && checkMemo(true)) {
       entry.mem = `${pairs(lettersOf($('memoE').value))} · ${pairs(lettersOf($('memoC').value))}`;
     }
-    if (crono.em === 'm2') entry.em = 'm2';
+    if (method.em === 'm2') entry.em = 'm2';
     if (OP3.timerTag) entry.reto = OP3.timerTag;
     if (OP3.resultExtra) Object.assign(entry, OP3.resultExtra(ok));
     times.push(entry);
@@ -1107,7 +1184,7 @@
     const e = lettersOf($('maE').value);
     const c = lettersOf($('maC').value);
     const ok = memoSolves(timer.scramble, e, c);
-    const entry = { at: Date.now(), memo: Math.round(timer.t1 - timer.t0), exec: 0, ok, scr: timer.scramble, m: 'memo', mem: `${pairs(e) || '—'} · ${pairs(c) || '—'}`, ...(crono.em === 'm2' ? { em: 'm2' } : {}) };
+    const entry = { at: Date.now(), memo: Math.round(timer.t1 - timer.t0), exec: 0, ok, scr: timer.scramble, m: 'memo', mem: `${pairs(e) || '—'} · ${pairs(c) || '—'}`, ...(method.em === 'm2' ? { em: 'm2' } : {}) };
     times.push(entry);
     saveTimes();
     timer.phase = 'idle';
@@ -1118,9 +1195,9 @@
     $('clock').dataset.phase = 'idle';
     $('clockPhase').textContent = ok ? 'Memo correcto' : 'Memo con fallos';
     $('afterText').hidden = false;
-    $('afterText').textContent = ok ? `Correcto: con ese memo el cubo queda resuelto (${fmt(entry.memo)}).` : crono.em === 'm2' ? 'Ese memo no resuelve el cubo con M2 (aristas desde DF). Repasa la memo en Aprender → M2.' : 'Ese memo no resuelve el cubo. Míralo letra a letra en «Practicar».';
+    $('afterText').textContent = ok ? `Correcto: con ese memo el cubo queda resuelto (${fmt(entry.memo)}).` : 'Ese memo no resuelve el cubo. Míralo letra a letra en «Practicar».';
     $('afterText').className = `after-text ${ok ? 'ok' : 'ko'}`;
-    $('afterCheck').hidden = ok || crono.em === 'm2';   // «Practicar» checks Old Pochmann memos
+    $('afterCheck').hidden = ok;
     $('shareLast').hidden = true;
     $('afterResult').hidden = false;
     lastEntry = entry;
@@ -1142,9 +1219,9 @@
   }
   function renderCronoMode() {
     document.querySelectorAll('[data-cm]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.cm === crono.mode)));
-    document.querySelectorAll('[data-em]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.em === crono.em)));
+    document.querySelectorAll('[data-em]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.em === method.em)));
     const kind = scrKindOf($('scr').value.trim());
-    const m2 = crono.em === 'm2' && kind !== 'corners' ? ' Aristas con M2 (memo desde DF): con sus propios números.' : '';
+    const m2 = method.em === 'm2' && kind !== 'corners' ? ' Aristas con M2 (memo desde DF): con sus propios números.' : '';
     $('cronoKind').textContent = (crono.mode === 'memo'
       ? 'Memoriza, para el reloj y escribe tu memo: se comprueba solo.'
       : kind === 'full' ? '' : `Scramble ${kind === 'edges' ? 'solo de aristas' : 'solo de esquinas'}: va a su propia lista.`) + m2;
@@ -1297,10 +1374,15 @@
   let trainData = (() => { try { return JSON.parse(localStorage.getItem(TRAIN_KEY)) || {}; } catch (e) { return {}; } })();
   const saveTrain = () => { try { localStorage.setItem(TRAIN_KEY, JSON.stringify(trainData)); } catch (e) { /* not kept */ } };
   const trainLetters = (kind) => LETTERS.filter((L) => !MODES[kind].buffer.includes(L));
+  // Each method keeps its own record of the edges: 'edge' for Old Pochmann, 'm2' for M2.
+  const dk = (kind) => (kind === 'edge' && method.em === 'm2' ? 'm2' : kind);
+  // What a letter asks in the trainer: its setup, or, for an M2 special, its whole algorithm.
+  const answerOf = (kind, L) => (isSpecial(kind, L) ? MODES.edge.full[L] : MODES[kind].table[L] || '');
   function statOf(kind, L) {
-    trainData[kind] = trainData[kind] || {};
-    if (!trainData[kind][L]) trainData[kind][L] = { seen: 0, right: 0, streak: 0, w: 3 };
-    return trainData[kind][L];
+    const k = dk(kind);
+    trainData[k] = trainData[k] || {};
+    if (!trainData[k][L]) trainData[k][L] = { seen: 0, right: 0, streak: 0, w: 3 };
+    return trainData[k][L];
   }
   // Weighted draw: misses raise a letter's weight, hits lower it.
   function pickLetter(kind) {
@@ -1328,10 +1410,10 @@
   const EYE_OFF = '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.9 5.2A9.7 9.7 0 0 1 12 5c6.4 0 10 7 10 7a17.6 17.6 0 0 1-2.9 3.8M6.3 6.3C3.6 8 2 12 2 12s3.6 7 10 7a9.5 9.5 0 0 0 5.7-1.9"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/><path d="M3 3l18 18"/></svg>';
   let ses = (() => { try { const x = JSON.parse(localStorage.getItem(SES_KEY)); return x && Array.isArray(x.set) && x.set.length ? x : null; } catch (e) { return null; } })();
   const saveSes = () => { try { if (ses) localStorage.setItem(SES_KEY, JSON.stringify(ses)); else localStorage.removeItem(SES_KEY); } catch (e) { /* this visit */ } };
-  const sesOn = (kind) => (ses && ses.kind === kind ? ses : null);
+  const sesOn = (kind) => (ses && ses.kind === kind && (kind !== 'edge' || (ses.em || 'op') === method.em) ? ses : null);
   // The letters that cost you most: broken attempts, misses, weight; then the ones never practised.
   function costly(kind, skip) {
-    const data = trainData[kind] || {};
+    const data = trainData[dk(kind)] || {};
     const score = (L) => { const st = data[L]; if (!st) return 0.5; return (st.dnf || 0) * 3 + ((st.seen || 0) - (st.right || 0)) + st.w - (st.streak >= 3 ? 3 : 0); };
     return trainLetters(kind).filter((L) => !skip.includes(L)).sort((a, b) => score(b) - score(a));
   }
@@ -1339,7 +1421,7 @@
     const k = kind === 'corner' ? 'corner' : 'edge';
     const valid = (letters || []).filter((L) => trainLetters(k).includes(L));
     const set = [...new Set([...valid, ...costly(k, valid)])].slice(0, Math.max(SES_SIZE, valid.length));
-    ses = { kind: k, set, k: {}, done: [], peek: {}, n: 0, ok: 0, at: Date.now() };
+    ses = { kind: k, em: k === 'edge' ? method.em : undefined, set, k: {}, done: [], peek: {}, n: 0, ok: 0, at: Date.now() };
     saveSes();
     if (trainer.kind !== k) setTrainKind(k); else { trainer.prev = null; nextCard(false); renderTrainStats(); }
   }
@@ -1403,7 +1485,7 @@
     const el = $('trPeek');
     const on = !!(s && L && s.peek[L] && s.set.includes(L));
     el.hidden = !on;
-    if (on) { const right = MODES[trainer.kind].table[L]; el.innerHTML = `Setup de ${L}: ${right ? `<code>${esc(right)}</code>` : 'sin setup'}`; }
+    if (on) { const right = answerOf(trainer.kind, L); el.innerHTML = `${isSpecial(trainer.kind, L) ? 'Algoritmo' : 'Setup'} de ${L}: ${right ? `<code>${esc(right)}</code>` : 'sin setup'}`; }
   }
   function nextCard(focus, keepFeedback) {
     const kind = trainer.kind;
@@ -1415,7 +1497,9 @@
     $('trLetter').textContent = L;
     $('trSw').style.background = `var(--st-${face})`;
     $('trTitle').textContent = `${mode.noun} ${pieceName(pos)} · cara ${face} (${COLOR_NAME[face]})`;
-    $('trDesc').innerHTML = `Escribe el setup que lleva ${L} a <b>${mode.swap}</b> y pulsa Intro.`;
+    $('trDesc').innerHTML = isSpecial(kind, L)
+      ? `${L} va en la capa del medio: escribe su algoritmo especial (el de primera letra de pareja) y pulsa Intro.`
+      : `Escribe el setup que lleva ${L} a <b>${mode.swap}</b> y pulsa Intro.`;
     const inp = $('trInput');
     inp.value = ''; inp.readOnly = false;
     $('trSubmit').textContent = 'Comprobar';
@@ -1483,6 +1567,14 @@
     const alg = ALGS[mode.alg].moves;
     let norm;
     try { norm = parseAlg(typed).map((m) => m.text).join(' '); } catch (e) { return { ok: false, msg: `${e.message}.` }; }
+    if (isSpecial(kind, L)) {
+      const want = apply(solved(), mode.full[L]);
+      const got = apply(solved(), norm);
+      if (want.every((v, i) => v === got[i])) return { ok: true, norm };
+      const other = apply(solved(), mode.full[mode.special[L]]);
+      if (other.every((v, i) => v === got[i])) return { ok: false, msg: `Ese es el de ${mode.special[L]}: el que haces con ${L} cuando es la segunda letra de su pareja.` };
+      return { ok: false, msg: `Ese algoritmo no cambia el buffer con ${L}.` };
+    }
     const want = apply(solved(), conjugate(mode.table[L], alg));
     const got = apply(solved(), conjugate(norm, alg));
     if (want.every((v, i) => v === got[i])) return { ok: true, norm };
@@ -1492,19 +1584,18 @@
     if (landed !== mode.posOf[mode.swap]) {
       return { ok: false, msg: `Con ese setup, ${L} acaba en ${mode.letterOf[landed] || pieceName(landed)}, no en ${mode.swap}.` };
     }
-    const side = kind === 'edge'
-      ? 'las esquinas UFR y UBR, que la T-perm también intercambia'
-      : 'las aristas UL y UB, que la Y-perm también intercambia';
+    const side = kind !== 'edge' ? 'las aristas UL y UB, que la Y-perm también intercambia'
+      : mode.alg === 'M' ? 'piezas de la capa del medio, que M2 también mueve'
+        : 'las esquinas UFR y UBR, que la T-perm también intercambia';
     return { ok: false, msg: `Lleva ${L} a ${mode.swap}, pero mueve ${side}.` };
   }
   function answerCard(giveUp) {
     if (trainer.phase !== 'ask') { nextCard(true); return; }
     const kind = trainer.kind;
     const L = trainer.letter;
-    const mode = MODES[kind];
     const typed = $('trInput').value.trim();
     const secs = (performance.now() - trainer.t0) / 1000;
-    const right = mode.table[L] || '';
+    const right = answerOf(kind, L);
     let res;
     if (giveUp || (!typed && right)) res = { ok: false, msg: 'Sin respuesta.' };
     else if (!typed) res = { ok: true, norm: '' };
@@ -1521,7 +1612,7 @@
     emit('changed', { what: 'train' });
     trainer.session.n++;
     if (res.ok) { trainer.session.ok++; trainer.session.time += secs; }
-    const ans = right ? `<code>${right}</code>` : 'sin setup';
+    const ans = right ? `<code>${esc(right)}</code>` : 'sin setup';
     const fb = $('trFeedback');
     fb.className = 'tr-feedback ' + (res.ok ? 'ok' : 'ko');
     fb.innerHTML = (res.ok
@@ -1542,7 +1633,7 @@
       ? `Esta sesión: ${ses.n} intentos · ${ses.ok} aciertos (${Math.round((100 * ses.ok) / ses.n)} %)`
         + (ses.ok ? ` · media ${(ses.time / ses.ok).toFixed(1).replace('.', ',')} s por acierto` : '')
       : trainer.hint || 'Escribe el setup como lo harías con el cubo; vale cualquier setup correcto, no solo el de tu tabla.';
-    const data = trainData[kind] || {};
+    const data = trainData[dk(kind)] || {};
     $('trMastery').innerHTML = trainLetters(kind).map((L) => {
       const st = data[L];
       const fresh = !st || (!st.seen && !st.dnf);
@@ -1556,7 +1647,7 @@
   // Letters that went wrong in a timed solve (found by the smart cube) come up more until you get them
   // right three times in a row.
   function renderFromSolves() {
-    const data = trainData[trainer.kind] || {};
+    const data = trainData[dk(trainer.kind)] || {};
     const list = trainLetters(trainer.kind).filter((L) => data[L] && data[L].dnf && data[L].streak < 3);
     const el = $('trFromSolves');
     el.hidden = !list.length;
@@ -1604,18 +1695,16 @@
       const ctx = t.kind === 'parity'
         ? `Paridad · objetivo ${idx + 1} de ${n}`
         : `${MODES[t.kind].noun} <b>${t.L}</b> · objetivo ${idx + 1} de ${n}`;
-      const pushAlg = (key) => {
-        const a = ALGS[key];
+      const pushAlg = (a) => {
         if (split) parseAlg(a.moves).forEach((m, k, arr) => steps.push({ move: m.text, kind: `${a.name} ${k + 1}/${arr.length}`, ctx, token: idx }));
         else steps.push({ move: a.name, seq: a.moves, kind: 'Algoritmo', ctx, token: idx, isAlg: true });
       };
-      if (t.kind === 'parity') { pushAlg('P'); return; }
-      const mode = MODES[t.kind];
-      const setup = mode.table[t.L] || '';
-      const sm = parseAlg(setup);
+      if (t.kind === 'parity') { pushAlg(parityAlg()); return; }
+      const p = letterParts(t.kind, t.L, t.ei || 0);
+      const sm = parseAlg(p.setup);
       sm.forEach((m, k) => steps.push({ move: m.text, kind: `Setup ${k + 1}/${sm.length}`, ctx, token: idx }));
-      pushAlg(mode.alg);
-      const um = parseAlg(setup ? invertAlg(setup) : '');
+      pushAlg(p.alg);
+      const um = parseAlg(p.undo);
       um.forEach((m, k) => steps.push({ move: m.text, kind: `Deshacer setup ${k + 1}/${um.length}`, ctx, token: idx }));
     });
     steps.push({ end: true, token: -1 });
@@ -1800,14 +1889,40 @@
   }));
   document.querySelectorAll('[data-cm]').forEach((b) => b.addEventListener('click', () => setCronoMode(b.dataset.cm)));
   // The edges' method: Old Pochmann or M2. Its own lists and numbers here and in Progreso.
+  // Old Pochmann or M2 for the edges, everywhere: Practicar (board, viewer, memo check and generator, guided
+  // execution), the rail, Entrenar (each method with its own record), la Tabla and the crono.
   function setEdgeMethod(em) {
     if (timer.phase !== 'idle' && timer.phase !== 'done') return;
-    crono.em = em === 'm2' ? 'm2' : 'op';
-    try { localStorage.setItem(EM_KEY, crono.em); } catch (e) { /* this visit */ }
+    const next = em === 'm2' ? 'm2' : 'op';
+    const changed = next !== method.em;
+    method.em = next;
+    try { localStorage.setItem(EM_KEY, method.em); } catch (e) { /* this visit */ }
+    Object.assign(MODES.edge, method.em === 'm2' ? EDGE_M2 : EDGE_OP);
     hist.limit = HIST_PAGE;
     renderCronoMode();
     renderTimes();
-    emit('em', crono.em);
+    renderMethod();
+    if (changed) {
+      renderRailAlgs();
+      renderBoard();
+      renderTokens();
+      if (ui.view === 'parity') showParity();
+      else selectLetter(MODES[ui.mode].buffer.includes(ui.letter) ? MODES[ui.mode].swap : ui.letter, ui.memoIdx >= 0 && !!ui.tokens[ui.memoIdx] && ui.tokens[ui.memoIdx].L === ui.letter);
+      const out = $('result');
+      if (out.textContent) { out.textContent = ''; out.className = 'result'; }
+      trainer.prev = null;
+      trainer.session = { n: 0, ok: 0, time: 0 };
+      if (trainer.kind === 'edge') nextCard(false);
+      renderTrainStats();
+    }
+    emit('em', method.em);
+  }
+  // The words that name the method where it shows: the board's title and the trainer's.
+  function renderMethod() {
+    const m2 = method.em === 'm2';
+    document.documentElement.dataset.em = method.em;
+    document.querySelectorAll('[data-em]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.em === method.em)));
+    $('hBoard').textContent = m2 ? 'Tabla de setups · aristas con M2' : 'Tabla de setups';
   }
   document.querySelectorAll('[data-em]').forEach((b) => b.addEventListener('click', () => setEdgeMethod(b.dataset.em)));
   $('memoAsk').addEventListener('submit', (ev) => { ev.preventDefault(); markMemo(); });
@@ -1868,7 +1983,7 @@
       setTimeout(() => { b.textContent = 'Reiniciar estadísticas'; }, 3000);
       return;
     }
-    delete trainData[trainer.kind];
+    delete trainData[dk(trainer.kind)];
     saveTrain();
     emit('changed', { what: 'train' });
     setTrainKind(trainer.kind);
@@ -2115,7 +2230,9 @@
     refreshFocus: () => { if (focus.on) renderFocus(); },
     resultExtra: null, scrHtml: null,
     // The numbers of the crono, for «Progreso».
-    bld: { partOf, methodOf, edgeMethod: () => crono.em, setEdgeMethod, valueOf, mo3Of, bestMo3Of, fmtV, PART_NAME },
+    bld: { partOf, methodOf, edgeMethod: () => method.em, setEdgeMethod, valueOf, mo3Of, bestMo3Of, fmtV, PART_NAME },
+    // The edges' method in use, its pieces, and Old Pochmann's config (Aprender's lessons are about it).
+    MODES_OP, M2_ALG, M2_SPECIAL, isSpecial, letterParts, shot, parityAlg, traceShot, isVirtual: virtual, edgeMethod: () => method.em,
     scramble: () => $('scr').value.trim(),
     data: {
       times: () => times,
@@ -2133,6 +2250,8 @@
   if (['full', 'edges', 'corners'].includes(saved.scrKind)) $('scrKind').value = saved.scrKind;
   renderTimes();
   renderCronoMode();
+  renderMethod();
+  renderRailAlgs();
   setTrainKind(ses ? ses.kind : 'edge');
   if (saved.railCollapsed && window.matchMedia('(max-width: 860px)').matches) {
     $('rail').classList.add('collapsed');

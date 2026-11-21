@@ -8,6 +8,7 @@
   "a11y/smart-cube.js": 18,
   "a11y/trainer-guide.js": 3,
   "a11y/views.js": 26,
+  "e2e/bld-m2.js": 24,
   "e2e/competition-mode.js": 8,
   "e2e/cube-pages.js": 2,
   "e2e/fridrich-extras.js": 15,

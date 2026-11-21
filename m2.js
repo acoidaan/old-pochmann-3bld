@@ -180,8 +180,29 @@
     <section class="m2-sec" aria-labelledby="m2hMemoTry">
       <h3 id="m2hMemoTry">Practica una memo</h3>
       <div class="m2-memo" id="m2Memo"></div>
+    </section>
+    <section class="m2-sec m2-use" aria-labelledby="m2hUse">
+      <h3 id="m2hUse">Y ahora, en toda la sección</h3>
+      <p id="m2UseText"></p>
+      <div class="actions"><button type="button" class="btn primary" id="m2Use"></button></div>
     </section>`;
   renderProgress();
+  // The whole section with M2 (or back to Old Pochmann): the same switch as the rail's «Aristas con».
+  function renderUse() {
+    const on = OP.bld.edgeMethod() === 'm2';
+    document.getElementById('m2UseText').innerHTML = on
+      ? 'Ya tienes las aristas con <b>M2</b> en todo: <b>Practicar</b> (cada letra en el cubo, comprobar y generar la memo, ejecución guiada), <b>Entrenar</b> (con su propio progreso), la <b>Tabla</b>, el <b>crono</b>, el cubo inteligente y el overlay. Lo cambias cuando quieras con «Aristas con», arriba de los algoritmos.'
+      : 'Cuando te veas con las letras, pasa las aristas a <b>M2</b> en todo: <b>Practicar</b> te enseñará cada letra en el cubo y comprobará o generará la memo con M2, <b>Entrenar</b> te preguntará sus setups (con su propio progreso, sin mezclarse con el de Old Pochmann), y el crono y el cubo inteligente lo seguirán. Las esquinas no cambian.';
+    const b = document.getElementById('m2Use');
+    b.textContent = on ? 'Volver a Old Pochmann' : 'Usar M2 en toda la sección';
+  }
+  document.getElementById('m2Use').addEventListener('click', () => {
+    const on = OP.bld.edgeMethod() === 'm2';
+    OP.bld.setEdgeMethod(on ? 'op' : 'm2');
+    if (!on) OP.showView('practicar');
+  });
+  document.addEventListener('op3:em', renderUse);
+  renderUse();
 
   // ---------- The cube ----------
   const cube = N.player(document.getElementById('m2Cube'), { up: 'white', label: 'El cubo, con el blanco arriba y el verde delante' });

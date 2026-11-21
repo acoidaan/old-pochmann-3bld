@@ -64,7 +64,7 @@
     const eIn = document.getElementById('memoE');
     const cIn = document.getElementById('memoC');
     if (!scr || !eIn || !cIn) return null;
-    const key = `${scr}|${eIn.value}|${cIn.value}`;
+    const key = `${scr}|${eIn.value}|${cIn.value}|${OP.edgeMethod()}`;
     if (memoCache.key === key) return memoCache.val;
     let val = null;
     try {
@@ -73,10 +73,10 @@
       const target = (kind, L) => L in OP.MODES[kind].posOf && !OP.MODES[kind].buffer.includes(L);
       if ((edges.length || corners.length) && edges.every((L) => target('edge', L)) && corners.every((L) => target('corner', L))) {
         let st = OP.apply(OP.solved(), scr);
-        edges.forEach((L) => { st = OP.apply(st, OP.conjugate(OP.MODES.edge.table[L], OP.ALGS.T.moves)); });
-        if (edges.length % 2) st = OP.apply(st, OP.ALGS.P.moves);
-        corners.forEach((L) => { st = OP.apply(st, OP.conjugate(OP.MODES.corner.table[L], OP.ALGS.Y.moves)); });
-        if (OP.isSolved(st)) val = { e: OP.pairs(edges), c: OP.pairs(corners) };
+        edges.forEach((L, i) => { st = OP.apply(st, OP.shot('edge', L, i)); });
+        if (edges.length % 2) st = OP.apply(st, OP.parityAlg().moves);
+        corners.forEach((L) => { st = OP.apply(st, OP.shot('corner', L)); });
+        if (OP.isSolved(st)) val = { e: OP.pairs(edges), c: OP.pairs(corners), ...(OP.edgeMethod() === 'm2' ? { em: 'm2' } : {}) };
       }
     } catch (e) { val = null; }
     memoCache = { key, val };

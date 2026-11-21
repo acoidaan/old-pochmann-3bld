@@ -4,7 +4,7 @@
   const OP = window.OP3;
   const root = document.getElementById('learn');
   if (!OP || !root) return;
-  const { MODES, ALGS, LETTERS, PIECE_OF, apply, solved, parseAlg, invertAlg, conjugate, pieceName, faceOfSticker, COLOR_NAME } = OP;
+  const { MODES_OP: MODES, ALGS, LETTERS, PIECE_OF, apply, solved, parseAlg, invertAlg, conjugate, pieceName, faceOfSticker, COLOR_NAME } = OP;
 
   // ---------------- Progress ----------------
   const KEY = 'op3bld:learn:v1';

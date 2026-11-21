@@ -36,6 +36,8 @@ La app tiene tres secciones, con un mismo menú arriba en cada una para pasar de
 
 ## Qué hace
 
+Las aristas se hacen con **Old Pochmann o M2**: lo eliges en «Aristas con», arriba de los algoritmos fijos (en el móvil, en su barra), o al final del curso de M2. Todo lo sigue: los algoritmos fijos (M2 y su paridad en vez de la T-perm y la R-perm), Practicar (cada letra con su setup a UB, M2 y deshacer, o el algoritmo de las especiales C, W, I y S, el de su pareja si son la segunda; comprobar, puntuar y generar la memo; la ejecución guiada), Entrenar (los setups a UB y los algoritmos de las especiales, con su propio progreso), la Tabla, el crono, Progreso, el cubo inteligente (que sigue las letras aunque M2 deje el cubo boca abajo) y el overlay. Las esquinas, siempre con Old Pochmann.
+
 | Sección | Para qué |
 |:--|:--|
 | **Practicar** | Pegas o generas un scramble y escribes tu memo. Ves cada letra en el cubo: dónde está la pegatina, el setup paso a paso y cómo queda tras la T-perm o la Y-perm. «Comprobar memo» dice si el memo resuelve el cubo y, si no, la primera letra que está mal y por qué; «Generar memo recomendado» calcula el memo con menos movimientos. La **ejecución guiada** te lleva giro a giro por toda la resolución. |

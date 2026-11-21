@@ -122,6 +122,127 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
   check('crono with M2: an M2 memo checked as M2 (from DF) is right and saved as M2, with its own numbers apart from Old Pochmann; Progreso follows', t1 && t1.ok && t1.em === 'm2' && t1.m === 'memo' && withM2.Intentos === '1' && !withOp.Intentos && /M2/.test(memo.hint) && /M2/.test(bp.em) && bp.pressed === 'true', JSON.stringify({ t1, withM2, withOp, memo, bp }));
   await ctx.close();
 
+  // ================= M2 in the whole section =================
+  ({ ctx, p } = await open({ viewport: { width: 1200, height: 900 } }, '/#practicar'));
+  await p.waitForFunction(() => window.OP3 && window.BldM2);
+  await p.click('.rail-em [data-em="m2"]');
+  const whole = await p.evaluate(() => {
+    const O = window.OP3;
+    const rail = { t: document.querySelector('#algT .alg-name').textContent, p: document.querySelector('#algP .alg-name').textContent, root: document.documentElement.dataset.em };
+    // Practicar's generator and checker, with M2, on random cubes: solved, the traced memo accepted, a wrong
+    // letter caught.
+    let ok = 0; let traced = 0; let caught = 0; let odd = 0;
+    for (let k = 0; k < 150; k++) {
+      const s = O.randomMoveScramble(25);
+      document.getElementById('scr').value = s;
+      const st0 = O.apply(O.solved(), s);
+      const opt = O.optimalMemo();
+      let st = st0;
+      opt.edges.letters.forEach((L, i) => { st = O.apply(st, O.shot('edge', L, i)); });
+      if (opt.edges.letters.length % 2) { st = O.apply(st, O.parityAlg().moves); odd++; }
+      opt.corners.letters.forEach((L) => { st = O.apply(st, O.shot('corner', L)); });
+      if (O.isSolved(st) && !O.traceMemo(st0, opt.edges.letters, opt.corners.letters)) ok++;
+      if (!O.traceMemo(st0, window.BldM2.trace(st0, 'edge', ['U', 'K']), opt.corners.letters)) traced++;
+      const e = opt.edges.letters.slice();
+      if (e.length > 2) { e[1] = e[1] === 'B' ? 'D' : 'B'; if (O.traceMemo(st0, e, opt.corners.letters)) caught++; } else caught++;
+    }
+    return { rail, ok, traced, caught, odd };
+  });
+  check('«Aristas con: M2» in the rail: its algorithms (M2, its parity), and Practicar generates and checks M2 memos (150 random cubes solved, the traced memo accepted, a wrong letter caught)', whole.rail.t === 'M2' && whole.rail.p === 'Paridad M2' && whole.rail.root === 'm2' && whole.ok === 150 && whole.traced === 150 && whole.caught === 150 && whole.odd > 20, JSON.stringify(whole));
+  // The memo walk: a special letter as second of a pair takes its partner's algorithm.
+  const walk = await p.evaluate(() => {
+    document.getElementById('scr').value = '';
+    document.getElementById('memoE').value = 'BCD';
+    document.getElementById('memoC').value = '';
+    document.getElementById('memoE').dispatchEvent(new Event('input', { bubbles: true }));
+    const toks = [...document.querySelectorAll('#walkToks .tok')].map((b) => b.textContent);
+    document.querySelectorAll('#walkToks .tok')[1].click();
+    const seq = document.getElementById('seq').textContent.replace(/\s+/g, ' ');
+    return { toks, seq, who: document.getElementById('whoDesc').textContent };
+  });
+  check('Practicar with M2: the walk ends in «Paridad» for an odd memo, and C as second of a pair is done with W\'s algorithm', walk.toks.join() === 'B,C,D,Paridad' && /la de W/.test(walk.seq) && /segunda letra/.test(walk.who), JSON.stringify(walk));
+  const tabla = await p.evaluate(() => {
+    window.OP3.showView('tabla');
+    const cell = (L) => [...document.querySelectorAll('#board button, #board .cell, #board [data-l]')].find((x) => x.textContent.trim().startsWith(L));
+    return { title: document.getElementById('hBoard').textContent, c: cell('C') && cell('C').textContent, b: cell('B') && cell('B').textContent, u: cell('U') && cell('U').textContent };
+  });
+  check('la Tabla with M2: the setups to UB, C as special, DF (U) the buffer', /M2/.test(tabla.title) && /especial/.test(tabla.c) && /R U R' U'/.test(tabla.b) && /buffer/.test(tabla.u), JSON.stringify(tabla));
+  // Entrenar: an M2 special asks its whole algorithm (its partner's is told apart); M2 keeps its own record.
+  const train = await p.evaluate(() => {
+    const O = window.OP3;
+    const j = (L, typed) => O.judgeSetup('edge', L, typed);
+    const before = JSON.stringify((O.data.train() || {}).edge || {});
+    return {
+      c: j('C', "U2 M' U2 M'").ok, cw: j('C', 'M U2 M U2').msg, b: j('B', "R U R' U'").ok, bad: j('B', "R U' R' U").ok,
+      edgeBefore: before,
+    };
+  });
+  await p.evaluate(() => window.OP3.showView('entrenar'));
+  await p.fill('#trInput', 'xx');
+  await p.click('#trSkip');
+  const rec = await p.evaluate(() => { const t = window.OP3.data.train(); return { m2: Object.values(t.m2 || {}).reduce((a, x) => a + (x.seen || 0), 0), edge: JSON.stringify(t.edge || {}) }; });
+  check('Entrenar with M2: a setup to UB judged with M2, a special asks its algorithm (its partner\'s is told apart), and the answers go to M2\'s own record', train.c && train.b && !train.bad && /el de W/.test(train.cw) && rec.m2 === 1 && rec.edge === train.edgeBefore, JSON.stringify({ train, rec }));
+  // Back to Old Pochmann: everything as before; Aprender's Old Pochmann lessons never changed.
+  await p.click('.rail-em [data-em="op"]');
+  const back = await p.evaluate(() => ({ t: document.querySelector('#algT .alg-name').textContent, read: window.OP3.MODES.edge.read, op: window.OP3.MODES_OP.edge.read, stored: localStorage.getItem('op3bld:em:v1') }));
+  check('back to Old Pochmann from the rail: T-perm, buffer UR again, remembered; the lessons keep Old Pochmann', back.t === 'T-perm' && back.read === 'B' && back.op === 'B' && back.stored === 'op', JSON.stringify(back));
+  await ctx.close();
+
+  // ================= The smart cube with M2 =================
+  // A solve on the virtual cube with one M2 letter done wrong: the cube says which one (read from what the
+  // letters before it amount to) and it goes to M2's record in «Entrenar».
+  ({ ctx, p } = await open({ viewport: { width: 1280, height: 900 } }, '/?cubo=virtual#crono'));
+  await p.click('#cubeSim');
+  await p.waitForFunction(() => window.OP3.cube.status === 'on');
+  await p.evaluate(() => window.OP3.bld.setEdgeMethod('m2'));
+  // «Entrenar» on the cube with M2: a letter, then the next one with the cube upside down as M2 leaves it
+  // (held as it is: the virtual cube, like a real one, reports the top face, yellow now, as D).
+  await p.evaluate(() => window.OP3.showView('entrenar'));
+  await p.click('#trEdge');
+  await p.waitForTimeout(150);
+  const trTwo = [];
+  for (let n = 0; n < 2; n++) {
+    const L = await p.evaluate(() => window.OP3.trainer.state().letter);
+    const alg = await p.evaluate((x) => window.OP3.tokenAlg({ kind: 'edge', L: x }), L);
+    await p.evaluate((a) => window.OP3.cube.link.play([a], 300), alg);
+    await p.waitForTimeout(300);
+    trTwo.push(await p.evaluate(() => document.getElementById('trFeedback').textContent));
+    await p.evaluate(() => window.OP3.trainer.next());
+  }
+  check('Entrenar on the cube with M2: a letter, then the next with the cube upside down as M2 leaves it, both right (a special that starts with M2 is not taken for the A)', trTwo.every((x) => /^✓/.test(x)), JSON.stringify(trTwo));
+  await p.evaluate(() => window.OP3.showView('crono'));
+  let plan = null;
+  for (let tries = 0; tries < 10 && !(plan && plan.k >= 1); tries++) {
+    const scr = await p.evaluate(() => window.OP3.randomMoveScramble(18));
+    await p.evaluate((x) => { const el = document.getElementById('scr'); el.value = x; el.dispatchEvent(new Event('input')); }, scr);
+    await p.evaluate((x) => window.OP3.cube.link.turn(x), scr);
+    plan = await p.evaluate(() => {
+      const O = window.OP3;
+      const toks = O.cube.simMemo(O.cube.link.state());
+      let v = O.cube.link.state();
+      const m = O.MODES.edge;
+      for (let i = 0; i < toks.length && toks[i].kind === 'edge'; i++) {
+        const t = toks[i];
+        if (i >= 1 && m.table[t.L] && m.letterOf[v[m.posOf[m.read]]] === t.L) return { toks, k: i };
+        v = O.traceShot('edge', v, t.L, i);
+      }
+      return { toks, k: -1 };
+    });
+    if (plan.k < 1) await p.evaluate(() => window.OP3.cube.link.turn(window.OP3.invertAlg(document.getElementById('scr').value)));
+  }
+  const bad = plan.toks[plan.k].L;
+  await p.keyboard.press('Space');
+  await p.waitForTimeout(100);
+  await p.evaluate(([t, k]) => { const O = window.OP3; const a = t.map((x) => O.tokenAlg(x)); a[k] = O.cube.flawed(t[k]); return O.cube.link.play(a, 400); }, [plan.toks, plan.k]);
+  await p.keyboard.press('Space');
+  await p.waitForFunction(() => /no está resuelto/.test(document.getElementById('verdictAsk').textContent), null, { timeout: 3000 }).catch(() => {});
+  await p.click('#markDnf');
+  await p.waitForTimeout(150);
+  const dnf = await p.evaluate(() => ({ rep: document.getElementById('cubeReport').textContent, t: JSON.parse(localStorage.getItem('op3bld:trainer:v1') || '{}') }));
+  const flagged = (dnf.t.m2 || {})[bad];
+  check('smart cube with M2: a letter done wrong is found (M2 in the report) and flagged in M2\'s own record', dnf.rep.includes(`La ${bad} (arista) te saldrá más a menudo`) && /M2/.test(dnf.rep) && flagged && flagged.dnf === 1 && !((dnf.t.edge || {})[bad] || {}).dnf, JSON.stringify({ bad, rep: dnf.rep.slice(0, 300), flagged }));
+  await ctx.close();
+
   // ================= The sections =================
   ({ ctx, p } = await open({ viewport: { width: 1200, height: 800 } }, '/cfop#crono'));
   await p.waitForFunction(() => window.Fridrich);

@@ -102,6 +102,11 @@ button { font: inherit; color: inherit; }
   transition: border-color .15s ease, box-shadow .15s ease;
 }
 .alg.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+/* Old Pochmann or M2 for the edges: the rail's two first algorithms and every view follow it. In the
+   rail's head: its own line under the title; on phones, in place of the title, next to the buttons. */
+.rail-head { flex-wrap: wrap; }
+.rail-em { order: 3; flex: 1 0 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.rail-em-label { font-size: 12px; font-weight: 700; color: var(--muted); }
 .alg-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 .alg-name { font-weight: 700; font-size: 15px; }
 .tag {
@@ -709,6 +714,11 @@ body.focus .verdict .btn.primary { background: var(--cb-ink); color: var(--cb-bg
   .moves { font-size: 11px; line-height: 1.6; column-gap: 0.5em; }
   .alg-note { display: none; }
   .rail.collapsed .alg { display: none; }
+  .rail-head { flex-wrap: nowrap; }
+  .rail-head .eyebrow { display: none; }
+  .rail-em { order: 0; flex: 0 1 auto; min-width: 0; }
+  .rail-em-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .rail-em .seg.small button { padding: 3px 9px; font-size: 12px; white-space: nowrap; }
   .mobile-brand { display: block !important; }
   .panel { padding: 14px; }
   .big { width: 68px; height: 68px; font-size: 44px; }
