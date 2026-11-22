@@ -13,7 +13,7 @@
   const key = (st) => st.join(',');
 
   // ================= Cube frame (cubemodel.js, follow.js) =================
-  const { norm, fromFacelets, toFacelets, CUBIES } = window.CubeModel;
+  const { norm, fromFacelets, toFacelets, CUBIES, CENTERS, ROTATIONS, invertAlg } = window.CubeModel;
   const CF = window.CubeFollow;
   const { facePath, partialKeys, opposite, simplify, moveText } = CF;
   const FACE_MOVES = ['U', 'R', 'F', 'D', 'L', 'B'].flatMap((f) => [f, `${f}2`, `${f}'`]);
@@ -520,7 +520,30 @@
       }
       segEnd.push(p);
     });
-    return { at, half, segEnd, moves, spat, total: p, end: key(norm(s)), pos: 0, halfway: false, off: [], lost: false };
+    return { at, half, segEnd, moves, spat, algs, total: p, end: key(norm(s)), pos: 0, halfway: false, off: [], lost: false };
+  }
+  // A reading of the cube (no turn) on a path. On the path: where it is; if it had gone off, those turns were
+  // the cube's mistake (a lost turn), not yours, so it is clean again if it was. Off the path with no wrong
+  // turn seen, the cube had lost a turn before the sequence began: the same sequence from where it must have
+  // started, taken as the turns so far done right. Anything else stays as it was (the next turn tells).
+  const heldLike = (st, like) => ROTATIONS.map((r) => apply(st, r)).find((x) => CENTERS.every((c) => x[c] === like[c])) || st;
+  function reread(P, st) {
+    const off = P.off.length > 0 || P.lost;
+    if (pathLocate(P, st)) {
+      if (off && P.cleanOff != null) P.clean = P.cleanOff;
+      P.cleanOff = null;
+      return P;
+    }
+    if (off) return P;
+    for (const k of P.halfway ? [P.pos, P.pos + 1] : [P.pos]) {
+      if (k > P.total) continue;
+      const done = P.moves.slice(0, k).join(' ');
+      const here = heldLike(st, P.spat[k]);
+      const Q = Object.assign(makePath(done ? apply(here, invertAlg(done)) : here, P.algs), { frame: P.frame, clean: P.clean, near: P.near });
+      Q.pos = k;
+      if (pathLocate(Q, st)) return Q;
+    }
+    return P;
   }
   // Where the cube is on the path. A path can pass the same state twice (a turn and its inverse back to
   // back, like the end of one letter and the start of the next): take the furthest of the spots near
@@ -593,7 +616,15 @@
     // Before the first turn, a new reading is just where the letter starts from.
     if (!mv && !tr.first) { const keep = tr.t0; trStart(); tr.t0 = keep; return; }
     if (!tr.first) tr.first = performance.now();
-    tr.paths.forEach((P) => { pathMove(P, mv, cube.state); if (P.off.length || P.lost) P.clean = false; });
+    if (mv) {
+      tr.paths.forEach((P) => {
+        const was = P.clean;
+        pathMove(P, mv, cube.state);
+        if (P.off.length || P.lost) { if (P.cleanOff == null) P.cleanOff = was; P.clean = false; } else P.cleanOff = null;
+      });
+      // Gone off: ask the cube how it is now rather than when it stops, in case it was a turn it lost.
+      if (tr.paths.every((P) => P.off.length || P.lost)) { clearTimeout(tr.ask); tr.ask = setTimeout(() => { if (cube.link) request('REQUEST_FACELETS'); }, 250); }
+    } else tr.paths = tr.paths.map((P) => reread(P, cube.state));
     // The one being followed: on track first, then the furthest along.
     const rank = (P) => (P.lost ? 1e6 : 0) + P.off.length * 1000 - P.pos;
     tr.path = tr.paths.reduce((a, b) => (rank(b) < rank(a) ? b : a));

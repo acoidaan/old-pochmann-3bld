@@ -232,18 +232,64 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
     const O = window.OP3;
     const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     const moves = O.tokenAlg({ kind: 'edge', L: O.trainer.state().letter }).split(' ');
+    document.getElementById('trFeedback').textContent = '';
     await O.cube.link.play([moves[0]], 300);
+    const read = () => O.cube.link.sendCubeCommand({ type: 'REQUEST_FACELETS' });
     O.cube.link.silent('U');
-    await wait(1000);
+    read();
+    await wait(300);
     const line = document.getElementById('trCubeLine').textContent;
     O.cube.link.silent("U'");
-    await wait(1000);
+    read();
+    await wait(300);
     await O.cube.link.play([moves.slice(1).join(' ')], 300);
     await wait(200);
     return { line, after: document.getElementById('trFeedback').textContent };
   });
   check('Entrenar on the cube with M2: a reading off the letter doesn\'t say you got lost, and the letter still counts', !/perdido/.test(stale.line) && /^✓/.test(stale.after), JSON.stringify(stale));
-  // Four letters, four M2s: the cube is the right way up in the hands again for the solve below.
+  // The cube losing turns, as a real one does with M (two faces at once): one lost before the letter (it starts
+  // somewhere else than the app thought) and one lost in the middle of it. Done right, both count as right.
+  const lostTurns = await p.evaluate(async () => {
+    const O = window.OP3;
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const algOf = () => O.tokenAlg({ kind: 'edge', L: O.trainer.state().letter }).split(' ');
+    const out = [];
+    const fb = document.getElementById('trFeedback');
+    fb.textContent = '';
+    let moves = algOf();
+    // On a face the letter doesn't start with (R lost and then R' done would put the cube back where the app
+    // thought it was: nothing to tell).
+    O.cube.link.silent(['F2', 'D2', 'B2', 'L2', 'U2'].find((x) => !moves.slice(0, 3).some((m) => m[0] === x[0] || m[0] === 'M')) || 'F2');
+    await O.cube.link.play([moves[0]], 300);
+    await wait(1000);
+    out.push(document.getElementById('trCubeLine').textContent);
+    await O.cube.link.play([moves.slice(1).join(' ')], 300);
+    await wait(300);
+    out.push(document.getElementById('trFeedback').textContent);
+    fb.textContent = '';
+    moves = algOf();
+    const j = Math.floor(moves.length / 2);
+    if (j) await O.cube.link.play([moves.slice(0, j).join(' ')], 300);
+    O.cube.link.silent(moves[j]);
+    if (j + 1 < moves.length) await O.cube.link.play([moves.slice(j + 1).join(' ')], 300);
+    await wait(1200);
+    out.push(document.getElementById('trFeedback').textContent);
+    // And the other way round: a turn the app heard but the cube didn't make (R and back, the way back lost).
+    // It says «Ese giro no toca» only until the cube is asked how it really is.
+    fb.textContent = '';
+    moves = algOf();
+    await O.cube.link.play(['R'], 300);
+    O.cube.link.silent("R'");
+    await wait(600);
+    out.push(document.getElementById('trCubeLine').textContent);
+    await O.cube.link.play([moves.join(' ')], 300);
+    await wait(300);
+    out.push(document.getElementById('trFeedback').textContent);
+    return out;
+  });
+  check('Entrenar on the cube with M2: a turn the cube lost before the letter or in the middle of it doesn\'t count against you, nor one it heard but wasn\'t made', !/perdido|no toca/.test(lostTurns[0]) && /^✓/.test(lostTurns[1]) && /^✓/.test(lostTurns[2]) && !/no toca/.test(lostTurns[3]) && /^✓/.test(lostTurns[4]), JSON.stringify(lostTurns));
+  // Seven letters, seven M2s: the right way up in the hands again for the solve below.
+  await p.evaluate(() => window.OP3.cube.link.turn('x2'));
   await p.evaluate(() => window.OP3.showView('crono'));
   let plan = null;
   for (let tries = 0; tries < 10 && !(plan && plan.k >= 1); tries++) {
