@@ -210,6 +210,24 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
     await p.evaluate(() => window.OP3.trainer.next());
   }
   check('Entrenar on the cube with M2: a letter, then the next with the cube upside down as M2 leaves it, both right (a special that starts with M2 is not taken for the A)', trTwo.every((x) => /^✓/.test(x)), JSON.stringify(trTwo));
+  // A special (C, W, I, S): no setup to show in the steps. And its last turn lost on the way (two faces at once
+  // with M, easy on a real cube): the cube's reading a moment later still finishes the letter.
+  for (let n = 0; n < 60 && !(await p.evaluate(() => /^[CWIS]$/.test(window.OP3.trainer.state().letter))); n++) await p.evaluate(() => window.OP3.trainer.next());
+  const lostLast = await p.evaluate(async () => {
+    const O = window.OP3;
+    const L = O.trainer.state().letter;
+    const moves = O.tokenAlg({ kind: 'edge', L }).split(' ');
+    const steps = [...document.querySelectorAll('#trCubeLine .tr-step')].map((x) => x.textContent);
+    await O.cube.link.play([moves.slice(0, -1).join(' ')], 300);
+    await new Promise((r) => setTimeout(r, 100));
+    const before = document.getElementById('trFeedback').textContent;
+    O.cube.link.silent(moves[moves.length - 1]);
+    await new Promise((r) => setTimeout(r, 1100));
+    return { L, steps, before, after: document.getElementById('trFeedback').textContent };
+  });
+  check('Entrenar on the cube with M2: a special shows just its algorithm as the step; its last turn lost, the cube\'s reading finishes it', lostLast.steps.length === 1 && /^Especial de/.test(lostLast.steps[0]) && !/^✓/.test(lostLast.before) && /^✓/.test(lostLast.after), JSON.stringify(lostLast));
+  // Three letters, three M2s: back the right way up in the hands for the solve below.
+  await p.evaluate(() => window.OP3.cube.link.turn('x2'));
   await p.evaluate(() => window.OP3.showView('crono'));
   let plan = null;
   for (let tries = 0; tries < 10 && !(plan && plan.k >= 1); tries++) {

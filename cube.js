@@ -46,6 +46,11 @@
       if (!attempt.moves.length) { attempt.start = st; attempt.states = [st]; liveStart(attempt, st); } else { attempt.gap = true; attempt.states.push(st); }
     }
     if (!locate()) { follow.lost = true; follow.off = []; }
+    // A turn the cube had lost (often the last one of a letter, with nothing after it to bring it back): the
+    // trainer and the guides look again too, or the letter would wait for a turn that never comes.
+    if (trActive()) trMove(null);
+    if (guideActive()) guideMove(null);
+    if (practiceActive()) practiceMove(null);
     render();
   }
 
@@ -534,8 +539,10 @@
     P.lost = false;
     return true;
   }
+  // With no turn (mv null) the cube just says where it is: off the path, it's lost.
   function pathMove(P, mv, st) {
     if (pathLocate(P, st) || P.lost) return;
+    if (!mv) { P.off = []; P.lost = true; return; }
     P.off = simplify([...P.off.map(moveText), mv]);
     if (P.off.length > 8) P.lost = true;
   }
@@ -566,7 +573,7 @@
     if (!cube.state || !s.letter) return;
     const p = O.letterParts(s.kind, s.letter, 0);
     tr.kind = s.kind; tr.letter = s.letter; tr.t0 = s.t0; tr.first = 0; tr.clean = true;
-    tr.setup = p.special ? p.alg.moves : p.setup; tr.special = !!p.special; tr.algName = p.alg.name;
+    tr.setup = p.special ? p.alg.moves : p.setup; tr.special = !!p.special; tr.algName = p.alg.name; tr.segs = !!p.setup;
     // With M2 every letter turns the middle layer half round: after one, the cube is held upside down (white
     // centre at the bottom) unless you turn it back. Both ways are followed; the one you take is tried first
     // next time.
@@ -582,6 +589,8 @@
   }
   function trMove(mv) {
     if (!tr.path) return;
+    // Before the first turn, a new reading is just where the letter starts from.
+    if (!mv && !tr.first) { const keep = tr.t0; trStart(); tr.t0 = keep; return; }
     if (!tr.first) tr.first = performance.now();
     tr.paths.forEach((P) => { pathMove(P, mv, cube.state); if (P.off.length || P.lost) P.clean = false; });
     // The one being followed: on track first, then the furthest along.
@@ -641,7 +650,7 @@
     }
     const P = tr.path;
     if (!P) { line.innerHTML = ''; return; }
-    const segs = tr.setup ? ['Setup', tr.algName, 'Deshacer'] : [tr.algName];
+    const segs = tr.segs ? ['Setup', tr.algName, 'Deshacer'] : [tr.algName];   // C, W, I and S with M2: just their algorithm
     const cur = segOf(P, P.pos);
     const chips = segs.map((name, i) => {
       const from = i ? P.segEnd[i - 1] : 0;
