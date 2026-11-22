@@ -226,8 +226,24 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
     return { L, steps, before, after: document.getElementById('trFeedback').textContent };
   });
   check('Entrenar on the cube with M2: a special shows just its algorithm as the step; its last turn lost, the cube\'s reading finishes it', lostLast.steps.length === 1 && /^Especial de/.test(lostLast.steps[0]) && !/^✓/.test(lostLast.before) && /^✓/.test(lostLast.after), JSON.stringify(lostLast));
-  // Three letters, three M2s: back the right way up in the hands for the solve below.
-  await p.evaluate(() => window.OP3.cube.link.turn('x2'));
+  // A reading of the cube that doesn't fit the letter (one that comes a moment late, say): it doesn't throw
+  // the letter away; done right from there, it counts.
+  const stale = await p.evaluate(async () => {
+    const O = window.OP3;
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const moves = O.tokenAlg({ kind: 'edge', L: O.trainer.state().letter }).split(' ');
+    await O.cube.link.play([moves[0]], 300);
+    O.cube.link.silent('U');
+    await wait(1000);
+    const line = document.getElementById('trCubeLine').textContent;
+    O.cube.link.silent("U'");
+    await wait(1000);
+    await O.cube.link.play([moves.slice(1).join(' ')], 300);
+    await wait(200);
+    return { line, after: document.getElementById('trFeedback').textContent };
+  });
+  check('Entrenar on the cube with M2: a reading off the letter doesn\'t say you got lost, and the letter still counts', !/perdido/.test(stale.line) && /^✓/.test(stale.after), JSON.stringify(stale));
+  // Four letters, four M2s: the cube is the right way up in the hands again for the solve below.
   await p.evaluate(() => window.OP3.showView('crono'));
   let plan = null;
   for (let tries = 0; tries < 10 && !(plan && plan.k >= 1); tries++) {

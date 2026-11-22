@@ -539,10 +539,11 @@
     P.lost = false;
     return true;
   }
-  // With no turn (mv null) the cube just says where it is: off the path, it's lost.
+  // With no turn (mv null) the cube just says where it is: a turn it had lost may put it (back) on the path.
+  // Off the path it changes nothing: a reading can come a moment late, from before the turn just made, and
+  // the next turn tells anyway.
   function pathMove(P, mv, st) {
-    if (pathLocate(P, st) || P.lost) return;
-    if (!mv) { P.off = []; P.lost = true; return; }
+    if (pathLocate(P, st) || P.lost || !mv) return;
     P.off = simplify([...P.off.map(moveText), mv]);
     if (P.off.length > 8) P.lost = true;
   }
