@@ -226,27 +226,22 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
     return { L, steps, before, after: document.getElementById('trFeedback').textContent };
   });
   check('Entrenar on the cube with M2: a special shows just its algorithm as the step; its last turn lost, the cube\'s reading finishes it', lostLast.steps.length === 1 && /^Especial de/.test(lostLast.steps[0]) && !/^✓/.test(lostLast.before) && /^✓/.test(lostLast.after), JSON.stringify(lostLast));
-  // A reading of the cube that doesn't fit the letter (one that comes a moment late, say): it doesn't throw
-  // the letter away; done right from there, it counts.
+  // A reading of the cube that comes late, from before the last turn (asked for while turning): it is out of
+  // date, so it changes nothing; the letter goes on and counts.
   const stale = await p.evaluate(async () => {
     const O = window.OP3;
     const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     const moves = O.tokenAlg({ kind: 'edge', L: O.trainer.state().letter }).split(' ');
     document.getElementById('trFeedback').textContent = '';
-    await O.cube.link.play([moves[0]], 300);
-    const read = () => O.cube.link.sendCubeCommand({ type: 'REQUEST_FACELETS' });
-    O.cube.link.silent('U');
-    read();
-    await wait(300);
+    await O.cube.link.play([moves.slice(0, 2).join(' ')], 300);
+    O.cube.link.late();
+    await wait(100);
     const line = document.getElementById('trCubeLine').textContent;
-    O.cube.link.silent("U'");
-    read();
-    await wait(300);
-    await O.cube.link.play([moves.slice(1).join(' ')], 300);
+    await O.cube.link.play([moves.slice(2).join(' ')], 300);
     await wait(200);
     return { line, after: document.getElementById('trFeedback').textContent };
   });
-  check('Entrenar on the cube with M2: a reading off the letter doesn\'t say you got lost, and the letter still counts', !/perdido/.test(stale.line) && /^✓/.test(stale.after), JSON.stringify(stale));
+  check('Entrenar on the cube with M2: a reading that comes late changes nothing, and the letter still counts', !/perdido|no toca/.test(stale.line) && /^✓/.test(stale.after), JSON.stringify(stale));
   // The cube losing turns, as a real one does with M (two faces at once): one lost before the letter (it starts
   // somewhere else than the app thought) and one lost in the middle of it. Done right, both count as right.
   const lostTurns = await p.evaluate(async () => {

@@ -588,6 +588,7 @@
   // A letter is asked; you do setup, algorithm and undo on the real cube, from wherever it is. It is right
   // when the cube ends exactly where that letter leaves it; doing another letter cleanly is caught too.
   const TR_KEY = 'op3bld:train-cube:v1';
+  const OFF_WAIT = 500;   // ms before «Ese giro no toca»: time for the cube to say how it really is
   let trUseCube = (() => { try { return localStorage.getItem(TR_KEY) !== 'type'; } catch (e) { return true; } })();
   const tr = { path: null, letter: null, kind: null, t0: 0, first: 0, clean: true, others: null, setup: '', algName: '', descSaved: null, descSet: null, descFor: null };
   const trActive = () => cube.status === 'on' && !!cube.state && trUseCube && O.currentView() === 'entrenar' && document.body.dataset.trmode !== 'alg';
@@ -596,7 +597,7 @@
     tr.path = null;
     if (!cube.state || !s.letter) return;
     const p = O.letterParts(s.kind, s.letter, 0);
-    tr.kind = s.kind; tr.letter = s.letter; tr.t0 = s.t0; tr.first = 0; tr.clean = true;
+    tr.kind = s.kind; tr.letter = s.letter; tr.t0 = s.t0; tr.first = 0; tr.clean = true; tr.offAt = 0;
     tr.setup = p.special ? p.alg.moves : p.setup; tr.special = !!p.special; tr.algName = p.alg.name; tr.segs = !!p.setup;
     // With M2 every letter turns the middle layer half round: after one, the cube is held upside down (white
     // centre at the bottom) unless you turn it back. Both ways are followed; the one you take is tried first
@@ -623,8 +624,16 @@
         if (P.off.length || P.lost) { if (P.cleanOff == null) P.cleanOff = was; P.clean = false; } else P.cleanOff = null;
       });
       // Gone off: ask the cube how it is now rather than when it stops, in case it was a turn it lost.
-      if (tr.paths.every((P) => P.off.length || P.lost)) { clearTimeout(tr.ask); tr.ask = setTimeout(() => { if (cube.link) request('REQUEST_FACELETS'); }, 250); }
-    } else tr.paths = tr.paths.map((P) => reread(P, cube.state));
+      // The warning waits for that answer (a moment), so a turn the cube got wrong doesn't flash it.
+      if (tr.paths.every((P) => P.off.length || P.lost)) {
+        if (!tr.offAt) { tr.offAt = performance.now(); setTimeout(renderTrain, OFF_WAIT + 20); }
+        clearTimeout(tr.ask);
+        tr.ask = setTimeout(() => { if (cube.link) request('REQUEST_FACELETS'); }, 250);
+      } else tr.offAt = 0;
+    } else {
+      tr.paths = tr.paths.map((P) => reread(P, cube.state));
+      if (tr.paths.some((P) => !P.off.length && !P.lost)) tr.offAt = 0;
+    }
     // The one being followed: on track first, then the furthest along.
     const rank = (P) => (P.lost ? 1e6 : 0) + P.off.length * 1000 - P.pos;
     tr.path = tr.paths.reduce((a, b) => (rank(b) < rank(a) ? b : a));
@@ -693,12 +702,14 @@
     }).join('');
     let hint = '';
     let tone = '';
-    if (P.lost) { hint = 'Te has perdido. Empieza la letra desde como está el cubo ahora.'; tone = 'bad'; }
+    const shown = (P.off.length || P.lost) && !(tr.offAt && performance.now() - tr.offAt < OFF_WAIT);
+    if (!shown && (P.off.length || P.lost)) hint = '';
+    else if (P.lost) { hint = 'Te has perdido. Empieza la letra desde como está el cubo ahora.'; tone = 'bad'; }
     else if (P.off.length) { hint = `Ese giro no toca. Deshaz: <b>${undoFor(P)}</b>`; tone = 'bad'; }
     else if (!P.pos) hint = 'Cuando quieras: el tiempo cuenta desde que sale la letra.';
     line.innerHTML = `<div class="tr-steps">${chips}</div>`
       + (hint ? `<p class="cube-hint ${tone}">${hint}</p>` : '')
-      + (P.off.length || P.lost ? '<button class="btn" type="button" data-tr-restart>Empezar la letra desde aquí</button>' : '');
+      + (shown ? '<button class="btn" type="button" data-tr-restart>Empezar la letra desde aquí</button>' : '');
   }
   $('trCubeLine').addEventListener('click', (ev) => { if (ev.target.closest('[data-tr-restart]')) { tr.clean = false; const keep = tr.t0; trStart(); tr.t0 = keep; tr.clean = false; (tr.paths || []).forEach((P) => { P.clean = false; }); renderTrain(); } });
   function trSync() {

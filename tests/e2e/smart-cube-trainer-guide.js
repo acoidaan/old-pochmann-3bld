@@ -52,6 +52,8 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   const next = mv2[setupLen + 3];
   const wrong = ['U', 'D', 'F', 'B', 'L', 'R'].find((f) => f !== next[0] && f.toLowerCase() !== next[0]);
   await turn(wrong);
+  // The warning waits half a second for the cube to say how it really is (it may have been the cube's mistake).
+  await p.waitForTimeout(650);
   s = await tstate();
   check('trainer: a wrong turn → «Deshaz»', new RegExp(`Deshaz: ${wrong}'`).test(s.line) && /Empezar la letra desde aquí/.test(s.line), `${L2} alg=${alg2} wrong=${wrong} | ${s.line}`);
   await turn(`${wrong}'`);
@@ -76,6 +78,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check('trainer: doing it afterwards moves on', s.letter !== L4 && s.phase === 'ask' && !s.submit, `${s.letter} ${s.phase}`);
   // 5. Lost, then «Empezar la letra desde aquí».
   await turn("B2 F2 U D' L R' B F' U2 D2");
+  await p.waitForTimeout(650);
   s = await tstate();
   check('trainer: far off → «Te has perdido» with a restart button', /Te has perdido/.test(s.line), s.line);
   await p.click('[data-tr-restart]');

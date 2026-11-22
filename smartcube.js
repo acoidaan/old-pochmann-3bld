@@ -44,6 +44,7 @@
     let space = solved();   // as held: wide turns and rotations move the centres
     let core = solved();    // what the core feels
     let serial = 0;
+    let prev = null;   // the core and serial before the last turn, for a reading that comes late
     const emit = (ev) => subs.forEach((fn) => fn({ timestamp: performance.now(), ...ev }));
     const later = (fn) => setTimeout(fn, 15);
     const link = {
@@ -65,6 +66,7 @@
           space = apply(space, m.text);
           const target = norm(space);
           for (const q of facePath(core, target) || []) {
+            prev = { core, serial };
             core = apply(core, q);
             serial = (serial + 1) & 255;
             emit({ type: 'MOVE', move: q, serial, localTimestamp: performance.now(), cubeTimestamp: null });
@@ -74,6 +76,8 @@
       },
       // Turned while the app was not looking (the cube lost track): only the facelets tell.
       silent(alg) { space = apply(space, alg); core = norm(space); },
+      // A reading taken before the last turn that only arrives now (asked for while turning).
+      late() { if (prev) emit({ type: 'FACELETS', serial: prev.serial, facelets: toFacelets(prev.core) }); },
       play(algs, tps) {
         const list = algs.flatMap((a) => parseAlg(a).map((m) => m.text));
         const gap = 1000 / (tps || 10);
@@ -384,6 +388,12 @@
       const st = fromFacelets(ev.facelets);
       if (!st) { if (!cube.state) badData(); return; }
       clearTimeout(cube.wait);
+      // A reading from before the last turn heard (asked for while turning, it came late): what it says is
+      // already out of date, and taking it would lose the turns since.
+      if (ev.serial != null && cube.serial != null && cube.state) {
+        const behind = (cube.serial - ev.serial) & 255;
+        if (behind > 0 && behind < 240) return;
+      }
       // The turns up to this serial are already in this state: one that comes late, recovered from the
       // cube's history, must not count twice.
       if (ev.serial != null) cube.serial = ev.serial & 255;
