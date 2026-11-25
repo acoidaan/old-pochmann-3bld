@@ -124,6 +124,11 @@ check('4×4 · OLL parity: one double edge flipped and nothing else; after the a
 const pp = st4['pll-par'];
 check('4×4 · PLL parity: the front and back double edges swapped; the algorithm and U2 solve it, its r2 being only the inner slice (as 2R2; with Rw2 it would not)', uniform([...face(M4, pp, 'U'), 'D']) && !M4.isSolved(pp) && M4.isSolved(M4.apply(pp, full(T4.sets.paridades.cases[1])))
   && M4.isSolved(M4.apply(pp, full(T4.sets.paridades.cases[1]).replace(/\br2/g, '2R2'))) && !M4.isSolved(M4.apply(pp, full(T4.sets.paridades.cases[1]).replace(/\br2/g, 'Rw2'))) && /capa de dentro/.test(T4.sets.paridades.cases[1].how));
+const pa = st4['pll-par-adj'];
+const paMid = M4.apply(pa, T4.sets.paridades.cases[2].alg);
+check('4×4 · PLL parity with two edges side by side: only the left and back double edges swapped (impossible on a 3×3), the parity algorithm leaves a normal 3×3 last layer (an Ub with the right edge solved) and the Ub solves it',
+  uniform([...face(M4, pa, 'U'), 'D']) && !reduced(M4, pa, held4).even && reduced(M4, paMid, held4).even && unpaired(M4, paMid).length === 0 && f2lOf(paMid) === f2lOf(held4)
+  && col(M4, paMid, 'R', 1) === col(M4, held4, 'R', 1) && M4.isSolved(M4.apply(pa, full(T4.sets.paridades.cases[2]))));
 
 // ---- Pyraminx ----
 const TP = C.pyram;
