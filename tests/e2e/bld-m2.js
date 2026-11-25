@@ -287,7 +287,7 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
   await p.evaluate(() => window.OP3.cube.link.turn('x2'));
   await p.evaluate(() => window.OP3.showView('crono'));
   let plan = null;
-  for (let tries = 0; tries < 10 && !(plan && plan.k >= 1); tries++) {
+  for (let tries = 0; tries < 20 && !(plan && plan.k >= 1); tries++) {
     const scr = await p.evaluate(() => window.OP3.randomMoveScramble(18));
     await p.evaluate((x) => { const el = document.getElementById('scr'); el.value = x; el.dispatchEvent(new Event('input')); }, scr);
     await p.evaluate((x) => window.OP3.cube.link.turn(x), scr);
@@ -296,11 +296,15 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
       const toks = O.cube.simMemo(O.cube.link.state());
       let v = O.cube.link.state();
       const m = O.MODES.edge;
+      // A letter to get wrong with plain letters around it: no cycle break just before or after it, or the
+      // cube cannot tell which letter was meant (and the report rightly says so).
+      const plain = [];
       for (let i = 0; i < toks.length && toks[i].kind === 'edge'; i++) {
         const t = toks[i];
-        if (i >= 1 && m.table[t.L] && m.letterOf[v[m.posOf[m.read]]] === t.L) return { toks, k: i };
+        plain.push(!!m.table[t.L] && m.letterOf[v[m.posOf[m.read]]] === t.L);
         v = O.traceShot('edge', v, t.L, i);
       }
+      for (let i = 1; i < plain.length; i++) if (plain[i - 1] && plain[i] && (i + 1 >= plain.length || plain[i + 1])) return { toks, k: i };
       return { toks, k: -1 };
     });
     if (plan.k < 1) await p.evaluate(() => window.OP3.cube.link.turn(window.OP3.invertAlg(document.getElementById('scr').value)));

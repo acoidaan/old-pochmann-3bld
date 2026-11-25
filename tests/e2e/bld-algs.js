@@ -54,9 +54,12 @@ const Y = "R U' R' U' R U R' F' R U R' U' R' F R";
   // The three mixed.
   await p.click('[data-alg-pick="all"]');
   const seen = new Set();
-  for (let i = 0; i < 9; i++) { seen.add((await S(p)).alg); await p.keyboard.press(' '); await wait(30); await p.keyboard.press(' '); }
+  // At random but never the same twice: nine in a row, or more until all three have come (one in 256 runs the
+  // third takes longer).
+  const order = [];
+  for (let i = 0; i < 40 && (i < 9 || seen.size < 3); i++) { const a = (await S(p)).alg; seen.add(a); order.push(a); await p.keyboard.press(' '); await wait(30); await p.keyboard.press(' '); }
   d = await D(p);
-  check('las tres: they take turns, never the same twice in a row', seen.size === 3 && ['T', 'P', 'Y'].reduce((a, k) => a + ((d[k] && d[k].n) || 0), 0) === 11, JSON.stringify([...seen]));
+  check('las tres: they take turns, never the same twice in a row', seen.size === 3 && order.every((a, i) => !i || a !== order[i - 1]) && ['T', 'P', 'Y'].reduce((a, k) => a + ((d[k] && d[k].n) || 0), 0) === 2 + order.length, order.join(''));
   await p.click('[data-alg-pick="Y"]');
   await p.check('#algHide');
   check('ocultar: the algorithm hidden while you do it', await p.evaluate(() => !document.querySelector('.at-moves .sm') && /Oculto/.test(document.querySelector('.at-moves').textContent)));
