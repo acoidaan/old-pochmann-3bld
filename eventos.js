@@ -473,8 +473,9 @@
     box.hidden = !(document.body.classList.contains('ev-focus') && D.settings().help);
     if (box.hidden || box.dataset.done) return;
     box.dataset.done = '1';
-    const ids = [...new Set(T.steps.map((st) => st.set).filter(Boolean))].filter((id) => setOf(id) && setOf(id).cases.length <= 12);
-    box.innerHTML = ids.map((id) => `<div class="ev-cheat-set"><h3>${esc(setOf(id).name)}</h3><ul>${setOf(id).cases.map((c) => `<li><b>${esc(c.name)}</b> ${algHtml(c.alg)}${c.after ? ` <span class="muted">y ${esc(c.after)}</span>` : ''}</li>`).join('')}</ul></div>`).join('');
+    // The sets a method asks for («cheat»: in the 4×4, only the parities), else every step's own.
+    const ids = (T.cheat || [...new Set(T.steps.map((st) => st.set).filter(Boolean))]).filter((id) => setOf(id) && setOf(id).cases.length <= 12);
+    box.innerHTML = ids.map((id) => `<div class="ev-cheat-set"><h3>${esc(setOf(id).name)}</h3><ul>${setOf(id).cases.map((c) => `<li><b>${esc(c.name)}</b> ${algHtml(c.alg)}${c.after ? ` <span class="muted">y</span> ${algHtml(c.after)}` : ''}</li>`).join('')}</ul></div>`).join('');
   }
   function setFocus(on) {
     document.body.classList.toggle('ev-focus', on);

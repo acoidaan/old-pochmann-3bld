@@ -58,6 +58,7 @@
       },
     },
     train: ['paridades'],
+    cheat: ['paridades'],   // full screen, «Mirando el tutorial»: only the parities in sight
     next: {
       title: 'Después: Yau',
       html: '<p><b>Yau</b> es lo que usa casi todo el mundo para bajar de un minuto. Haces dos centros opuestos (blanco y amarillo) y tres aristas de la cruz. Luego los cuatro centros que quedan y la cuarta arista de la cruz, y el resto de aristas emparejadas de dos en dos con <i>3-2-3</i>. Después, F2L como en el 3×3. Es la misma idea de la reducción, en otro orden: ves la cruz mucho antes y no tienes que buscarla después.</p>',

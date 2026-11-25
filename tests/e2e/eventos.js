@@ -376,6 +376,17 @@ check('Square-1 scrambles: 12 slashes, every one possible', scrS.every((s) => s.
     await sq.keyboard.press(' ');
     await ov.waitForFunction(() => /Square-1/.test(document.getElementById('brandTag').textContent), null, { timeout: 8000 }).catch(() => {});
     const o1 = await ov.evaluate(() => ({ brand: document.getElementById('brandTag').textContent, pic: !document.getElementById('evPic').hidden && !!document.querySelector('#evPic svg polygon'), net: document.getElementById('net').hidden, splits: document.getElementById('cfSplits').hidden, prog: document.getElementById('prog').textContent, pill: document.body.textContent.includes('Inspección') || document.body.textContent.includes('INSPECCIÓN') }));
+        {
+      const p4 = await octx.newPage();
+      await p4.goto(`${SITE}/4x4#crono`);
+      await p4.waitForFunction(() => window.EvPage && window.EvPage.state().scramble);
+      await p4.keyboard.press('f');
+      await p4.check('#optHelp');
+      const sets = await p4.evaluate(() => [...document.querySelectorAll('#cheat .ev-cheat-set h3')].map((h) => h.textContent).join('|'));
+      await p4.uncheck('#optHelp');
+      check('4×4, full screen with «Mirando el tutorial»: only the parities in sight', sets === 'Paridades', sets);
+      await p4.close();
+    }
     check('overlay: the Square-1 page on stream (its name, its scramble drawn, its steps, the inspection running; no 3×3 cube nor CFOP steps)', /Square-1/.test(o1.brand) && o1.pic && o1.net && o1.splits && /Pasos que me sé/.test(o1.prog), JSON.stringify(o1));
     await sq.keyboard.press('Escape');
     const fr = await octx.newPage();
