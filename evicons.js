@@ -29,7 +29,7 @@
       group: 'Más modalidades',
       items: [
         { sx: '222', href: '2x2', name: '2×2', small: 'Ortega: cara, OLL y PBL' },
-        { sx: '444', href: '4x4', name: '4×4', small: 'Reducción: centros, aristas y paridades' },
+        { sx: '444', href: '4x4', name: '4×4', small: 'Yau: centros, cruz, 3-2-3 y paridades' },
         { sx: 'pyram', href: 'pyraminx', name: 'Pyraminx', small: 'Principiante y después L4E' },
         { sx: 'sq1', href: 'square-1', name: 'Square-1', small: 'Forma, capas y permutación (Vandenbergh)' },
       ],

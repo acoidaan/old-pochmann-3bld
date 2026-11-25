@@ -30,8 +30,8 @@
     },
     {
       id: '444', name: '4×4', sx: '444', href: '4x4', phase: '2 · ene 2027', start: '2027-01-01',
-      method: 'Reducción: centros, aristas, paridades; después Yau',
-      goals: [{ kind: 'solo', text: 'Resolver con paridades' }, { kind: 'avg', target: 150000, text: 'Media sub-2:30' }],
+      method: 'Yau: centros, cruz, 3-2-3 y paridades; después, sub-1:15 (el corte)',
+      goals: [{ kind: 'solo', text: 'Resolver con Yau y paridades' }, { kind: 'avg', target: 120000, text: 'Media sub-2:00' }],
     },
     {
       id: 'pyram', name: 'Pyraminx', sx: 'pyram', href: 'pyraminx', phase: '3 · feb 2027', start: '2027-02-01',
@@ -50,7 +50,7 @@
     },
   ];
   // How many steps each new event's method has (its page's «Aprender»).
-  const STEPS = { 222: 3, 444: 4, pyram: 4, sq1: 6 };
+  const STEPS = { 222: 3, 444: 7, pyram: 4, sq1: 6 };
   EVENTS.forEach((e) => { if (STEPS[e.id]) e.steps = STEPS[e.id]; });
   const eventOf = (id) => EVENTS.find((e) => e.id === id);
   // Where it all started: the roadmap's own numbers (November 2026).

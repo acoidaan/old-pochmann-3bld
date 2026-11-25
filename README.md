@@ -238,8 +238,8 @@ En [`/plan`](https://old-pochmann-3bld.vercel.app/plan), el roadmap para competi
 ![Mi plan: qué toca hoy, la cuenta atrás para competir, las seis fases con su estado y los objetivos](docs/img/plan.png)
 
 - **Hoy toca.** Lo siguiente de la rutina que falta esta semana (una sesión de 3×3 con el F2L como prioridad, la modalidad nueva, BLD o solves cronometrados) con su enlace. En las cuatro semanas antes de competir, una ronda de 5 de la modalidad que menos rondas lleva.
-- **Orden de incorporación.** Base: 3×3 CFOP. Fase 1 (diciembre de 2026): 2×2 Ortega. Fase 2 (enero de 2027): 4×4 reducción. Fase 3 (febrero): Pyraminx. En paralelo: 3BLD. Fase 4 (marzo y abril): Square-1. Cada una con su estado (más adelante, toca ya, en marcha, primer hito, metas cumplidas), lo que llevas (casos de CFOP que te sabes, lecciones y letras de M2, pasos y tiempos) y la condición para pasar de fase.
-- **Objetivos.** Dos hitos por modalidad, que se marcan solos: 3×3 Ao12 sub-35 y después media sub-30; 2×2 resolverlo sin ayuda y sub-10; 4×4 con paridades y sub-2:30; Pyraminx sin ayuda y sub-20; BLD tres resueltos y la constancia; Square-1 sin ayuda y sub-60. «Sin ayuda» es marcar «Ya lo resuelvo entero sin mirar» o un tiempo sin «Mirando el tutorial».
+- **Orden de incorporación.** Base: 3×3 CFOP. Fase 1 (diciembre de 2026): 2×2 Ortega. Fase 2 (enero de 2027): 4×4 Yau. Fase 3 (febrero): Pyraminx. En paralelo: 3BLD. Fase 4 (marzo y abril): Square-1. Cada una con su estado (más adelante, toca ya, en marcha, primer hito, metas cumplidas), lo que llevas (casos de CFOP que te sabes, lecciones y letras de M2, pasos y tiempos) y la condición para pasar de fase.
+- **Objetivos.** Dos hitos por modalidad, que se marcan solos: 3×3 Ao12 sub-35 y después media sub-30; 2×2 resolverlo sin ayuda y sub-10; 4×4 con Yau y paridades y sub-2:00; Pyraminx sin ayuda y sub-20; BLD tres resueltos y la constancia; Square-1 sin ayuda y sub-60. «Sin ayuda» es marcar «Ya lo resuelvo entero sin mirar» o un tiempo sin «Mirando el tutorial».
 - **Esta semana.** La rutina de 3 a 4 horas: 3 sesiones de 3×3, 1 de la modalidad nueva, 1 de BLD y 1 de solves cronometrados y revisión. La app cuenta sola los días con 10 minutos practicando en cada sección (o con suficientes tiempos, o con una ronda de 5); lo que practicaste sin la app se suma con +1. Debajo, el tiempo practicado de cada día.
 - **Prioridad inmediata y punto de partida.** Qué parte del solve es el F2L (de tus últimos solves con fases, o el 57 % del roadmap) y tus números de noviembre de 2026 frente a los de ahora.
 - **Tu competición.** La fecha, el nombre y su página de la WCA (con el enlace al calendario oficial): la cuenta atrás y, en las últimas cuatro semanas, la lista de lo que toca (eventos y límites, rondas de 5 en cada modalidad, la inspección, el BLD cronometrado entero, ejecuciones seguras, el reglamento), con lo que la app ve marcado solo.
@@ -258,7 +258,7 @@ Cuatro páginas iguales, una por modalidad, con su método para empezar y lo que
 | Modalidad | Método | Después |
 |:--|:--|:--|
 | **[2×2](https://old-pochmann-3bld.vercel.app/2x2)** | Ortega: la cara (intuitiva), OLL (7 casos, los del 2 looks) y PBL (5 casos) | CLL |
-| **[4×4](https://old-pochmann-3bld.vercel.app/4x4)** | Reducción: centros, emparejar aristas, como un 3×3 y las dos paridades | Yau |
+| **[4×4](https://old-pochmann-3bld.vercel.app/4x4)** | Yau: dos centros, tres aristas de la cruz, los otros centros, la cruz, 3-2-3, el 3×3 y las dos paridades | Bajar de 1:15 |
 | **[Pyraminx](https://old-pochmann-3bld.vercel.app/pyraminx)** | Principiante: puntas, centros, aristas de la base y la capa de arriba (5 casos) | L4E (los 35 casos, también para entrenar) |
 | **[Square-1](https://old-pochmann-3bld.vercel.app/square-1)** | Vandenbergh para empezar: forma de cubo desde la estrella (5 casos), capas, esquinas, aristas y paridad | Vandenbergh completo |
 

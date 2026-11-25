@@ -86,13 +86,29 @@ check('2×2 · PBL: both layers oriented, the bars up and down that its name say
     && (c.alts || []).every((a) => alignedSolved(M2.apply(st2[c.id], a)))),
   pbls.map((c) => `${c.id} ${bars(st2[c.id], 0)}/${bars(st2[c.id], 1)}`).join(', '));
 
-// ---- 4×4: reduction ----
+// ---- 4×4: Yau ----
 const M4 = P.make(4);
 const held4 = M4.apply(M4.solved(), 'z2');
 const T4 = C['444'];
 const st4 = Object.fromEntries(casesOf(T4).map((c) => [c.id, cubeCase(M4, held4, c)]));
+// Yau: the white centre on the left for the cross edges and the last centres (held4·z), then the cross down.
+const heldL = M4.apply(held4, 'z');
+const centreAt = (st, f) => col(M4, st, f, 5);
+const lim4 = M4.n - 1;
+const wingsWhere = (keep) => M4.stickers.map((s, i) => [s, i]).filter(([s]) => s.pos.filter((v) => Math.abs(v) === lim4).length === 2 && keep(s.pos)).map(([, i]) => i);
+const leftCross = wingsWhere((q) => q[0] === -lim4 && q[1] !== lim4);   // the left face's edges but the top one
+const downCross = wingsWhere((q) => q[1] === -lim4);
+const keeps = (st, alg, idx) => { const t = M4.apply(st, alg); return idx.every((i) => t[i] === st[i]); };
+check('4×4 · Yau: with white on the left and green in front, red is up, orange down and blue back; z\' puts the cross down with yellow up and green in front',
+  centreAt(heldL, 'L') === 'U' && centreAt(heldL, 'F') === 'F' && centreAt(heldL, 'U') === 'R' && centreAt(heldL, 'D') === 'L' && centreAt(heldL, 'B') === 'B'
+  && ORDER.every((f) => centreAt(M4.apply(heldL, "z'"), f) === centreAt(held4, f)) && centreAt(held4, 'D') === 'U',
+  ORDER.map((f) => `${f}:${centreAt(heldL, f)}`).join(' '));
+check("4×4 · Yau: the centre trick and r, Rw, R, U keep the three cross edges on the left; R U R', L' U' L and the last two edges' algorithm keep the cross down",
+  ["Rw U2 Rw'", 'r', 'Rw', 'R', 'U'].every((a) => keeps(heldL, a, leftCross))
+  && ["R U R'", "L' U' L", T4.sets.aristas.cases[0].alg].every((a) => keeps(held4, a, downCross)) && !keeps(held4, 'F', downCross));
 const bar = st4.barra;
-check('4×4 · centres: the green bar in the left column of the top centre, the right column of the front one still to do; the trick finishes the front',
+check('4×4 · centres: white on the left, the green bar in the left column of the top centre, the right column of the front one still to do; the trick finishes the front',
+  centreAt(bar, 'L') === 'U' &&
   col(M4, bar, 'U', 5) === 'F' && col(M4, bar, 'U', 9) === 'F' && col(M4, bar, 'F', 5) === 'F' && col(M4, bar, 'F', 9) === 'F' && col(M4, bar, 'F', 6) !== 'F' && col(M4, bar, 'F', 10) !== 'F'
   && uniform([5, 6, 9, 10].map((k) => col(M4, M4.apply(bar, T4.sets.centros.cases[0].alg), 'F', k))));
 const cr = st4.cruzadas;

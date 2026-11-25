@@ -1,32 +1,48 @@
-// 4×4 by reduction, for its event page: centres, pairing the edges, solving it as a 3×3 and the two parities,
-// with what comes next (Yau). Every algorithm is checked in tests/e2e/eventos.js against the cube model: the
-// pictures are the cases they solve. Data only.
+// 4×4 with Yau, for its event page: two opposite centres, three cross edges, the last four centres, the last
+// cross edge, the other eight edges with 3-2-3, the 3×3 stage and the two parities; after it, getting under the
+// 1:15 cutoff. Every algorithm is checked in tests/e2e/eventos.js against the cube model: the pictures are the
+// cases they solve (and the centre and edge tricks keep the cross). Data only.
 (function (root) {
   'use strict';
   const C = root.EvContent = root.EvContent || {};
   C['444'] = {
-    id: '444', name: '4×4', method: 'Reducción', puzzle: 'cube4', hold: 'z2',
-    lead: 'La <b>reducción</b> convierte el 4×4 en un 3×3 grande: haces los <b>centros</b> (cuatro piezas cada uno), <b>emparejas las aristas</b> de dos en dos y lo resuelves con tu <b>CFOP</b>. Al final pueden salir dos casos que el 3×3 no tiene, las <b>paridades</b>, cada una con su algoritmo.',
-    solo: 'Ya lo resuelvo entero, con las paridades, sin mirar',
-    holdNote: 'Los dibujos van con el amarillo arriba y el verde delante, como en el 3×3 con la cruz blanca abajo. En gris, lo que no hace falta mirar en ese paso.',
+    id: '444', name: '4×4', method: 'Yau', puzzle: 'cube4', hold: 'z2',
+    lead: 'El <b>Yau</b> es la reducción en otro orden: dos <b>centros</b> opuestos, <b>tres aristas de la cruz</b>, los cuatro centros que faltan, la <b>última arista de la cruz</b> y las ocho aristas que quedan, emparejadas de tres en tres con el <b>3-2-3</b>. Llegas al F2L con la cruz ya hecha y casi sin girar el cubo. Lo demás es tu <b>CFOP</b> y las dos <b>paridades</b>. Es lo que usa casi todo el mundo para bajar de 1:15, el corte de muchas competiciones.',
+    solo: 'Ya lo resuelvo entero con Yau, con las paridades, sin mirar',
+    holdNote: 'Los dibujos van con el amarillo arriba y el verde delante, como en el 3×3 con la cruz blanca abajo; el de los centros, con el blanco a la izquierda, como lo tienes en ese paso. En gris, lo que no hace falta mirar.',
     notation: '<p><b>R</b>, <b>U</b>, <b>F</b>, <b>L</b>, <b>D</b> y <b>B</b> giran solo la capa de fuera de esa cara. <b>Rw</b> («w» de <i>wide</i>, ancho) gira las <b>dos capas</b> de la derecha a la vez. Igual <b>Uw</b>, <b>Fw</b>, <b>Lw</b>… Con <b>\'</b> al revés y con <b>2</b> media vuelta.</p><p>En minúscula, <b>r</b> (o <b>2R</b>) gira <b>solo la capa de dentro</b> de la derecha, sin la de fuera. Ojo: en algunas guías la minúscula significa lo mismo que Rw; aquí siempre es solo la de dentro. <b>x</b>, <b>y</b> y <b>z</b> giran el cubo entero.</p><p>Las mezclas de la WCA usan R, U, F, L, D, B y las anchas Rw, Uw y Fw, desde el blanco arriba y el verde delante.</p>',
     steps: [
       {
-        id: 'centros', name: 'Los centros', short: 'Centros',
-        html: '<p>Cada centro son 4 piezas. Primero el <b>blanco</b>: junta dos blancas en una barra, haz otra barra y únelas. Luego el <b>amarillo</b>, en la cara opuesta, con giros de capas de dentro (r, Rw) que no rompan el blanco.</p><p>Quedan cuatro centros. Antes de seguir, comprueba el <b>orden</b>: con el blanco arriba y el verde delante, el <b>rojo va a la derecha</b>, el azul detrás y el naranja a la izquierda. Si no, acabarás con dos centros cambiados. Con el blanco y el amarillo arriba y abajo, haz barras en la cara de arriba o de delante y llévalas a su sitio con un truco como este, que mete una barra de arriba en la columna derecha del centro de delante sin tocar los demás centros:</p>',
-        tip: 'El truco de las barras: Rw sube la columna derecha de delante, U2 cambia de sitio las columnas de arriba y Rw\' baja la barra nueva.',
+        id: 'centros', name: 'Dos centros opuestos', short: '2 centros',
+        html: '<p>Cada centro son 4 piezas. Haz el <b>blanco</b> como en la reducción: junta dos blancas en una barra, haz otra y únelas. Luego el <b>amarillo</b>, en la cara opuesta, con giros de capas de dentro (r, Rw) que no rompan el blanco.</p><p>Al acabar, coge el cubo con el <b>blanco a la izquierda</b> y el amarillo a la derecha. Así lo tendrás hasta terminar la cruz.</p>',
+        tip: 'Mira dónde quedan las piezas de los otros centros mientras haces el amarillo: te ahorra buscarlas luego.',
+      },
+      {
+        id: 'cruz3', name: 'Tres aristas de la cruz', short: '3 de la cruz',
+        html: '<p>Con el blanco a la izquierda, empareja tres aristas blancas y ponlas alrededor del centro blanco: <b>delante</b>, <b>abajo</b> y <b>detrás</b> de la cara izquierda. La de <b>arriba</b> la dejas libre, porque la necesitas para mover piezas en el paso siguiente.</p><p>Para emparejar una arista, pon sus dos mitades en la misma capa de dentro con giros de fuera (U, R, F…) y júntalas con esa capa (r, l o u). Llévala a su sitio enseguida y deshaz la capa de dentro. Como los otros centros aún no están, solo importa el orden entre ellas: con el verde delante, la <b>blanca-verde delante</b>, la <b>blanca-naranja abajo</b> y la <b>blanca-azul detrás</b>.</p>',
+        tip: 'Es el paso más difícil del Yau al principio. Si tardas mucho, haz primero una arista bien y luego otra: la velocidad llega sola.',
+      },
+      {
+        id: 'centros4', name: 'Los cuatro centros que faltan', short: '4 centros',
+        html: '<p>Ahora los centros de arriba, delante, abajo y detrás, todos alrededor de la capa del medio. La regla: <b>nada de giros que muevan las tres aristas de la cruz</b>. Usa r, Rw, R y U, que no tocan la cara izquierda. Si hace falta, gira la cara izquierda para llevar el hueco libre de la cruz adonde estorbe menos, y vuelve a ponerla al acabar.</p><p>El orden: con el blanco a la izquierda y el verde delante, el <b>rojo va arriba</b>, el naranja abajo y el azul detrás. El truco de las barras de la reducción sigue valiendo, porque no toca la cara izquierda:</p>',
+        tip: 'Pon el pulgar en la arista de delante de la cruz y el dedo corazón en la de detrás, y no los sueltes: así tu mano no hace sin querer un giro que la rompa.',
         set: 'centros',
       },
       {
-        id: 'aristas', name: 'Emparejar las aristas', short: 'Aristas',
-        html: '<p>Cada arista del 4×4 son dos piezas («alas») que tienen que ir juntas, como una sola arista de 3×3. Hay 12 aristas dobles.</p><p>El método fácil (<i>slice-flip-slice</i>): busca dos aristas dobles con las mitades cruzadas y ponlas <b>delante a la izquierda</b> y <b>delante a la derecha</b>, como en el dibujo. Uw\' junta las dos mitades buenas. R U R\' F R\' F\' R saca arriba la arista ya emparejada y mete en su lugar una sin hacer. Uw vuelve a poner bien los centros. Repítelo hasta que estén las 12.</p>',
-        tip: 'Mientras haces Uw\' los centros se descolocan un momento: no hagas nada más hasta el Uw del final.',
+        id: 'cruz4', name: 'La última arista de la cruz', short: 'Cruz',
+        html: '<p>Empareja la <b>blanca-roja</b> igual que las otras y métela en el hueco de arriba de la cara izquierda, con cuidado de no romper los centros: si mueves una capa de dentro para emparejarla, deshazla antes de que se descoloque nada más.</p><p>Luego gira el cubo para tener la <b>cruz abajo</b> (z\'), con el amarillo arriba y el verde delante. Ya tienes la cruz del 3×3 hecha.</p>',
+        tip: 'Esta arista también puedes hacerla con la cruz ya abajo, si te la encuentras más fácil así.',
+      },
+      {
+        id: 'aristas', name: 'Las ocho aristas: 3-2-3', short: '3-2-3',
+        html: '<p>Con la cruz abajo, quedan 8 aristas, y abajo no hay ninguna: tienes toda la capa de arriba y los cuatro huecos del F2L para moverlas sin girar el cubo.</p><p><b>El 3:</b> haz Uw (o Uw\'), que descoloca los centros a propósito. Mientras están así, coloca tres alas junto a la mitad que les falta en la capa del medio, con giros como R U R\' o L\' U\' L, que meten y sacan aristas de los huecos sin romper la cruz. Deshaz el Uw y se emparejan las tres de golpe. <b>El 2:</b> otra vez lo mismo, con dos. <b>El 3:</b> y con las tres últimas; las dos del final, si se quedan cruzadas delante, con este algoritmo, que tampoco rompe la cruz:</p>',
+        tip: 'Al principio, haz el 3-2-3 de dos en dos y sin prisas. Lo importante es no hacer nada más mientras los centros están descolocados.',
         set: 'aristas',
       },
       {
-        id: '3x3', name: 'Como un 3×3', short: '3×3',
-        html: '<p>Con los centros hechos y las aristas emparejadas, el 4×4 se comporta como un 3×3: cruz, F2L, OLL y PLL con tus algoritmos de siempre. Solo puedes usar giros de las capas de fuera (R, U, F…), para no romper lo que ya has hecho.</p><p>La única diferencia: no hay un centro fijo que te diga el color de cada cara, así que mira bien los cuatro centros (el orden del paso 1).</p>',
-        tip: 'Si te cuesta seguir las aristas dobles en la cruz, haz la cruz con más calma: es donde más se nota el cambio del 3×3 al 4×4.',
+        id: '3x3', name: 'F2L, OLL y PLL', short: '3×3',
+        html: '<p>Con los centros hechos, las aristas emparejadas y la cruz abajo, sigue con tu CFOP del 3×3 desde el F2L. Solo puedes usar giros de las capas de fuera (R, U, F…), para no romper lo que ya has hecho.</p><p>No hay un centro fijo que te diga el color de cada cara, así que mira bien los cuatro centros y la cruz.</p>',
+        tip: 'Tu F2L del 3×3 vale tal cual: es donde más tiempo ganas si ya lo tienes fluido.',
       },
       {
         id: 'paridades', name: 'Las paridades', short: 'Paridades',
@@ -39,13 +55,13 @@
       centros: {
         name: 'Barras de los centros', pic: 'net', mask: 'centres',
         cases: [
-          { id: 'barra', name: 'Barra de arriba al centro de delante', how: 'La barra verde en la columna izquierda del centro de arriba, y la columna derecha del de delante por hacer.', alg: "Rw U2 Rw'" },
+          { id: 'barra', name: 'Barra de arriba al centro de delante', how: 'Con el blanco a la izquierda: la barra verde en la columna izquierda del centro de arriba, y la columna derecha del de delante por hacer.', alg: "Rw U2 Rw'", setup: "z Rw U2 Rw'" },
         ],
       },
       aristas: {
-        name: 'Emparejar', pic: 'net', mask: 'nocorners',
+        name: 'Las dos últimas', pic: 'net', mask: 'nocorners',
         cases: [
-          { id: 'cruzadas', name: 'Dos aristas cruzadas', how: 'Delante a la izquierda y delante a la derecha, dos aristas dobles con las mitades cambiadas entre sí.', alg: "Uw' R U R' F R' F' R Uw" },
+          { id: 'cruzadas', name: 'Las dos últimas, cruzadas', how: 'Con la cruz abajo y lo demás emparejado: delante a la izquierda y delante a la derecha, las dos aristas dobles que quedan, con las mitades cambiadas entre sí.', alg: "Uw' R U R' F R' F' R Uw" },
         ],
       },
       paridades: {
@@ -60,9 +76,9 @@
     train: ['paridades'],
     cheat: ['paridades'],   // full screen, «Mirando el tutorial»: only the parities in sight
     next: {
-      title: 'Después: Yau',
-      html: '<p><b>Yau</b> es lo que usa casi todo el mundo para bajar de un minuto. Haces dos centros opuestos (blanco y amarillo) y tres aristas de la cruz. Luego los cuatro centros que quedan y la cuarta arista de la cruz, y el resto de aristas emparejadas de dos en dos con <i>3-2-3</i>. Después, F2L como en el 3×3. Es la misma idea de la reducción, en otro orden: ves la cruz mucho antes y no tienes que buscarla después.</p>',
-      link: { href: 'https://www.speedsolving.com/wiki/index.php/Yau_method', text: 'El método Yau (SpeedSolving)' },
+      title: 'Después: bajar de 1:15',
+      html: '<p>En muchas competiciones, la primera ronda del 4×4 tiene un <b>corte</b>: haces dos solves y solo sigues hasta los cinco si uno baja de 1:15 (si no, cuenta tu mejor single). Bajar de ahí ya no va del método sino del <b>lookahead</b>: buscar la siguiente pieza mientras pones la que tienes. Practica centros y 3-2-3 despacio pero sin pararte, y el F2L como en el 3×3.</p>',
+      link: { href: 'https://www.jperm.net/4x4/faster', text: '4×4: cómo ir más rápido (J Perm)' },
     },
   };
 })(window);

@@ -34,8 +34,8 @@ const PAGES = ['index.html', 'fridrich.html', 'principiante.html', 'plan.html'];
 const EVENT_PAGES = [
   { file: '2x2.html', ev: '222', name: '2×2', title: '2×2 · Ortega', method: 'Ortega: cara, OLL y PBL', methodName: 'Ortega', phase: '1 · dic 2026', scripts: ['pz-cube.js', 'ev-222.js'],
     desc: 'El 2×2 con el método Ortega: la cara, los 7 casos de OLL y los 5 de PBL con sus dibujos, cronómetro con inspección y rondas de 5 como en la WCA, y entrenador de casos.' },
-  { file: '4x4.html', ev: '444', name: '4×4', title: '4×4 · Reducción', method: 'Reducción: centros, aristas y paridades', methodName: 'La reducción', phase: '2 · ene 2027', scripts: ['pz-cube.js', 'ev-444.js'],
-    desc: 'El 4×4 por reducción: centros, emparejar aristas, como un 3×3 y las dos paridades, con cronómetro con inspección y rondas de 5 como en la WCA.' },
+  { file: '4x4.html', ev: '444', name: '4×4', title: '4×4 · Yau', method: 'Yau: centros, cruz, 3-2-3 y paridades', methodName: 'El Yau', phase: '2 · ene 2027', scripts: ['pz-cube.js', 'ev-444.js'],
+    desc: 'El 4×4 con Yau: dos centros, la cruz, los otros centros, las aristas con 3-2-3, el 3×3 y las dos paridades, con cronómetro con inspección y rondas de 5 como en la WCA.' },
   { file: 'pyraminx.html', ev: 'pyram', name: 'Pyraminx', title: 'Pyraminx · Principiante y L4E', method: 'Principiante y después L4E', methodName: 'El método principiante', phase: '3 · feb 2027', scripts: ['pz-pyra.js', 'ev-pyram.js'],
     desc: 'El Pyraminx capa a capa y después L4E (sus 35 casos): dibujos, mezclas de estado aleatorio como las de la WCA, cronómetro con inspección y rondas de 5.' },
   { file: 'square-1.html', ev: 'sq1', name: 'Square-1', title: 'Square-1 · Vandenbergh', method: 'Forma, capas y permutación (Vandenbergh)', methodName: 'Vandenbergh', phase: '4 · mar/abr 2027', scripts: ['pz-sq1.js', 'ev-sq1.js'],
