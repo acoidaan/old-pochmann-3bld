@@ -99,12 +99,17 @@ const wingsWhere = (keep) => M4.stickers.map((s, i) => [s, i]).filter(([s]) => s
 const leftCross = wingsWhere((q) => q[0] === -lim4 && q[1] !== lim4);   // the left face's edges but the top one
 const downCross = wingsWhere((q) => q[1] === -lim4);
 const keeps = (st, alg, idx) => { const t = M4.apply(st, alg); return idx.every((i) => t[i] === st[i]); };
+// Pairing the cross edges: r and l keep the white and yellow centres (left and right); u, d, f and b don't.
+const lrCentres = (st) => ['L', 'R'].every((f) => uniform([5, 6, 9, 10].map((k) => col(M4, st, f, k))));
+check('4×4 · Yau: the cross edges pair with r and l, which keep the white and yellow centres; u, d, f and b break them; F, B and D move the edges already in',
+  ['r', 'l', "r'", 'l2'].every((a) => lrCentres(M4.apply(heldL, a))) && ['u', 'd', 'f', 'b'].every((a) => !lrCentres(M4.apply(heldL, a)))
+  && ['F', 'B', 'D'].every((a) => !keeps(heldL, a, leftCross)));
 check('4×4 · Yau: with white on the left and green in front, red is up, orange down and blue back; z\' puts the cross down with yellow up and green in front',
   centreAt(heldL, 'L') === 'U' && centreAt(heldL, 'F') === 'F' && centreAt(heldL, 'U') === 'R' && centreAt(heldL, 'D') === 'L' && centreAt(heldL, 'B') === 'B'
   && ORDER.every((f) => centreAt(M4.apply(heldL, "z'"), f) === centreAt(held4, f)) && centreAt(held4, 'D') === 'U',
   ORDER.map((f) => `${f}:${centreAt(heldL, f)}`).join(' '));
 check("4×4 · Yau: the centre trick and r, Rw, R, U keep the three cross edges on the left; R U R', L' U' L and the last two edges' algorithm keep the cross down",
-  ["Rw U2 Rw'", 'r', 'Rw', 'R', 'U'].every((a) => keeps(heldL, a, leftCross))
+  ["Rw U2 Rw'", 'r', 'l', 'Rw', 'R', 'U'].every((a) => keeps(heldL, a, leftCross))
   && ["R U R'", "L' U' L", T4.sets.aristas.cases[0].alg].every((a) => keeps(held4, a, downCross)) && !keeps(held4, 'F', downCross));
 const bar = st4.barra;
 check('4×4 · centres: white on the left, the green bar in the left column of the top centre, the right column of the front one still to do; the trick finishes the front',
