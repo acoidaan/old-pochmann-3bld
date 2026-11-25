@@ -126,9 +126,13 @@ body:not(.net-2d) .net2d, body.net-2d .c3d { display: none; }
 .c3d .st.turning { transition: transform var(--turn, 110ms) ease-out; }
 .face { display: grid; grid-template-columns: repeat(3, var(--cell)); grid-template-rows: repeat(3, var(--cell)); gap: 3px; padding: 4px; background: var(--plastic); border-radius: 8px; }
 .face i { border-radius: 4px; }
+/* The other events (2×2, 4×4, Pyraminx, Square-1): their own drawing, sent ready by the page. */
+.evpic { display: grid; place-items: center; margin-top: 10px; }
+.evpic svg { display: block; width: calc(var(--cell, 16px) * 12); max-width: 100%; height: auto; }
+.evpic rect, .evpic polygon { stroke: var(--plastic); stroke-width: .7; }
 .c-U { background: var(--st-U); } .c-R { background: var(--st-R); } .c-F { background: var(--st-F); }
 .c-D { background: var(--st-D); } .c-L { background: var(--st-L); } .c-B { background: var(--st-B); }
-body.no-net .net { display: none; }
+body.no-net .net, body.no-net .evpic { display: none; }
 .stage[data-layout=derecha] .net, .stage[data-layout=izquierda] .net { --cell: 18px; margin-top: 14px; }
 .stage[data-layout=derecha] .net2d, .stage[data-layout=izquierda] .net2d { gap: 5px; }
 .stage[data-layout=derecha] .face, .stage[data-layout=izquierda] .face { gap: 2px; padding: 3px; border-radius: 6px; }
@@ -341,6 +345,7 @@ body.carbon .stage[data-learn] .scr-text .mv.next { color: #141414; }
     <p class="scrhint" id="scrHint" hidden></p>
     <div class="learnpic" id="learnPic" hidden></div>
     <div class="net" id="net" aria-hidden="true"><div class="net2d" id="net2d"></div><div class="c3d" id="c3d"><div class="c3d-cube" id="c3dCube"></div></div></div>
+    <div class="evpic" id="evPic" aria-hidden="true" hidden></div>
   </section>
 
   <section class="card stats" id="statsCard" hidden>
@@ -560,11 +565,12 @@ body.carbon .stage[data-learn] .scr-text .mv.next { color: #141414; }
     $('wait').hidden = !!s;
     if (!s) return;
     const cf = s.mode === 'cfop';
-    text($('brandTag'), cf ? 'Speedcubing · CFOP' : 'Aprendiendo 3BLD');
-    text($('who'), s.name || (cf ? (s.full ? 'CFOP completo' : 'Fridrich reducido') : 'Old Pochmann'));
-    text($('method'), cf ? (s.full ? '57 OLL y 21 PLL · algoritmos de J Perm' : 'CFOP en 2 pasos · algoritmos de J Perm') : s.name ? 'Old Pochmann · letras Speffz' : 'Letras Speffz · blanco arriba, verde delante');
+    const ev = cf && s.ev ? s.ev : null;
+    text($('brandTag'), ev ? `Speedcubing · ${ev.name}` : cf ? 'Speedcubing · CFOP' : 'Aprendiendo 3BLD');
+    text($('who'), s.name || (ev ? ev.name : cf ? (s.full ? 'CFOP completo' : 'Fridrich reducido') : 'Old Pochmann'));
+    text($('method'), ev ? `${ev.name} · ${ev.method}${ev.help ? ' · mirando el tutorial' : ''}` : cf ? (s.full ? '57 OLL y 21 PLL · algoritmos de J Perm' : 'CFOP en 2 pasos · algoritmos de J Perm') : s.name ? 'Old Pochmann · letras Speffz' : 'Letras Speffz · blanco arriba, verde delante');
     $('bldSplits').hidden = cf;
-    $('cfSplits').hidden = !cf;
+    $('cfSplits').hidden = !cf || !!ev;   // the other events have no CFOP steps
 
     // Learning progress
     const rows = [];
@@ -572,6 +578,7 @@ body.carbon .stage[data-learn] .scr-text .mv.next { color: #141414; }
       rows.push(['OLL que me sé', 'OLL', s.learned.oll[0], s.learned.oll[1], 'learn']);
       rows.push(['PLL que me sé', 'PLL', s.learned.pll[0], s.learned.pll[1], '']);
     }
+    if (ev && ev.steps) rows.push(['Pasos que me sé', 'Pasos', ev.steps[0], ev.steps[1], 'learn']);
     if (s.learn && s.learn.total) rows.push(['Tutorial', 'Tutorial', s.learn.done, s.learn.total, 'learn']);
     if (s.train) {
       rows.push(['Setups de aristas', 'Aristas', s.train.edge[0], s.train.edge[1], '']);
@@ -619,6 +626,9 @@ body.carbon .stage[data-learn] .scr-text .mv.next { color: #141414; }
       const sm = s.smart && s.smart.net ? s.smart : null;
       $('cubeTag').hidden = !sm;
       paintNet(sm ? sm.net : s.cube);
+      const ep = $('evPic');
+      ep.hidden = !(ev && ev.pic);
+      if (ev && ev.pic && ep.dataset.h !== ev.pic) { ep.dataset.h = ev.pic; ep.innerHTML = ev.pic; }
       const idle = !s.timer || s.timer.phase === 'idle';
       const f = sm && idle && sm.scr ? sm.scr : null;
       [...sc.children].forEach((el, k) => {

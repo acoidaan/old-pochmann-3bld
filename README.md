@@ -104,6 +104,8 @@ Para probar todo esto sin cubo, abre la app con [`?cubo=virtual`](https://old-po
 
 ![Overlay sobre una escena: scramble con el cubo en directo, progreso y cronómetro con letras y giros](docs/img/overlay.jpg)
 
+Es uno para toda la app: sale lo de la página que estés usando (3BLD, CFOP o las modalidades nuevas: 2×2, 4×4, Pyraminx y Square-1, con su nombre, su mezcla dibujada, la inspección y tus números de hoy) y cambia solo al pasar a otra.
+
 `overlay.html` es una página transparente de 1920×1080 pensada como fuente de navegador en OBS. Muestra quién eres y tu progreso, el scramble con su cubo, las estadísticas del día y el cronómetro con el memo (si lo escribiste y es correcto). Con el cubo inteligente, además, el cubo en directo, los giros y las letras.
 
 La app le manda el estado por dos caminos:

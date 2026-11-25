@@ -360,6 +360,41 @@ check('Square-1 scrambles: 12 slashes, every one possible', scrS.every((s) => s.
     await ctx.close();
   }
 
+  // ---------------- The OBS overlay: it follows the page in use, also the new events ----------------
+  {
+    const octx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    await octx.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
+    const sq = await octx.newPage();
+    sq.on('pageerror', (e) => errs.push(`square-1 (overlay): ${e.message}`));
+    await sq.goto(`${SITE}/square-1#crono`);
+    await sq.waitForFunction(() => window.EvPage && window.EvPage.state().scramble);
+    const ov = await octx.newPage();
+    ov.on('pageerror', (e) => errs.push(`overlay: ${e.message}`));
+    await ov.goto(`${SITE}/overlay.html`);
+    const brand = () => ov.evaluate(() => document.getElementById('brandTag').textContent);
+    await sq.bringToFront();
+    await sq.keyboard.press(' ');
+    await ov.waitForFunction(() => /Square-1/.test(document.getElementById('brandTag').textContent), null, { timeout: 8000 }).catch(() => {});
+    const o1 = await ov.evaluate(() => ({ brand: document.getElementById('brandTag').textContent, pic: !document.getElementById('evPic').hidden && !!document.querySelector('#evPic svg polygon'), net: document.getElementById('net').hidden, splits: document.getElementById('cfSplits').hidden, prog: document.getElementById('prog').textContent, pill: document.body.textContent.includes('Inspección') || document.body.textContent.includes('INSPECCIÓN') }));
+    check('overlay: the Square-1 page on stream (its name, its scramble drawn, its steps, the inspection running; no 3×3 cube nor CFOP steps)', /Square-1/.test(o1.brand) && o1.pic && o1.net && o1.splits && /Pasos que me sé/.test(o1.prog), JSON.stringify(o1));
+    await sq.keyboard.press('Escape');
+    const fr = await octx.newPage();
+    await fr.goto(`${SITE}/fridrich#crono`);
+    await fr.waitForFunction(() => window.Fridrich && window.Fridrich.scramble());
+    await fr.mouse.click(5, 5);
+    await ov.waitForFunction(() => /CFOP/.test(document.getElementById('brandTag').textContent), null, { timeout: 8000 }).catch(() => {});
+    const o2 = await brand();
+    await sq.bringToFront();
+    await sq.mouse.click(5, 5);
+    await ov.waitForFunction(() => /Square-1/.test(document.getElementById('brandTag').textContent), null, { timeout: 8000 }).catch(() => {});
+    const o3 = await brand();
+    check('overlay: it changes by itself to the page you use (CFOP, then back to the Square-1)', /CFOP/.test(o2) && /Square-1/.test(o3), `${o2} → ${o3}`);
+    await sq.evaluate(() => window.EvPage.showView('ajustes'));
+    await sq.waitForSelector('#streamBox #ovUrl');
+    check('Ajustes of the event pages: the overlay settings (the same URL and OBS link as elsewhere)', /overlay\.html/.test(await sq.inputValue('#ovUrl')));
+    await octx.close();
+  }
+
   // ---------------- Phones: no sideways scroll, nothing on top of anything ----------------
   for (const [label, opts, scheme] of [['Pixel 7', { ...devices['Pixel 7'] }, 'dark'], ['iPhone on its side', { viewport: { width: 750, height: 340 }, isMobile: true, hasTouch: true }, 'light']]) {
     for (const page of ['2x2', '4x4', 'pyraminx', 'square-1']) {

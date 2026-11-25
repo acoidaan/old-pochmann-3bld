@@ -314,6 +314,7 @@
     let pic = '';
     try { if (scramble) pic = PZ.scrPic(PZ.apply(PZ.model.solved ? PZ.model.solved() : PZ.held(), scramble), { label: 'Cómo queda el puzle tras la mezcla' }); } catch (e) { pic = ''; }
     $('scrPic').innerHTML = pic;
+    document.dispatchEvent(new CustomEvent('ev:scramble'));
   }
   $('newScr').addEventListener('click', () => { if (!['run', 'inspect', 'ihold', 'iready'].includes(timer.phase)) newScramble(); });
   const inspectOn = () => D.settings().inspect;
@@ -794,6 +795,14 @@
   window.EvPage = {
     EV, T, PZ, D, showView, caseState, openTry, newScramble, voiceLog,
     state: () => ({ phase: timer.phase, times, scramble, mode, round, view, train: tr.id }),
+    // For the stream overlay (stream.js): the clock in wall time, the puzzle after a scramble, the views.
+    timerState: () => {
+      const off = Date.now() - now();
+      const p = timer.phase;
+      return { phase: p === 'hold' || p === 'ready' ? 'idle' : ['inspect', 'ihold', 'iready'].includes(p) ? 'inspect' : p, t0: p === 'run' ? Math.round(timer.t0 + off) : 0, insp0: timer.i0 ? Math.round(timer.i0 + off) : 0, t: timer.last ? timer.last.t : 0, scramble: timer.scr || scramble };
+    },
+    scrPic: (scr) => { try { return scr ? PZ.scrPic(PZ.apply(PZ.model.solved ? PZ.model.solved() : PZ.held(), scr), {}) : ''; } catch (e) { return ''; } },
+    onView, currentView: () => view,
     setInspectStart: (ms) => { timer.i0 = now() - ms; },
   };
 

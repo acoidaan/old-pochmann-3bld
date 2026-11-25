@@ -5,11 +5,12 @@
   'use strict';
   const OP = window.OP3;
   const FR = window.Fridrich;
+  const EV = !OP && !FR ? window.EvPage : null;   // the 2×2, 4×4, Pyraminx and Square-1 pages
   const M = window.CubeModel;
   const $ = (id) => document.getElementById(id);
   const box = $('streamBox');
-  if ((!OP && !FR) || !M || !box) return;
-  const APP = OP || FR;
+  if ((!OP && !FR && !EV) || (!M && !EV) || !box) return;
+  const APP = OP || FR || EV;
 
   const CFG_KEY = 'op3bld:stream:v1';
   const DEFAULTS = { layout: 'esquinas', net: true, prog: true, memo: true, big: false, demo: false, obs: false, port: 4455, pass: '' };
@@ -164,7 +165,44 @@
       learn: FR.learnState ? FR.learnState() : null,
     };
   }
+  // The new events: as CFOP (times with penalties, today's numbers), with their name, the puzzle drawn after the
+  // scramble and the steps known instead of the cube and the cases.
+  function snapshotEv() {
+    const D = EV.D;
+    const st = EV.state();
+    const times = st.times;
+    const timer = EV.timerState();
+    const scr = timer.phase !== 'idle' && timer.scramble ? timer.scramble : st.scramble;
+    const dayStart = new Date();
+    dayStart.setHours(0, 0, 0, 0);
+    const today = times.filter((t) => t.at >= dayStart.getTime());
+    const okToday = today.filter((t) => t.pen !== 'dnf');
+    const okAll = times.filter((t) => t.pen !== 'dnf');
+    const last = times.length ? times[times.length - 1] : null;
+    let lastOut = null;
+    if (last) {
+      const before = times.slice(0, -1).filter((t) => t.pen !== 'dnf');
+      const prevBest = before.length ? Math.min(...before.map(D.value)) : null;
+      lastOut = { ok: last.pen !== 'dnf', t: last.t, pen: last.pen || 0, at: last.at, first: last.pen !== 'dnf' && !before.length, pb: last.pen !== 'dnf' && prevBest != null && D.value(last) < prevBest, sp: null, cases: '', records: [], pace: null };
+    }
+    const fin = (x) => (x === Infinity ? -1 : x);
+    const known = Object.values(D.known(EV.EV)).filter((v) => v > 0).length;
+    let moves = 0;
+    try { moves = scr ? EV.PZ.tokens(scr).length : 0; } catch (e) { moves = 0; }
+    return {
+      v: 1, mode: 'cfop', full: false, theme: theme(), at: Date.now(), src: SRC, act,
+      ev: { id: EV.EV, name: EV.T.name, method: EV.T.method, pic: EV.scrPic(scr), steps: [Math.min(known, EV.T.steps.length), EV.T.steps.length], help: !!D.settings().help },
+      name: String(readJson('op3bld:name:v1', '') || '').slice(0, 24),
+      scr, moves, cube: null, timer, last: lastOut, smart: null,
+      today: { n: today.length, ok: okToday.length, best: okToday.length ? Math.min(...okToday.map(D.value)) : null, ao5: today.length >= 5 ? fin(D.avgOf(today, 5)) : null, ao12: today.length >= 12 ? fin(D.avgOf(today, 12)) : null },
+      record: okAll.length ? Math.min(...okAll.map(D.value)) : null,
+      total: { n: times.length, ok: okAll.length },
+      recent: today.slice(-6).map((t) => ({ ok: t.pen !== 'dnf', t: D.value(t) })),
+      learned: null, learn: null,
+    };
+  }
   function snapshot() {
+    if (EV) return snapshotEv();
     if (!OP) return snapshotCfop();
     const times = OP.data.times();
     const timer = OP.timerState();
@@ -248,8 +286,8 @@
   // Smart cube turns come many per second: send at most every 150 ms, and always the last one.
   let cubeT = 0;
   let cubeAt = 0;
-  ['fr:timer'].forEach((ev) => document.addEventListener(ev, (e) => { touch(); push(e.detail && e.detail.cancelled ? { cancelled: true } : null); }));
-  ['fr:result', 'fr:scramble', 'fr:record', 'fr:train', 'fr:view'].forEach((ev) => document.addEventListener(ev, soon));
+  ['fr:timer', 'ev:timer'].forEach((ev) => document.addEventListener(ev, (e) => { touch(); push(e.detail && e.detail.cancelled ? { cancelled: true } : null); }));
+  ['fr:result', 'fr:scramble', 'fr:record', 'fr:train', 'fr:view', 'ev:changed', 'ev:scramble'].forEach((ev) => document.addEventListener(ev, soon));
   ['op3:cube', 'fr:cube'].forEach((ev) => document.addEventListener(ev, () => {
     const wait = 90 - (Date.now() - cubeAt);   // often enough for the 3D cube of the overlay to turn each layer
     if (wait <= 0) { cubeAt = Date.now(); push(); return; }
@@ -368,7 +406,9 @@
   let available = null;
   function build() {
     built = true;
-    box.innerHTML = (OP
+    box.innerHTML = (EV
+      ? `<p>El mismo overlay que en las otras secciones: si ya lo tienes en OBS, no hay que tocar nada. Al usar esta página, el directo pasa solo a ${EV.T.name}: el cronómetro con la inspección, la mezcla con el dibujo del puzle y tus números de hoy.</p>`
+      : OP
       ? '<p>Muestra en tu directo el cronómetro, el scramble con el dibujo del cubo, tus números de hoy y lo que llevas aprendido. Se actualiza solo mientras usas la app. El nombre que aparece es el de «Tu nombre en los retos», más abajo.</p>'
       : '<p>El mismo overlay que en la página de 3BLD: si ya lo tienes en OBS, no hay que tocar nada. Muestra el cronómetro con los tiempos de cruz, F2L, OLL y PLL, el caso que estás haciendo, el scramble con el cubo y tus medias de hoy. Sigue a la página que estés usando.</p>')
       + '<div class=ov-preview><iframe id=ovFrame title="Vista previa del overlay" tabindex=-1></iframe><span class=ov-cam>Tu cámara</span></div>'
