@@ -175,7 +175,9 @@ body.no-net .net, body.no-net .evpic { display: none; }
   font-family: var(--font-display); font-weight: 700; line-height: 1; margin: 16px 0 8px; white-space: nowrap;
   font-size: min(var(--max-time, 118px), calc(100cqi / var(--ems, 5)));
 }
-.time span { display: inline-block; text-align: center; }
+/* Centred even when a glyph is wider than its slot (the mono font of «Carbón»: its «:» and «.» are as wide as a
+   digit), so it spills to both sides and does not run into the next digit. */
+.time span { display: inline-flex; justify-content: center; }
 .time .d { width: .86em; }
 .time .p { width: .36em; }
 .time.dim { color: #5D6676; }

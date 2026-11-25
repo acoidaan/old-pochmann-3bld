@@ -400,6 +400,15 @@ check('Square-1 scrambles: 12 slashes, every one possible', scrS.every((s) => s.
     await ov.waitForFunction(() => /Square-1/.test(document.getElementById('brandTag').textContent), null, { timeout: 8000 }).catch(() => {});
     const o3 = await brand();
     check('overlay: it changes by itself to the page you use (CFOP, then back to the Square-1)', /CFOP/.test(o2) && /Square-1/.test(o3), `${o2} → ${o3}`);
+    // A time with minutes, in the «Carbón» look (a mono font): «:» and «.» centred in their slots, not on the digits.
+    const ovc = await octx.newPage();
+    await ovc.goto(`${SITE}/overlay.html?tema=carbon`);
+    await ovc.waitForTimeout(300);
+    await ovc.evaluate(() => { const now = Date.now(); new BroadcastChannel('op3bld-live').postMessage({ type: 'state', p: JSON.stringify({ v: 1, mode: 'cfop', at: now, src: 'test', act: now + 60000, scr: 'R U', moves: 2, cube: null, timer: { phase: 'done', t: 229380 }, last: { ok: true, t: 229380, pen: 0, at: now }, today: { n: 1, ok: 1, best: 229380 }, total: { n: 1, ok: 1 }, recent: [] }) }); });
+    await ovc.waitForFunction(() => document.getElementById('time').textContent === '3:49.38', null, { timeout: 5000 }).catch(() => {});
+    const slots = await ovc.evaluate(() => [...document.querySelectorAll('#time span')].map((x) => { const r = x.getBoundingClientRect(); const g = document.createRange(); g.selectNodeContents(x); const ink = g.getBoundingClientRect(); return Math.abs((ink.left + ink.right) / 2 - (r.left + r.right) / 2) < 2; }));
+    check('overlay: a time with minutes in «Carbón» (3:49.38), every character centred in its slot', (await ovc.textContent('#time')) === '3:49.38' && slots.length === 7 && slots.every(Boolean), JSON.stringify(slots));
+    await ovc.close();
     await sq.evaluate(() => window.EvPage.showView('ajustes'));
     await sq.waitForSelector('#streamBox #ovUrl');
     check('Ajustes of the event pages: the overlay settings (the same URL and OBS link as elsewhere)', /overlay\.html/.test(await sq.inputValue('#ovUrl')));
