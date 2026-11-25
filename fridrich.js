@@ -29,10 +29,14 @@
     trlog: 'cfop:trlog:v1', player: 'cfop:player:v1', ligas: 'cfop:ligas:v1', ligaPub: 'cfop:liga-pub:v1', ligaSeen: 'cfop:liga-seen:v1',
     name: 'op3bld:name:v1', session: FULL ? 'cfop:session-full:v1' : 'cfop:session:v1', sessions: 'cfop:sessions:v1',
     ltimes: 'cfop:ltimes:v1', scrMeta: FULL ? 'cfop:scrmeta-full:v1' : 'cfop:scrmeta:v1',   // each page its own scramble: its phases come from its own cases
+    round: 'cfop:round:v1', rmode: 'cfop:rmode:v1',   // the round of 5 in progress and «Libre» or «Ronda de 5» (this device)
   };
   const load = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; } catch (e) { return d; } };
   const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* this visit only */ } };
   const settings = { inspect: false, help: true, sound: true, vibrate: true, cross: 'U', timed: true, trMode: 'cube', chart: 50, pace: 'avg', celebrate: true, peek: {}, scrMode: 'full', scrCases: 'kl', phases: false, phaseSound: true, voice: true, voiceSrc: 'clip', voiceName: '', ...load(K.set, {}) };
+  // The round of 5 (see «Rounds of 5»): «Libre» or «Ronda de 5», and the round in progress ({ rd }).
+  let rmode = load(K.rmode, 'free') === 'round' ? 'round' : 'free';
+  let round = load(K.round, null);
   if (!['full', 'cf2l', 'f2l', 'll', 'pll'].includes(settings.scrMode)) settings.scrMode = 'full';
   if (!['known', 'kl', 'all'].includes(settings.scrCases)) settings.scrCases = 'kl';
   // The algorithm in view is chosen case by case (the eye on each case); the old switch for all of them goes.
@@ -133,8 +137,15 @@
     const h = location.hash.slice(1);
     const inv = h.match(/^liga[=/]([a-z0-9]{8})$/i);
     if (inv) { openInvite(inv[1].toLowerCase()); return; }
+    if (h === 'ronda') { openRound(); return; }
     if (VIEWS.includes(h) && h !== view) showView(h);
   });
+  // «#ronda» (from «Mi plan»): the clock with a round of 5, on whole solves.
+  function openRound() {
+    if (settings.scrMode !== 'full') { $('scrMode').value = 'full'; $('scrMode').dispatchEvent(new Event('change')); }
+    setRoundMode('round');
+    showView('crono');
+  }
 
   function toast(msg) {
     const t = $('toast');
@@ -649,6 +660,10 @@
       return;
     }
     const prevBests = bestsOf(times);
+    const inRound = roundOn() ? roundNow() : null;
+    if (roundOn()) {
+      if (inRound) { r.rd = inRound.id; r.ri = inRound.times.length; } else { r.rd = r.at; r.ri = 0; round = { rd: r.at }; save(K.round, round); }
+    }
     times.push(r);
     if (times.length > 2000) times = times.slice(-2000);
     // The turns of each solve are kept for the last 500.
@@ -670,6 +685,10 @@
     }
     renderSplits(r);
     renderStats();
+    if (r.rd && r.ri === 4) {
+      const done = roundsOf(times).find((x) => x.id === r.rd);
+      if (done && done.done) setTimeout(() => toast(`Ronda terminada: media ${fmt(done.avg)}`), recs.length ? 1800 : 0);
+    }
     emit('result', r);
     duelResult(r);
     if (recs.length) ligaPublish().then((done) => announceRank(done, recs)); else ligaPublishSoon();
@@ -1562,6 +1581,78 @@
   // ================= Stats and history =================
   let histShown = 25;
   const openRc = new Set();
+  // ================= Rounds of 5 =================
+  // As in a competition: five solves in a row and their WCA average. Each solve of a round keeps when the round
+  // began (`rd`) and its place in it (`ri`), so it travels with the sync and survives a deleted solve; the round
+  // in progress and the mode are this device's. Only for whole solves.
+  function roundOn() { return rmode === 'round' && settings.scrMode === 'full'; }
+  function roundsOf(list) {
+    const by = new Map();
+    list.forEach((r) => { if (r.rd) { if (!by.has(r.rd)) by.set(r.rd, []); by.get(r.rd).push(r); } });
+    return [...by.entries()].map(([id, rs]) => {
+      const ts = rs.sort((a, b) => (a.ri || 0) - (b.ri || 0) || a.at - b.at).slice(0, 5);
+      const done = ts.length === 5;
+      const ok = ts.filter((r) => r.pen !== 'dnf').map(value);
+      return { id, at: ts[ts.length - 1].at, times: ts, done, avg: done ? avgOf(ts, 5) : null, best: ok.length ? Math.min(...ok) : null };
+    }).sort((a, b) => a.id - b.id);
+  }
+  // The two times WCA results write in brackets, because they do not count: the best and the worst (a DNF is the
+  // worst), the first of each when two are the same.
+  function trimmed(list) {
+    if (list.length !== 5) return new Set();
+    const vs = list.map(value);
+    const lo = vs.indexOf(Math.min(...vs));
+    const hi = vs.indexOf(Math.max(...vs));
+    return new Set([lo, hi === lo ? vs.lastIndexOf(Math.max(...vs)) : hi]);
+  }
+  function fmtAvg5(list) { const out = trimmed(list); return list.map((r, i) => (out.has(i) ? `(${fmtRes(r)})` : fmtRes(r))).join(' '); }
+  function roundShown() { return round ? roundsOf(times).find((x) => x.id === round.rd) || null : null; }
+  // The round the next solve goes into, if one is under way.
+  function roundNow() { const cur = roundShown(); return cur && !cur.done ? cur : null; }
+  function renderRound() {
+    const full = settings.scrMode === 'full';
+    $('roundSeg').hidden = !full;
+    $('modeFree').setAttribute('aria-pressed', String(rmode !== 'round'));
+    $('modeRound').setAttribute('aria-pressed', String(rmode === 'round'));
+    const box = $('round');
+    box.hidden = !roundOn();
+    if (box.hidden) return;
+    const shown = roundShown();
+    const going = shown && !shown.done ? shown : null;
+    const out = shown && shown.done ? trimmed(shown.times) : new Set();
+    const slots = [0, 1, 2, 3, 4].map((i) => {
+      const r = shown ? shown.times[i] : null;
+      const cls = r ? `done${out.has(i) ? ' drop' : ''}` : (going ? i === going.times.length : i === 0) ? 'cur' : '';
+      return `<li class="${cls}"><span class="muted">${i + 1}</span><b>${r ? esc(out.has(i) ? `(${fmtRes(r)})` : fmtRes(r)) : '—'}</b></li>`;
+    }).join('');
+    const foot = shown && shown.done
+      ? `<p class="ev-round-avg">Media de la ronda: <b>${fmt(shown.avg)}</b> · mejor ${fmt(shown.best)}</p><p class="hint">Como en la WCA: fuera el mejor y el peor (entre paréntesis) y la media de los otros tres. El siguiente solve empieza otra ronda.</p>`
+      : `<p class="hint">Cinco solves seguidos, como en una ronda de competición${settings.inspect ? ', con inspección' : '. Para que sea como allí, pon la inspección en Ajustes'}. Al quinto, la media.</p>`;
+    box.innerHTML = `<div class="ev-round-head"><span class="field-title">Ronda de 5${going ? ` · intento ${going.times.length + 1} de 5` : ''}</span>${going ? '<button class="btn" type="button" id="roundNew">Empezar otra</button>' : ''}</div><ol class="ev-round-slots">${slots}</ol>${foot}`;
+    const nb = $('roundNew');
+    if (nb) nb.addEventListener('click', () => { round = null; save(K.round, null); renderRound(); renderFocus(); });
+  }
+  function setRoundMode(m) {
+    rmode = m;
+    save(K.rmode, m);
+    renderRound();
+    renderFocus();
+  }
+  $('modeFree').addEventListener('click', () => setRoundMode('free'));
+  $('modeRound').addEventListener('click', () => setRoundMode('round'));
+  // «Progreso»: every round done, the newest first, and the best one.
+  function renderRoundsProgress() {
+    const rs = roundsOf(times).filter((r) => r.done);
+    $('progRoundsPanel').hidden = !rs.length;
+    if (!rs.length) return;
+    const fin = rs.filter((r) => Number.isFinite(r.avg));
+    const best = fin.length ? fin.reduce((a, r) => (r.avg < a.avg ? r : a)) : null;
+    $('progRounds').innerHTML = `<div class="stats"><div class="stat"><span>Rondas</span><b>${rs.length}</b></div><div class="stat"><span>Mejor media</span><b>${best ? fmt(best.avg) : '—'}</b></div><div class="stat"><span>Última</span><b>${fmt(rs[rs.length - 1].avg)}</b></div></div>`
+      + `<div class="fr-table" tabindex="0" role="region" aria-label="Tus rondas de 5"><table><thead><tr><th scope="col">Cuándo</th><th scope="col">Media</th><th scope="col">Tiempos</th></tr></thead><tbody>${
+        rs.slice(-30).reverse().map((r) => `<tr${r === best ? ' class="pb"' : ''}><td class="muted">${new Date(r.at).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}</td><td><b>${fmt(r.avg)}</b>${r === best ? ' <span class="muted">· la mejor</span>' : ''}</td><td class="muted">${esc(fmtAvg5(r.times))}</td></tr>`).join('')}</tbody></table></div>`;
+  }
+  onView('progreso', renderRoundsProgress);
+
   function renderStats() {
     const list = listOf(listMode);
     const ok = list.filter((r) => r.pen !== 'dnf');
@@ -1580,6 +1671,7 @@
     if (listMode === 'full') renderPhases(); else $('phases').hidden = true;
     renderChart();
     renderHistory();
+    renderRound();
     renderFocus();
   }
   // Average of each part over the last 12 solves with their parts timed: by the cube or by phases by hand.
@@ -3677,7 +3769,23 @@
       return `<span${cls ? ` class="${cls}"` : ''}>${esc(out.has(i) ? `(${fmtRes(t)})` : fmtRes(t))}</span>`;
     }).join('');
     const fr = $('focusRecent');
-    const html = row ? `<span class="sr-only">${w0 < recent.length ? 'Tus últimos solves de hoy; los 5 últimos son tu ao5, y entre paréntesis el mejor y el peor, que no cuentan:' : 'Tus últimos solves de hoy:'}</span>${row}` : '';
+    let html = row ? `<span class="sr-only">${w0 < recent.length ? 'Tus últimos solves de hoy; los 5 últimos son tu ao5, y entre paréntesis el mejor y el peor, que no cuentan:' : 'Tus últimos solves de hoy:'}</span>${row}` : '';
+    // In a round of 5, the round instead: its five attempts (the ones to come, «—»), in brackets once done, and
+    // which attempt comes next.
+    if (roundOn()) {
+      const rd = roundShown();
+      const rt = rd ? rd.times : [];
+      const outR = rd && rd.done ? trimmed(rt) : new Set();
+      html = `<span class="sr-only">Tu ronda de 5${outR.size ? '; entre paréntesis el mejor y el peor, que no cuentan' : ''}:</span>${[0, 1, 2, 3, 4].map((i) => {
+        const t = rt[i];
+        if (!t) return '<span class="todo">—</span>';
+        const cls = [outR.has(i) ? 'drop' : 'in', t.pen === 'dnf' ? 'dnf' : '', i === rt.length - 1 ? 'last' : ''].filter(Boolean).join(' ');
+        return `<span class="${cls}">${esc(outR.has(i) ? `(${fmtRes(t)})` : fmtRes(t))}</span>`;
+      }).join('')}`;
+      const st = rd && rd.done ? [`Ronda de 5 · media <b>${fmt(rd.avg)}</b>`, `mejor <b>${fmt(rd.best)}</b>`] : [`Ronda de 5 · intento <b>${rt.length + 1}</b> de 5`];
+      if (timer.last) st.push(`último <b>${fmtRes(timer.last)}</b>`);
+      $('focusStats').innerHTML = st.join(' · ');
+    }
     if (fr.dataset.h !== html) { fr.dataset.h = html; fr.innerHTML = html; }
     $('focusNew').disabled = $('newScr').disabled;
     // With the cube and the help on: the step and the case, in one line.
@@ -4119,13 +4227,14 @@
     paceFor: (r) => { const pf = settings.pace !== 'off' ? paceFor(r) : null; return pf ? { d: pf.rows.map((x) => Math.round(x.d)), gold: pf.rows.map((x) => x.gold), total: Math.round(pf.total), label: pf.label } : null; },
     recordsOf,
     // For tests.
-    _: { simSolution, caseTarget, nextCase, rankByTraining, trainRec: () => train, nowPic, liveTrack: () => track, tr, settings, logTr, celebrate, paceRef, bestsOf, paceTick, myBests, ligaPublish, player, loadLeague, lg, session: () => session, endSession, startSession, openPicker, follow: () => follow, makeFollow, partialKeys, setScramble, makeTry, ct, vibes, syncNow, syncPlan, mergeIn, syncData, offerUpdate, focus: () => focus.on, timer },
+    _: { simSolution, caseTarget, nextCase, rankByTraining, trainRec: () => train, nowPic, liveTrack: () => track, tr, settings, logTr, celebrate, paceRef, bestsOf, paceTick, myBests, ligaPublish, player, loadLeague, lg, session: () => session, endSession, startSession, openPicker, follow: () => follow, makeFollow, partialKeys, setScramble, makeTry, ct, vibes, syncNow, syncPlan, mergeIn, syncData, offerUpdate, focus: () => focus.on, timer, roundsOf, trimmed, round: () => round, rmode: () => rmode },
   };
 
   // ================= Start =================
   const first = location.hash.slice(1);
   const invite = first.match(/^liga[=/]([a-z0-9]{8})$/i);
   if (invite) openInvite(invite[1].toLowerCase());
+  else if (first === 'ronda') openRound();
   else showView(VIEWS.includes(first) ? first : load(K.view, 'crono'));
   renderMode();
   renderStats();

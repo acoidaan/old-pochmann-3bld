@@ -10,12 +10,15 @@ const results = [];
 const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}${extra ? ' — ' + extra : ''}`);
 
 // What the other sections would have saved: 12 CFOP solves a minute apart today (Ao12 about 31,5 s, every one
-// timed by phases), three correct 3BLD attempts, a 2×2 round of 5, and a few cases known in CFOP.
+// timed by phases, the first ten two rounds of 5), three correct 3BLD attempts, a 2×2 round of 5, and a few cases
+// known in CFOP.
 function seed(level) {
   if (localStorage.getItem('seeded')) return;
   localStorage.setItem('seeded', '1');
   const now = Date.now();
-  const cfop = Array.from({ length: 12 }, (_, i) => ({ at: now - (12 - i) * 60000, t: 30000 + i * 250, pen: 0, scr: 'R U', ph: [5000, 17000, 6000, 3000] }));
+  // The first ten as two rounds of 5 (CFOP's «Ronda de 5»).
+  const at = (i) => now - (12 - i) * 60000;
+  const cfop = Array.from({ length: 12 }, (_, i) => ({ at: at(i), t: 30000 + i * 250, pen: 0, scr: 'R U', ph: [5000, 17000, 6000, 3000], ...(i < 10 ? { rd: at(i - (i % 5)), ri: i % 5 } : {}) }));
   localStorage.setItem('cfop:times:v1', JSON.stringify(cfop));
   localStorage.setItem('cfop:learn:v1', JSON.stringify({ 'oll-1': 'known', 'oll-2': 'known', 'pll-Aa': 'known', f2l1: 'known', 'oll-3': 'learning' }));
   localStorage.setItem('op3bld:times:v1', JSON.stringify(Array.from({ length: 3 }, (_, i) => ({ at: now - (5 - i) * 600000, memo: 120000, exec: 60000, ok: true, scr: "R U F2 L' D B" }))));
@@ -86,7 +89,7 @@ function seed(level) {
   const comp = await p.evaluate(() => ({ count: document.getElementById('count').textContent, h: document.getElementById('hToday').textContent, href: document.querySelector('#today a.btn').getAttribute('href'), items: [...document.querySelectorAll('#prep [data-prep]')].map((b) => `${b.dataset.prep}:${b.checked ? 1 : 0}${b.disabled ? 'a' : ''}`).join(' '), rounds: [...document.querySelectorAll('#prep .pl-rounds a')].map((a) => a.textContent).join(' '), limits: !!document.querySelector('#prep a[href*="Prueba2027"]') }));
   check('20 days to go, in the last four weeks: the countdown with its name', /20\s*días para Open de Prueba 2027/.test(comp.count) && /Últimas 4 semanas/.test(comp.count), comp.count);
   check('then today is a round of 5 of the event with fewest rounds lately (the 4×4)', comp.h === 'Simula una ronda de 5 de 4×4' && comp.href === '4x4#crono', `${comp.h} ${comp.href}`);
-  check('the checklist: rounds per event (3×3 from CFOP solves in a row), inspection and BLD ticked by themselves, the competition\'s page linked',
+  check('the checklist: rounds per event (3×3 from CFOP\'s rounds of 5), inspection and BLD ticked by themselves, the competition\'s page linked',
     comp.items === 'limits:0 rounds:0 inspect:1a bld:1a safe:0 rules:0' && comp.rounds === '3×3: 2 2×2: 1 4×4: 0 Pyraminx: 0 Square-1: 0' && comp.limits, `${comp.items} · ${comp.rounds}`);
   await p.check('#prep [data-prep="limits"]');
   await p.reload();

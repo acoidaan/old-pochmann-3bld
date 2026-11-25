@@ -74,18 +74,6 @@
 .ev-scrpic[open] summary { margin-bottom: 8px; }
 .ev-scrpic svg { width: min(100%, 360px); }
 .ev-focus-close { display: none; }
-.ev-round { display: grid; gap: 8px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--raise); }
-.ev-round-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.ev-round-head .btn { padding: 3px 12px; font-size: 13px; }
-.ev-round-slots { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
-.ev-round-slots li { display: grid; gap: 1px; justify-items: center; padding: 6px 2px; border: 1px solid var(--line); border-radius: 9px; font-variant-numeric: tabular-nums; min-width: 0; }
-.ev-round-slots li b { font-family: var(--font-mono); font-size: 14px; }
-.ev-round-slots li.done { border-color: var(--ok); }
-.ev-round-slots li.drop b { color: var(--muted); font-weight: 600; }
-.ev-round-slots li.cur { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
-.ev-round-avg { margin: 0; font-size: 15px; }
-.ev-round-avg b { font-family: var(--font-display); font-size: 20px; }
-.ev-round p { margin: 0; }
 /* Full screen: the scramble and the clock, nothing else. */
 body.ev-focus .fr-head, body.ev-focus .tabs, body.ev-focus .panel-head, body.ev-focus .ev-opts, body.ev-focus .stats,
 body.ev-focus .history, body.ev-focus #histMore, body.ev-focus .ev-scrpic, body.ev-focus .view:not([data-view="crono"]) { display: none !important; }

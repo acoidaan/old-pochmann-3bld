@@ -122,7 +122,8 @@ check('4×4 · OLL parity: one double edge flipped and nothing else; after the a
   && f2lOf(opAfter) === f2lOf(held4) && unpaired(M4, opAfter).length === 0 && centresDone(M4, opAfter) && reduced(M4, opAfter, held4).topEdges && reduced(M4, opAfter, held4).even,
   JSON.stringify(reduced(M4, opAfter, held4)));
 const pp = st4['pll-par'];
-check('4×4 · PLL parity: the front and back double edges swapped; the algorithm and U2 solve it', uniform([...face(M4, pp, 'U'), 'D']) && !M4.isSolved(pp) && M4.isSolved(M4.apply(pp, full(T4.sets.paridades.cases[1]))));
+check('4×4 · PLL parity: the front and back double edges swapped; the algorithm and U2 solve it, its r2 being only the inner slice (as 2R2; with Rw2 it would not)', uniform([...face(M4, pp, 'U'), 'D']) && !M4.isSolved(pp) && M4.isSolved(M4.apply(pp, full(T4.sets.paridades.cases[1])))
+  && M4.isSolved(M4.apply(pp, full(T4.sets.paridades.cases[1]).replace(/\br2/g, '2R2'))) && !M4.isSolved(M4.apply(pp, full(T4.sets.paridades.cases[1]).replace(/\br2/g, 'Rw2'))) && /capa de dentro/.test(T4.sets.paridades.cases[1].how));
 
 // ---- Pyraminx ----
 const TP = C.pyram;

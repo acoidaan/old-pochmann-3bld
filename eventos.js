@@ -362,12 +362,10 @@
     const r = { at: Date.now(), t, pen: timer.pen, scr: timer.scr || scramble };
     if (timer.i0) r.ins = 1;
     if (D.settings().help) r.help = 1;
+    // In a round: the place in it is how many it has (so a deleted solve leaves room); after the fifth, a new one.
     if (mode === 'round') {
-      if (!round || round.n >= 5) round = { rd: r.at, n: 0 };
-      r.rd = round.rd;
-      r.ri = round.n;
-      round.n++;
-      D.save(K.round, round);
+      const cur = round ? D.rounds(times).find((x) => x.id === round.rd) : null;
+      if (cur && !cur.done) { r.rd = cur.id; r.ri = cur.times.length; } else { round = { rd: r.at }; r.rd = r.at; r.ri = 0; D.save(K.round, round); }
     }
     const before = times.filter((x) => x.pen !== 'dnf');
     const prevBest = before.length ? Math.min(...before.map(D.value)) : null;
@@ -382,9 +380,9 @@
     chime(pb || !before.length);
     if (!before.length && r.pen !== 'dnf') toast(`¡Tu primer ${INFO.name}!`);
     else if (pb) toast(`¡Récord! ${D.fmt(D.value(r))}`);
-    if (mode === 'round' && round && round.n === 5) {
-      const rs = D.rounds(times).find((x) => x.id === round.rd);
-      if (rs) toast(`Ronda terminada: media ${D.fmt(rs.avg)}`);
+    if (r.rd && r.ri === 4) {
+      const rs = D.rounds(times).find((x) => x.id === r.rd);
+      if (rs && rs.done) toast(`Ronda terminada: media ${D.fmt(rs.avg)}`);
     }
     renderStats();
     renderRound();

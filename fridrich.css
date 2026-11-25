@@ -89,6 +89,20 @@
 .fr-seg-oll { background: var(--fr-oll); color: #1A1300; }
 .fr-seg-pll { background: var(--fr-pll); }
 .fr-seg.alt { filter: brightness(1.2) saturate(.85); }   /* every other pair of an F2L */
+/* A round of 5, as in a competition (CFOP and the event pages): five slots and its WCA average. */
+.ev-round { display: grid; gap: 8px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--raise); }
+.ev-round-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ev-round-head .btn { padding: 3px 12px; font-size: 13px; }
+.ev-round-slots { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.ev-round-slots li { display: grid; gap: 1px; justify-items: center; padding: 6px 2px; border: 1px solid var(--line); border-radius: 9px; font-variant-numeric: tabular-nums; min-width: 0; }
+.ev-round-slots li b { font-family: var(--font-mono); font-size: 14px; }
+.ev-round-slots li.done { border-color: var(--ok); }
+.ev-round-slots li.drop b { color: var(--muted); font-weight: 600; }
+.ev-round-slots li.cur { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.ev-round-avg { margin: 0; font-size: 15px; }
+.ev-round-avg b { font-family: var(--font-display); font-size: 20px; }
+.ev-round p { margin: 0; }
+.fr-round-mode .seg { margin-top: 2px; justify-self: start; align-self: flex-start; width: fit-content; }
 .fr-table { overflow-x: auto; }
 .fr-table table { width: 100%; border-collapse: collapse; font-size: 13.5px; font-variant-numeric: tabular-nums; }
 .fr-table th, .fr-table td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }

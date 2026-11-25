@@ -311,7 +311,7 @@
     { id: '333', need: 3, text: '3×3: cruz, F2L y repaso de PLL/OLL', href: 'fridrich' },
     { id: 'new', need: 1, text: 'La modalidad nueva', href: null },
     { id: 'bld', need: 1, text: 'BLD', href: './#crono' },
-    { id: 'crono', need: 1, text: 'Solves cronometrados y revisión', href: 'fridrich#crono' },
+    { id: 'crono', need: 1, text: 'Solves cronometrados y revisión', href: 'fridrich#ronda' },
   ];
   const SESSION_MS = 10 * 60000;
   function week(now = Date.now()) {
@@ -326,7 +326,7 @@
     const newN = {};
     NEW.forEach((ev) => Object.entries(perDay(times(ev))).forEach(([k, n]) => { newN[k] = (newN[k] || 0) + n; }));
     const roundDays = new Set();
-    NEW.forEach((ev) => rounds(times(ev)).forEach((r) => { if (r.done && inWeek(r.at)) roundDays.add(dayKey(r.at)); }));
+    [cfopTimes(), ...NEW.map(times)].forEach((list) => rounds(list).forEach((r) => { if (r.done && inWeek(r.at)) roundDays.add(dayKey(r.at)); }));
     const count = (fn) => days.filter(fn).length;
     const auto = {
       333: count((k) => (prac.cfop[k] || 0) >= SESSION_MS || (cfopN[k] || 0) >= 10),
@@ -353,23 +353,13 @@
     { id: 'safe', text: 'Prioriza ejecuciones seguras: un buen tiempo sin DNF vale más' },
     { id: 'rules', text: 'Familiarízate con el procedimiento oficial' },
   ];
-  // 3×3 «rounds» in CFOP: 5 solves in a row, each less than 3 minutes after the one before.
-  function cfopRounds(since) {
-    const list = cfopTimes().filter((r) => r.at >= since);
-    let n = 0;
-    let run = 1;
-    for (let i = 1; i < list.length; i++) {
-      if (list[i].at - list[i - 1].at < 180000) run++; else run = 1;
-      if (run === 5) { n++; run = 0; }
-    }
-    return n;
-  }
   function prep(now = Date.now()) {
     const p = plan();
     const compAt = p.comp.date ? new Date(`${p.comp.date}T09:00:00`).getTime() : null;
     const daysLeft = compAt ? Math.ceil((dayStart(compAt) - dayStart(now)) / DAY) : null;
     const since = now - 28 * DAY;
-    const roundsBy = { 333: cfopRounds(since) };
+    // 3×3: the rounds of 5 done in CFOP's clock («Ronda de 5»), as in the other events.
+    const roundsBy = { 333: rounds(cfopTimes()).filter((r) => r.done && r.at >= since).length };
     NEW.forEach((ev) => { roundsBy[ev] = rounds(times(ev)).filter((r) => r.done && r.at >= since).length; });
     const inspectOn = !!obj(load('cfop:settings:v1', {})).inspect || settings().inspect;
     const bldRecent = bldTimes().filter((t) => t.at >= since && bldFull(t)).length;

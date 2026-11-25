@@ -30,7 +30,7 @@
       },
       {
         id: 'paridades', name: 'Las paridades', short: 'Paridades',
-        html: '<p>A veces, al llegar a la última capa, sale algo que en un 3×3 es imposible. No es un fallo tuyo: le pasa a todo el mundo, y cada caso tiene su algoritmo.</p><p><b>Paridad OLL</b>: al orientar te queda <b>una sola arista volteada</b> (o tres). Ponla delante, haz el algoritmo y sigue con tu OLL normal. <b>Paridad PLL</b>: al permutar sale un caso que no existe, como <b>dos aristas opuestas cambiadas</b>. Ponlas delante y detrás y haz el algoritmo; acaba con U2.</p>',
+        html: '<p>A veces, al llegar a la última capa, sale algo que en un 3×3 es imposible. No es un fallo tuyo: le pasa a todo el mundo, y cada caso tiene su algoritmo.</p><p><b>Paridad OLL</b>: al orientar te queda <b>una sola arista volteada</b> (o tres). Ponla delante, haz el algoritmo y sigue con tu OLL normal. <b>Paridad PLL</b>: al permutar sale un caso que no existe, como <b>dos aristas opuestas cambiadas</b>. Ponlas delante y detrás y haz el algoritmo; acaba con U2. En él, <b>r2</b> es solo la capa de dentro (la segunda por la derecha) y <b>Uw2</b>, las dos de arriba juntas.</p>',
         tip: 'El de la paridad OLL es largo pero muy rítmico: Rw U2, con una x al principio. Apréndelo en trozos de cuatro giros.',
         set: 'paridades',
       },
@@ -52,7 +52,7 @@
         name: 'Paridades', pic: 'top',
         cases: [
           { id: 'oll-par', name: 'Paridad OLL', how: 'Una sola arista doble volteada en la capa de arriba: ponla delante.', alg: "Rw U2 x Rw U2 Rw U2 Rw' U2 Lw U2 Rw' U2 Rw U2 Rw' U2 Rw'", from: { flip: ['U', 'F'] }, mask: 'D' },
-          { id: 'pll-par', name: 'Paridad PLL', how: 'Las aristas dobles de delante y de detrás cambiadas entre sí (lo demás bien).', alg: "r2 U2 r2 Uw2 r2 Uw2", after: 'U2', from: { swap: [['U', 'F'], ['U', 'B']] } },
+          { id: 'pll-par', name: 'Paridad PLL', how: 'Las aristas dobles de delante y de detrás cambiadas entre sí (lo demás bien). Ojo: r2 es solo la capa de dentro de la derecha (también se escribe 2R2), no Rw2: con Rw2 no sale.', alg: "r2 U2 r2 Uw2 r2 Uw2", after: 'U2', from: { swap: [['U', 'F'], ['U', 'B']] } },
         ],
       },
     },

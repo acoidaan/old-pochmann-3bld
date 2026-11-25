@@ -33,14 +33,14 @@
       const evs = ['333', ...D.NEW];
       const id = evs.slice().sort((a, b) => p.roundsBy[a] - p.roundsBy[b])[0];
       const ev = D.eventOf(id);
-      rec = { title: `Simula una ronda de 5 de ${ev.name}`, text: `Quedan ${p.daysLeft} ${p.daysLeft === 1 ? 'día' : 'días'} para competir: cinco intentos seguidos con inspección, como allí. Es la modalidad que menos rondas lleva estas semanas.`, href: id === '333' ? 'fridrich#crono' : `${ev.href}#crono`, go: 'Al cronómetro' };
+      rec = { title: `Simula una ronda de 5 de ${ev.name}`, text: `Quedan ${p.daysLeft} ${p.daysLeft === 1 ? 'día' : 'días'} para competir: cinco intentos seguidos con inspección, como allí. Es la modalidad que menos rondas lleva estas semanas.`, href: id === '333' ? 'fridrich#ronda' : `${ev.href}#crono`, go: 'Al cronómetro' };
     } else {
       const missing = w.slots.find((s) => s.done < s.need);
       if (!missing) rec = { title: 'Semana completa', text: 'Ya has hecho todas las sesiones de la rutina. Descansa, o repasa lo que más te cueste.', href: 'fridrich#entrenar', go: 'Repasar casos' };
       else if (missing.id === '333') rec = { title: 'Sesión de 3×3', text: `Cruz, F2L y repaso de PLL/OLL. Prioridad: el F2L, que es el ${pct(f2l)} de tu solve.`, href: 'fridrich#entrenar', go: 'Ir a CFOP' };
       else if (missing.id === 'new') rec = cur ? { title: `Sesión de ${cur.ev.name}`, text: `${cur.ev.method}. ${cur.state === 'later' ? `Su fase es en ${cur.ev.phase.replace(/^\d · /, '')}, pero puedes adelantarla.` : 'Es tu modalidad nueva.'}`, href: `${cur.ev.href}#aprender`, go: `Ir al ${cur.ev.name}` } : { title: 'Sesión de una modalidad', text: 'Ya tienes el primer hito de todas: repasa la que más te cueste.', href: 'square-1#crono', go: 'Ir al Square-1' };
       else if (missing.id === 'bld') rec = { title: 'Sesión de BLD', text: 'Old Pochmann fiable: un intento entero cronometrado, o entrena las letras que fallas.', href: './#crono', go: 'Ir a A ciegas' };
-      else rec = { title: 'Solves cronometrados y revisión', text: 'Una tanda de solves (o una ronda de 5) y mira en Progreso dónde se va el tiempo.', href: 'fridrich#crono', go: 'Al cronómetro' };
+      else rec = { title: 'Solves cronometrados y revisión', text: 'Una ronda de 5 (o una tanda de solves) y mira en Progreso dónde se va el tiempo.', href: 'fridrich#ronda', go: 'Al cronómetro' };
     }
     $('today').innerHTML = `<span class="field-title">Hoy toca</span><h2 id="hToday">${esc(rec.title)}</h2><p>${esc(rec.text)}</p><div class="actions"><a class="btn primary" href="${esc(rec.href)}">${esc(rec.go)}</a></div>`;
     if (p.compAt) {
@@ -171,14 +171,14 @@
     }
     $('compClear').hidden = !p.comp.date && !p.comp.name;
     const names = { 333: '3×3', 222: '2×2', 444: '4×4', pyram: 'Pyraminx', sq1: 'Square-1' };
-    const links = { 333: 'fridrich#crono', 222: '2x2#crono', 444: '4x4#crono', pyram: 'pyraminx#crono', sq1: 'square-1#crono' };
+    const links = { 333: 'fridrich#ronda', 222: '2x2#crono', 444: '4x4#crono', pyram: 'pyraminx#crono', sq1: 'square-1#crono' };
     const head = p.compAt == null ? '<p>Apunta la fecha y verás aquí la cuenta atrás. Cuando falten cuatro semanas, esto es lo que toca:</p>'
       : p.daysLeft < 0 ? '<p>Esa competición ya pasó. Apunta la próxima.</p>'
         : p.inWindow ? `<p><b>Estás en las últimas 4 semanas.</b> Esto es lo que toca${p.comp.name ? ` antes de ${esc(p.comp.name)}` : ''}:</p>`
           : `<p>Faltan ${p.daysLeft} días. A cuatro semanas (desde el ${new Date(p.compAt - 28 * 86400000).toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })}), esto es lo que toca:</p>`;
     $('prep').innerHTML = `${head}<ul class="pl-prep">${p.items.map((it) => {
       let extra = '';
-      if (it.id === 'rounds') extra = `<span class="pl-rounds">${['333', '222', '444', 'pyram', 'sq1'].map((id) => `<a class="pl-chip${p.roundsBy[id] ? ' on' : ''}" href="${links[id]}">${names[id]}: ${p.roundsBy[id]}</a>`).join('')}</span><span class="hint">Rondas de 5 en las últimas 4 semanas. En 3×3 cuentan 5 solves seguidos en CFOP.</span>`;
+      if (it.id === 'rounds') extra = `<span class="pl-rounds">${['333', '222', '444', 'pyram', 'sq1'].map((id) => `<a class="pl-chip${p.roundsBy[id] ? ' on' : ''}" href="${links[id]}">${names[id]}: ${p.roundsBy[id]}</a>`).join('')}</span><span class="hint">Rondas de 5 en las últimas 4 semanas, con «Ronda de 5» en el cronómetro de cada una (en 3×3, el de CFOP).</span>`;
       if (it.id === 'limits') extra = p.comp.url ? `<a href="${esc(p.comp.url)}" target="_blank" rel="noopener">Abrir la página de tu competición</a>` : '<span class="hint">Pon arriba el enlace de tu competición en la WCA.</span>';
       if (it.id === 'inspect') extra = '<span class="hint">Se marca solo si tienes la inspección puesta en CFOP o en las modalidades nuevas.</span>';
       if (it.id === 'bld') extra = `<span class="hint">${p.bldRecent ? `${p.bldRecent} ${p.bldRecent === 1 ? 'intento entero' : 'intentos enteros'} en estas semanas.` : 'Cronométrate memo y ejecución juntos en A ciegas.'}</span>`;

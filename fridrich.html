@@ -119,12 +119,20 @@
               </select>
             </label>
             <label class="check fr-phases-set" id="setPhasesRow" hidden><input type="checkbox" id="setPhases"> <span><b>Por fases</b> <span class="muted" id="setPhasesHint"></span></span></label>
+            <div class="fields fr-round-mode" id="roundSeg"><span class="field-title" id="roundSegT">Modo</span>
+              <div class="seg small" role="group" aria-labelledby="roundSegT">
+                <button type="button" id="modeFree" aria-pressed="true">Libre</button>
+                <button type="button" id="modeRound" aria-pressed="false">Ronda de 5</button>
+              </div>
+            </div>
           </div>
           <p class="fr-scr" id="scr" aria-live="polite"></p>
           <p class="fr-duel" id="duel" hidden></p>
           <p class="fr-hint" id="scrHint" hidden></p>
           <p class="fr-cross" id="cross" hidden></p>
         </div>
+
+        <section class="ev-round" id="round" aria-label="Ronda de 5" hidden></section>
 
         <button type="button" class="clock" id="clock" data-phase="idle">
           <span class="clock-phase" id="clockPhase">Listo</span>
@@ -296,6 +304,10 @@
       <section class="panel" aria-labelledby="hProg">
         <div class="panel-head"><h2 id="hProg">Tu progreso</h2></div>
         <div id="progSummary"></div>
+      </section>
+      <section class="panel" aria-labelledby="hRounds" id="progRoundsPanel" hidden>
+        <div class="panel-head"><h2 id="hRounds">Rondas de 5</h2><span class="hint">Como en una competición: la media sin el mejor ni el peor (entre paréntesis)</span></div>
+        <div id="progRounds"></div>
       </section>
       <section class="panel" aria-labelledby="hDays" id="progDaysPanel">
         <div class="panel-head">
