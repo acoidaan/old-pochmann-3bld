@@ -10,6 +10,8 @@ module.exports = [
   js.configs.recommended,
   // The page scripts: plain browser scripts, each one inside its own function.
   { files: ['*.js'], languageOptions: { sourceType: 'script', globals: { ...globals.browser } } },
+  // The puzzle models and the menu also load in Node (the tests, build.js): they export with module.exports.
+  { files: ['pz-*.js', 'evicons.js'], languageOptions: { globals: { module: 'readonly' } } },
   // build.js fills in the asset list where __ASSETS__ is (the first time it appears: never in a comment).
   { files: ['sw.js'], languageOptions: { globals: { ...globals.serviceworker, __ASSETS__: 'readonly' } } },
   {

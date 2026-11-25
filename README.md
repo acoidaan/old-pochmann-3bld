@@ -4,7 +4,7 @@ Aprende a resolver el cubo de Rubik **con los ojos cerrados** (3BLD) con el mét
 
 **[old-pochmann-3bld.vercel.app](https://old-pochmann-3bld.vercel.app)** · [probarla con un cubo virtual](https://old-pochmann-3bld.vercel.app/?cubo=virtual#crono)
 
-La app tiene tres secciones, con un mismo menú arriba en cada una para pasar de una a otra: **A ciegas** (3BLD, aquí: Old Pochmann y, para las aristas, **M2**), **[CFOP](https://old-pochmann-3bld.vercel.app/fridrich)** (cronómetro, casos y entrenador, con la última capa en **2 looks** o **completa**: un interruptor al lado del menú; [más abajo](#fridrich-reducido)) y **[Principiante](https://old-pochmann-3bld.vercel.app/principiante)** (resolverlo desde cero; [más abajo](#aprende-a-resolver-el-cubo)). El menú lleva a CFOP en el nivel que usaste la última vez.
+El menú de arriba, igual en todas las páginas, lleva a **[Mi plan](https://old-pochmann-3bld.vercel.app/plan)** (el roadmap para competir en 2027: fases, metas, la rutina de la semana y las cuatro semanas antes de competir; [más abajo](#mi-plan-wca-2027)), a las tres secciones del 3×3 (**A ciegas**, aquí: 3BLD con Old Pochmann y, para las aristas, **M2**; **[CFOP](https://old-pochmann-3bld.vercel.app/fridrich)**, cronómetro, casos y entrenador, con la última capa en **2 looks** o **completa**, un interruptor al lado del menú, [más abajo](#fridrich-reducido); y **[Principiante](https://old-pochmann-3bld.vercel.app/principiante)**, resolverlo desde cero, [más abajo](#aprende-a-resolver-el-cubo)) y a las otras cuatro modalidades del plan: **[2×2](https://old-pochmann-3bld.vercel.app/2x2)**, **[4×4](https://old-pochmann-3bld.vercel.app/4x4)**, **[Pyraminx](https://old-pochmann-3bld.vercel.app/pyraminx)** y **[Square-1](https://old-pochmann-3bld.vercel.app/square-1)** ([más abajo](#más-modalidades)). El menú lleva a CFOP en el nivel que usaste la última vez.
 
 ![Practicar: el scramble, el memo letra a letra y el cubo con el objetivo marcado](docs/img/practicar.png)
 
@@ -26,6 +26,8 @@ La app tiene tres secciones, con un mismo menú arriba en cada una para pasar de
 - [Overlay para directos](#overlay-para-directos)
 - [Fridrich reducido](#fridrich-reducido)
 - [Aprende a resolver el cubo](#aprende-a-resolver-el-cubo)
+- [Mi plan WCA 2027](#mi-plan-wca-2027)
+- [Más modalidades](#más-modalidades)
 - [El método](#el-método)
 - [Atajos de teclado](#atajos-de-teclado)
 - [Arquitectura](#arquitectura)
@@ -227,6 +229,49 @@ Todo con el amarillo arriba y el blanco abajo.
 
 `lbl.js` lee el cubo con el blanco abajo (la cruz, las esquinas, las aristas del medio, la cruz y la cara amarillas, las esquinas y las aristas de arriba en su sitio) y, desde cualquier estado, calcula lo siguiente que haría alguien que aprende el método: en la cruz, los giros más cortos que suben otra arista a la margarita sin tirar las que ya hay (búsqueda en profundidad, unos milisegundos) o qué pétalo bajar; en los demás pasos, prueba los 4 lados que puedes poner delante y los giros de arriba, y se queda con el que cumple la regla del método con menos giros, comprobando que no deshace nada. Cada plan lleva sus giros exactos, así que la ayuda sigue tu cubo giro a giro (también las medias vueltas). Las pruebas resuelven 300 cubos al azar así, sin volver nunca atrás un paso, en unos 145 giros de media.
 
+## Mi plan WCA 2027
+
+En [`/plan`](https://old-pochmann-3bld.vercel.app/plan), el roadmap para competir en 2027, de CFOP a seis modalidades oficiales, hecho página y vivo: no se rellena a mano, lee lo que guarda cada sección en el dispositivo (y, con la sincronización, lo de los demás).
+
+![Mi plan: qué toca hoy, la cuenta atrás para competir, las seis fases con su estado y los objetivos](docs/img/plan.png)
+
+- **Hoy toca.** Lo siguiente de la rutina que falta esta semana (una sesión de 3×3 con el F2L como prioridad, la modalidad nueva, BLD o solves cronometrados) con su enlace. En las cuatro semanas antes de competir, una ronda de 5 de la modalidad que menos rondas lleva.
+- **Orden de incorporación.** Base: 3×3 CFOP. Fase 1 (diciembre de 2026): 2×2 Ortega. Fase 2 (enero de 2027): 4×4 reducción. Fase 3 (febrero): Pyraminx. En paralelo: 3BLD. Fase 4 (marzo y abril): Square-1. Cada una con su estado (más adelante, toca ya, en marcha, primer hito, metas cumplidas), lo que llevas (casos de CFOP que te sabes, lecciones y letras de M2, pasos y tiempos) y la condición para pasar de fase.
+- **Objetivos.** Dos hitos por modalidad, que se marcan solos: 3×3 Ao12 sub-35 y después media sub-30; 2×2 resolverlo sin ayuda y sub-10; 4×4 con paridades y sub-2:30; Pyraminx sin ayuda y sub-20; BLD tres resueltos y la constancia; Square-1 sin ayuda y sub-60. «Sin ayuda» es marcar «Ya lo resuelvo entero sin mirar» o un tiempo sin «Mirando el tutorial».
+- **Esta semana.** La rutina de 3 a 4 horas: 3 sesiones de 3×3, 1 de la modalidad nueva, 1 de BLD y 1 de solves cronometrados y revisión. La app cuenta sola los días con 10 minutos practicando en cada sección (o con suficientes tiempos, o con una ronda de 5); lo que practicaste sin la app se suma con +1. Debajo, el tiempo practicado de cada día.
+- **Prioridad inmediata y punto de partida.** Qué parte del solve es el F2L (de tus últimos solves con fases, o el 57 % del roadmap) y tus números de noviembre de 2026 frente a los de ahora.
+- **Tu competición.** La fecha, el nombre y su página de la WCA (con el enlace al calendario oficial): la cuenta atrás y, en las últimas cuatro semanas, la lista de lo que toca (eventos y límites, rondas de 5 en cada modalidad, la inspección, el BLD cronometrado entero, ejecuciones seguras, el reglamento), con lo que la app ve marcado solo.
+
+## Más modalidades
+
+Cuatro páginas iguales, una por modalidad, con su método para empezar y lo que viene después. Cada una se instala aparte y funciona sin conexión.
+
+<table>
+<tr>
+<td width="50%"><img src="docs/img/modalidad-2x2.png" alt="2×2, Aprender: los 7 OLL de Ortega, en amarillo y gris, con su algoritmo"></td>
+<td width="50%"><img src="docs/img/modalidad-sq1.png" alt="Square-1, Aprender: los cinco casos de la estrella hasta la forma de cubo"></td>
+</tr>
+</table>
+
+| Modalidad | Método | Después |
+|:--|:--|:--|
+| **[2×2](https://old-pochmann-3bld.vercel.app/2x2)** | Ortega: la cara (intuitiva), OLL (7 casos, los del 2 looks) y PBL (5 casos) | CLL |
+| **[4×4](https://old-pochmann-3bld.vercel.app/4x4)** | Reducción: centros, emparejar aristas, como un 3×3 y las dos paridades | Yau |
+| **[Pyraminx](https://old-pochmann-3bld.vercel.app/pyraminx)** | Principiante: puntas, centros, aristas de la base y la capa de arriba (5 casos) | L4E (los 35 casos, también para entrenar) |
+| **[Square-1](https://old-pochmann-3bld.vercel.app/square-1)** | Vandenbergh para empezar: forma de cubo desde la estrella (5 casos), capas, esquinas, aristas y paridad | Vandenbergh completo |
+
+| Vista | Para qué |
+|:--|:--|
+| **Aprender** | El método paso a paso: el camino arriba con «Ya me lo sé» en cada paso y «Ya lo resuelvo entero sin mirar», la notación de la modalidad y cada caso dibujado desde el modelo del puzle (en gris lo que no hace falta mirar) con su algoritmo y «Pruébalo», que lo enseña giro a giro. |
+| **Cronómetro** | Mezclas como las de la WCA (2×2 de estado al azar; Pyraminx a 6 giros o más, con las puntas; Square-1 con sus cortes), inspección de 15 s con la voz del juez a los 8 y a los 12 s (+2 a partir de 15 y DNF a partir de 17), rondas de 5 con su media WCA, pantalla completa (`F`), +2, DNF, borrar y si fue mirando el tutorial. |
+| **Entrenar** | Los casos de cada set uno a uno: lo pones en tu puzle como en el dibujo, lo haces y miras la solución. Con tres seguidas bien, dominado; los que fallas salen más. |
+| **Progreso** | Las metas del plan para esa modalidad, tus números (mejor, Ao5, Ao12, mejores medias), la gráfica, las rondas y lo aprendido. |
+| **Ajustes** | Inspección, la voz del juez, el sonido, la pantalla encendida, el tema, la sincronización y tus datos. |
+
+### Cómo están hechos los casos
+
+Ningún dibujo está hecho a mano: cada caso es el estado del puzle que resuelve su algoritmo, calculado con el modelo de ese puzle (`pz-cube.js` para el 2×2 y el 4×4, `pz-pyra.js`, `pz-sq1.js`), y las pruebas comprueban que es un estado del paso donde se usa y el caso que dice su texto. Los 35 L4E salen de una búsqueda (IDA*) y son los más cortos en R, L y U; los casos de la estrella del Square-1, de una búsqueda en anchura de formas. Las mezclas del 2×2 y del Pyraminx son de estado al azar, como las de la WCA (IDA* sobre las piezas).
+
 ## El método
 
 - **Orientación:** blanco arriba, verde delante. Letras **Speffz**.
@@ -356,8 +401,14 @@ flowchart LR
 | `cfopfull.js` | El CFOP completo sin pantalla: los 57 OLL y los 21 PLL con los algoritmos de J Perm, sus grupos, qué caso es una última capa, su dibujo y cómo se ven. También amplía `Cfop.caseById`. |
 | `cfopf2l.js` | Los 41 casos del F2L sin pantalla: sus algoritmos, qué caso enseña cada hueco libre, su dibujo y cómo se ven en palabras. Hace que `Cfop.caseById` los conozca también (la sincronización, el entrenador). |
 | `cfopstats.js` | Los números de Fridrich, sin pantalla: medias, mejores marcas, días, racha, logros, cada paso, eficiencia, cada caso y el set recomendado. Expone `window.CfopStats`. |
-| `smartcube.js` | El cubo inteligente de las tres páginas: conexión GAN, la MAC, el cubo virtual, el sonido, los giros perdidos, el reloj del cubo y prestar la conexión a otra sección (un iframe encima) para que no se corte. Expone `window.SmartCube`. |
+| `smartcube.js` | El cubo inteligente de las tres páginas del 3×3: conexión GAN, la MAC, el cubo virtual, el sonido, los giros perdidos, el reloj del cubo y prestar la conexión a otra sección (un iframe encima) para que no se corte. Expone `window.SmartCube`. |
 | `follow.js` | Seguir una secuencia con el cubo (scramble, setup): dónde va, mitades de giros y giros opuestos en cualquier orden, qué deshacer. Expone `window.CubeFollow`. |
+| `plan.html` · `plan.js` | «Mi plan» (`/plan`): el roadmap WCA 2027 con lo que guarda cada sección. Expone `window.PlanPage`. |
+| `evento.html` · `eventos.js` · `eventos.css` | Las páginas de las modalidades (`/2x2`, `/4x4`, `/pyraminx`, `/square-1`): `build.js` genera una por modalidad a partir de la plantilla `evento.html`. `eventos.js` es la página entera (Aprender, Cronómetro, Entrenar, Progreso, Ajustes) para el puzle y el método que le toquen. Expone `window.EvPage`. |
+| `ev-222.js` · `ev-444.js` · `ev-pyram.js` · `ev-sq1.js` | El método de cada modalidad, solo datos: pasos, textos, casos con sus algoritmos y qué viene después (`window.EvContent`). |
+| `pz-cube.js` · `pz-pyra.js` · `pz-sq1.js` | Los puzles sin pantalla: el cubo N×N (2×2 y 4×4, con su notación, mezclas y dibujos), el Pyraminx y el Square-1. También se cargan en Node (las pruebas). |
+| `evdata.js` · `evsync.js` | Los datos del plan y de las modalidades (tiempos, medias WCA, rondas, metas, la semana, la preparación, la sincronización) · la sincronización en sus páginas. |
+| `evicons.js` | El menú de secciones de todas las páginas (`build.js` lo mete donde está `<!--sx-->`) y sus iconos. |
 | `overlay.html` | El overlay para OBS, una página independiente. |
 | `sw.js` | El service worker: guarda la app para usarla sin conexión. |
 | `build.js` | Genera `public/`: copia los archivos con un hash en la URL, dibuja los iconos PNG y anota el número de versión. |
@@ -404,13 +455,17 @@ Todo se guarda en `localStorage`, en tu dispositivo:
 | `cfop:session:v1` · `cfop:sessions:v1` | Fridrich: la sesión de entrenamiento en curso (para seguir tras recargar) · las terminadas, con su resumen (las últimas 200) |
 | `cfop:trlog:v1` | Fridrich: cada caso entrenado (los últimos 5000): cuándo, cuál, cómo, si salió bien, sus tiempos y si te perdiste |
 | `cfop:settings:v1` · `cfop:scramble:v1` · `cfop:view:v1` | Fridrich: inspección, ayuda, sonido, color de la cruz… · scramble actual · última vista |
+| `ev:<modalidad>:times:v1` · `ev:deleted:v1` | Modalidades (`222`, `444`, `pyram`, `sq1`): tiempos con penalización, mezcla, si hubo inspección o ayuda y su ronda · los borrados |
+| `ev:known:v1` · `ev:solo:v1` · `ev:train:v1` · `ev:settings:v1` | Modalidades: pasos que te sabes · «Ya lo resuelvo entero» · lo entrenado por caso · inspección, voz, sonido y ayuda |
+| `ev:<modalidad>:scramble:v1` · `ev:<modalidad>:view:v1` · `…:round:v1` · `…:mode:v1` · `…:trset:v1` | Modalidades: mezcla actual · última vista · ronda en curso · libre o ronda · set que entrenas |
+| `plan:v1` · `ev:synced:v1` | Mi plan: tu competición, la lista de las últimas semanas y las sesiones sumadas a mano · última sincronización |
 | `lbl:times:v1` · `lbl:deleted:v1` | Principiante: tiempos (los últimos 2000) con el tiempo y los giros de cada paso, y si fue con ayuda · los borrados |
 | `lbl:known:v1` · `lbl:train:v1` | Principiante: los pasos que te sabes (y cuándo cambió cada uno) · lo entrenado por paso: veces, tiempos sin ayuda, giros y fallos |
 | `lbl:settings:v1` · `lbl:scramble:v1` · `lbl:view:v1` · `lbl:synced:v1` | Principiante: sonido, ayuda, el paso que entrenas… · mezcla actual · última vista · última sincronización |
 
 ### Sin conexión y versiones
 
-`build.js` añade a cada archivo un hash de su contenido (`core.js?v=1a2b3c4d5e`) y calcula un número de versión del conjunto, que escribe en las tres páginas y en el nombre de la caché del service worker (`op3bld-<versión>`). El service worker guarda las tres páginas al instalarse y las sirve aunque no haya red; cada página la pide a la red primero y usa la caché como plan B. `vercel.json` sirve `/fridrich` desde `fridrich.html` y `/principiante` desde `principiante.html`. Cuando se despliega una versión nueva, el service worker nuevo borra la caché vieja, la página ve que la suya ya no existe y ofrece recargar, nunca durante un intento.
+`build.js` añade a cada archivo un hash de su contenido (`core.js?v=1a2b3c4d5e`) y calcula un número de versión del conjunto, que escribe en todas las páginas y en el nombre de la caché del service worker (`op3bld-<versión>`). El service worker guarda las tres páginas al instalarse y las sirve aunque no haya red; cada página la pide a la red primero y usa la caché como plan B. `vercel.json` sirve `/fridrich` desde `fridrich.html` y `/principiante` desde `principiante.html`. Cuando se despliega una versión nueva, el service worker nuevo borra la caché vieja, la página ve que la suya ya no existe y ofrece recargar, nunca durante un intento.
 
 ## API
 

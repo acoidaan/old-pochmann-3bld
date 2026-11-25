@@ -17,7 +17,8 @@ for (const f of fs.readdirSync(path.join(__dirname, 'vendor')).filter((x) => !x.
 }
 
 // Static files get a content hash in their URL, so browsers and the service worker never keep stale copies.
-const ASSETS = ['audio/eight.mp3', 'audio/twelve.mp3', 'app.css', 'sections.js', 'cubemodel.js', 'notation.js', 'follow.js', 'core.js', 'learn.js', 'm2.js', 'syncplan.js', 'social.js', 'stream.js', 'cube.js', 'fridrich.css', 'cfop.js', 'cfopf2l.js', 'cfopfull.js', 'cfopstats.js', 'smartcube.js', 'practice.js', 'fridrich-progreso.js', 'fridrich-cruz.js', 'fridrich-sync.js', 'fridrich.js', 'lbl.js', 'principiante.css', 'principiante.js', 'cubefab.js', 'bldprogress.js', 'bldalgs.js', 'awake.js'];
+const ASSETS = ['audio/eight.mp3', 'audio/twelve.mp3', 'app.css', 'sections.js', 'cubemodel.js', 'notation.js', 'follow.js', 'core.js', 'learn.js', 'm2.js', 'syncplan.js', 'social.js', 'stream.js', 'cube.js', 'fridrich.css', 'cfop.js', 'cfopf2l.js', 'cfopfull.js', 'cfopstats.js', 'smartcube.js', 'practice.js', 'fridrich-progreso.js', 'fridrich-cruz.js', 'fridrich-sync.js', 'fridrich.js', 'lbl.js', 'principiante.css', 'principiante.js', 'cubefab.js', 'bldprogress.js', 'bldalgs.js', 'awake.js',
+  'evicons.js', 'evdata.js', 'evsync.js', 'eventos.css', 'eventos.js', 'plan.js', 'pz-cube.js', 'pz-pyra.js', 'pz-sq1.js', 'ev-222.js', 'ev-444.js', 'ev-pyram.js', 'ev-sq1.js'];
 const versions = {};
 const all = crypto.createHash('sha1');
 for (const f of ASSETS) {
@@ -27,11 +28,53 @@ for (const f of ASSETS) {
   fs.mkdirSync(path.dirname(path.join(out, f)), { recursive: true });
   fs.writeFileSync(path.join(out, f), data);
 }
-// The pages: the 3BLD app, «Fridrich reducido» (/fridrich) and the beginner's method (/principiante).
-const PAGES = ['index.html', 'fridrich.html', 'principiante.html'];
+// The pages: the 3BLD app, «Fridrich reducido» (/fridrich), the beginner's method (/principiante), the WCA plan
+// (/plan) and an event page for each new event, all from evento.html (/2x2, /4x4, /pyraminx, /square-1).
+const PAGES = ['index.html', 'fridrich.html', 'principiante.html', 'plan.html'];
+const EVENT_PAGES = [
+  { file: '2x2.html', ev: '222', name: '2×2', title: '2×2 · Ortega', method: 'Ortega: cara, OLL y PBL', methodName: 'Ortega', phase: '1 · dic 2026', scripts: ['pz-cube.js', 'ev-222.js'],
+    desc: 'El 2×2 con el método Ortega: la cara, los 7 casos de OLL y los 5 de PBL con sus dibujos, cronómetro con inspección y rondas de 5 como en la WCA, y entrenador de casos.' },
+  { file: '4x4.html', ev: '444', name: '4×4', title: '4×4 · Reducción', method: 'Reducción: centros, aristas y paridades', methodName: 'La reducción', phase: '2 · ene 2027', scripts: ['pz-cube.js', 'ev-444.js'],
+    desc: 'El 4×4 por reducción: centros, emparejar aristas, como un 3×3 y las dos paridades, con cronómetro con inspección y rondas de 5 como en la WCA.' },
+  { file: 'pyraminx.html', ev: 'pyram', name: 'Pyraminx', title: 'Pyraminx · Principiante y L4E', method: 'Principiante y después L4E', methodName: 'El método principiante', phase: '3 · feb 2027', scripts: ['pz-pyra.js', 'ev-pyram.js'],
+    desc: 'El Pyraminx capa a capa y después L4E (sus 35 casos): dibujos, mezclas de estado aleatorio como las de la WCA, cronómetro con inspección y rondas de 5.' },
+  { file: 'square-1.html', ev: 'sq1', name: 'Square-1', title: 'Square-1 · Vandenbergh', method: 'Forma, capas y permutación (Vandenbergh)', methodName: 'Vandenbergh', phase: '4 · mar/abr 2027', scripts: ['pz-sq1.js', 'ev-sq1.js'],
+    desc: 'El Square-1 con Vandenbergh para principiantes: forma de cubo, capas, permutación y paridad, con dibujos de cada caso, cronómetro con inspección y rondas de 5.' },
+];
+const tpl = fs.readFileSync(path.join(__dirname, 'evento.html'), 'utf8');
+const sources = {};
+for (const page of PAGES) sources[page] = fs.readFileSync(path.join(__dirname, page), 'utf8');
+for (const e of EVENT_PAGES) {
+  const href = e.file.replace(/\.html$/, '');
+  const tokens = {
+    __SX__: e.ev, __EV__: e.ev, __PRACTICE__: `ev${e.ev}`, __HREF__: href, __NAME__: e.name, __METHOD__: e.method, __METHOD_NAME__: e.methodName,
+    __TITLE__: e.title, __DESC__: e.desc,
+    __PHASE__: `<span class="ev-phase-n">${e.phase}</span><span>Tu plan</span>`,
+  };
+  let html = tpl;
+  for (const [k, v] of Object.entries(tokens)) html = html.split(k).join(v);
+  html = html.replace('<!--ev-scripts-->', e.scripts.map((f) => `<script src="${f}"></script>`).join('\n'));
+  if (/__[A-Z_]+__/.test(html.replace('__BUILD__', ''))) throw new Error(`${e.file}: queda algún __X__ sin poner`);
+  sources[e.file] = html;
+  // Its own manifest, so that installed it opens on its own page.
+  fs.writeFileSync(path.join(out, `${href}.webmanifest`), JSON.stringify({
+    name: e.title, short_name: e.name, description: e.desc, lang: 'es', start_url: `./${href}`, scope: './',
+    display: 'standalone', background_color: '#0F1319', theme_color: '#0F1319',
+    icons: [{ src: 'icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' }, { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' }],
+  }, null, 2));
+}
+fs.writeFileSync(path.join(out, 'plan.webmanifest'), JSON.stringify({
+  name: 'Mi plan WCA 2027', short_name: 'Mi plan', description: 'De CFOP a seis modalidades oficiales: fases, metas, rutina y preparación para competir.', lang: 'es', start_url: './plan', scope: './',
+  display: 'standalone', background_color: '#0F1319', theme_color: '#0F1319',
+  icons: [{ src: 'icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' }, { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' }],
+}, null, 2));
+// The sections menu, the same in every page (evicons.js): each page leaves <!--sx--> where its items go.
+const MENU = require('./evicons.js').menuItems();
 const pages = {};
-for (const page of PAGES) {
-  let html = fs.readFileSync(path.join(__dirname, page), 'utf8');
+for (const page of Object.keys(sources)) {
+  let html = sources[page];
+  if (!html.includes('<!--sx-->')) throw new Error(`${page}: falta <!--sx--> en el menú de secciones`);
+  html = html.split('<!--sx-->').join(MENU);
   for (const f of ASSETS) {
     html = html.replace(new RegExp(`(href|src)=(["']?)${f.replace('.', '\\.')}\\2`, 'g'), `$1=$2${f}?v=${versions[f]}$2`);
   }

@@ -21,6 +21,26 @@
     {
       "source": "/principiante",
       "destination": "/principiante.html"
+    },
+    {
+      "source": "/plan",
+      "destination": "/plan.html"
+    },
+    {
+      "source": "/2x2",
+      "destination": "/2x2.html"
+    },
+    {
+      "source": "/4x4",
+      "destination": "/4x4.html"
+    },
+    {
+      "source": "/pyraminx",
+      "destination": "/pyraminx.html"
+    },
+    {
+      "source": "/square-1",
+      "destination": "/square-1.html"
     }
   ],
   "headers": [

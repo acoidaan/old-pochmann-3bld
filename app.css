@@ -1180,15 +1180,20 @@ body.focus .memo-ask input { width: 100%; font-size: 18px; }
 .sx-chev { transition: transform .15s; }
 .sx-btn[aria-expanded="true"] .sx-chev { transform: rotate(180deg); }
 .sx-menu {
-  position: absolute; z-index: 40; top: calc(100% + 6px); left: 0; width: max-content; min-width: 240px; max-width: calc(100vw - 24px);
+  position: absolute; z-index: 40; top: calc(100% + 6px); left: 0; width: max-content; min-width: 270px; max-width: calc(100vw - 24px);
+  max-height: calc(100vh - 110px); max-height: calc(100dvh - 110px); overflow-y: auto; overscroll-behavior: contain;
   margin: 0; padding: 6px; list-style: none; background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
   box-shadow: 0 14px 34px rgba(0, 0, 0, .2); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
 }
 .sx-menu[hidden] { display: none; }
-.sx-menu a { display: grid; gap: 2px; padding: 9px 12px; border-radius: 8px; color: var(--ink); text-decoration: none; font-weight: 700; font-size: 15px; }
+.sx-menu a { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 8px; color: var(--ink); text-decoration: none; font-weight: 700; font-size: 15px; }
+.sx-menu .sx-t { display: grid; gap: 1px; }
 .sx-menu a small { font-weight: 400; font-size: 12.5px; color: var(--muted); }
+.sx-menu .sx-ico { flex: none; color: var(--muted); }
 .sx-menu a:hover { background: var(--raise); }
 .sx-menu a[aria-current="page"] { box-shadow: inset 3px 0 0 var(--accent); background: var(--raise); }
+.sx-menu a[aria-current="page"] .sx-ico { color: var(--accent); }
+.sx-group { padding: 9px 10px 3px; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .sx-level { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 3px; background: var(--raise); }
 .sx-level a { padding: 6px 14px; border-radius: 999px; font-weight: 700; font-size: 14px; color: var(--muted); text-decoration: none; white-space: nowrap; }
 .sx-level a:hover { color: var(--ink); }

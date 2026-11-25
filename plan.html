@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="es" data-section="plan">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script>try{var t=localStorage.getItem('op3bld:theme:v1');if(t==='light'||t==='dark'||t==='carbon')document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
+<meta name="description" content="Tu plan para competir en 2027: de CFOP a seis modalidades oficiales (3×3, 2×2, 4×4, Pyraminx, 3×3 a ciegas y Square-1), con sus fases, metas, la rutina de cada semana y las últimas cuatro semanas antes de competir.">
+<meta name="op3-build" content="__BUILD__">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Old Pochmann 3BLD">
+<meta property="og:title" content="Mi plan WCA 2027">
+<meta property="og:description" content="De CFOP a seis modalidades oficiales: fases, metas, rutina semanal y preparación para competir.">
+<meta property="og:url" content="https://old-pochmann-3bld.vercel.app/plan">
+<meta property="og:locale" content="es_ES">
+<link rel="manifest" href="plan.webmanifest">
+<meta name="theme-color" content="#ECEFF3" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0F1319" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Mi plan">
+<title>Mi plan WCA 2027</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Martian+Mono:wght@400;600&family=Unbounded:wght@500;700&display=swap">
+<link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="fridrich.css">
+<link rel="stylesheet" href="eventos.css">
+</head>
+<body class="fr ev pl">
+<div class="fr-app">
+  <header class="fr-head">
+    <div class="brand">
+      <h1>Mi plan WCA 2027</h1>
+      <p>De CFOP a seis modalidades oficiales · progresivo y flexible</p>
+    </div>
+    <button class="btn install" type="button" hidden>Instalar app</button>
+    <div class="sx-bar">
+      <nav class="sx" aria-label="Secciones de la app">
+        <button type="button" class="sx-btn" aria-expanded="false" aria-controls="sxMenu"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></svg><span>Mi plan</span><svg class="sx-chev" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>
+        <ul class="sx-menu" id="sxMenu" hidden><!--sx--></ul>
+      </nav>
+    </div>
+  </header>
+
+  <main class="pl-main">
+    <section class="panel pl-today" aria-labelledby="hToday">
+      <div class="pl-today-main" id="today"></div>
+      <div class="pl-count" id="count"></div>
+    </section>
+
+    <section class="panel" aria-labelledby="hPhases">
+      <div class="panel-head">
+        <h2 id="hPhases">Orden de incorporación</h2>
+        <span class="hint">Seis modalidades, una nueva cada mes y el BLD en paralelo.</span>
+      </div>
+      <ol class="pl-phases" id="phases"></ol>
+      <div class="pl-rule">
+        <p><b>Condición para pasar de fase.</b> No necesitas dominar una modalidad para empezar la siguiente. Métela cuando resuelvas la anterior sin tutorial y aguantes sesiones de práctica breves. Las fechas son orientativas, y el Square-1 puede adelantarse si te motiva más.</p>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="hGoalsAll">
+      <div class="panel-head">
+        <h2 id="hGoalsAll">Objetivos</h2>
+        <span class="hint">Orientativos, no marcas mínimas oficiales. Se actualizan solos con tus tiempos.</span>
+      </div>
+      <div class="pl-goals" id="goalsAll"></div>
+    </section>
+
+    <div class="pl-two">
+      <section class="panel" aria-labelledby="hWeek">
+        <div class="panel-head">
+          <h2 id="hWeek">Esta semana</h2>
+          <span class="hint" id="weekWhen"></span>
+        </div>
+        <p class="hint">Rutina sugerida: de 3 a 4 horas a la semana. Puedes juntar dos sesiones en un día y dejar uno libre. La app cuenta sola los días con al menos 10 minutos en cada sección. Si practicaste sin la app, súmalo con +1.</p>
+        <ul class="pl-week" id="week"></ul>
+        <div class="pl-hours" id="hours"></div>
+      </section>
+
+      <section class="panel" aria-labelledby="hFocus">
+        <div class="panel-head"><h2 id="hFocus">Prioridad inmediata</h2></div>
+        <div id="focus"></div>
+      </section>
+    </div>
+
+    <section class="panel" aria-labelledby="hStart">
+      <div class="panel-head">
+        <h2 id="hStart">Tu punto de partida</h2>
+        <span class="hint">Noviembre de 2026 frente a ahora, con tus tiempos de CFOP</span>
+      </div>
+      <div id="start"></div>
+    </section>
+
+    <section class="panel" aria-labelledby="hComp">
+      <div class="panel-head">
+        <h2 id="hComp">Tu competición</h2>
+        <a class="btn" href="https://www.worldcubeassociation.org/competitions" target="_blank" rel="noopener">Calendario oficial de la WCA</a>
+      </div>
+      <form class="pl-comp-form" id="compForm">
+        <div class="field"><label for="compDate">Fecha</label><input id="compDate" class="text-input" type="date"></div>
+        <div class="field"><label for="compName">Nombre</label><input id="compName" class="text-input" type="text" autocomplete="off" placeholder="Por ejemplo, Open de Sevilla 2027"></div>
+        <div class="field wide"><label for="compUrl">Enlace a su página en la WCA (para ver eventos y límites)</label><input id="compUrl" class="text-input" type="url" autocomplete="off" placeholder="https://www.worldcubeassociation.org/competitions/…"></div>
+        <div class="actions"><button class="btn primary" type="submit">Guardar</button><button class="btn" type="button" id="compClear">Quitar</button></div>
+      </form>
+      <div id="prep"></div>
+    </section>
+
+    <section class="panel" aria-labelledby="hPlanSet">
+      <div class="panel-head"><h2 id="hPlanSet">Ajustes</h2></div>
+      <div class="fr-settings">
+        <div class="field">
+          <span class="field-title">Tema</span>
+          <div class="seg small" role="group" aria-label="Tema">
+            <button type="button" data-theme-set="auto" aria-pressed="true">Automático</button>
+            <button type="button" data-theme-set="light" aria-pressed="false">Claro</button>
+            <button type="button" data-theme-set="dark" aria-pressed="false">Oscuro</button>
+            <button type="button" data-theme-set="carbon" aria-pressed="false">Carbón</button>
+          </div>
+        </div>
+      </div>
+      <h3 class="pl-sub">Sincronizar entre dispositivos</h3>
+      <div class="sync" id="syncBox"></div>
+      <p class="hint">Este plan lee lo que guarda cada sección en este dispositivo. Con la sincronización activada, cada sección trae lo de tus otros dispositivos al abrirla.</p>
+    </section>
+  </main>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+<div class="update-bar" id="updateBar" role="status" hidden>
+  <span>Hay una versión nueva de la app.</span>
+  <button class="btn primary" type="button" id="updateGo">Actualizar</button>
+  <button class="x" type="button" id="updateLater" aria-label="Ahora no" title="Ahora no">×</button>
+</div>
+
+<script src="sections.js"></script>
+<script src="syncplan.js"></script>
+<script src="cubemodel.js"></script>
+<script src="evicons.js"></script>
+<script src="evdata.js"></script>
+<script src="evsync.js"></script>
+<script src="plan.js"></script>
+</body>
+</html>

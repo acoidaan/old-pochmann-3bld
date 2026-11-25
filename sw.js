@@ -1,6 +1,6 @@
 // Offline support. build.js fills in the versioned asset list and cache name.
 const CACHE = 'op3bld-__BUILD__';
-const SHELL = ['./', 'fridrich', 'cfop', 'principiante', 'manifest.webmanifest', 'fridrich.webmanifest', 'cfop.webmanifest', 'principiante.webmanifest', 'icon-192.png', 'icon-512.png', 'cubejs/cube.js', 'cubejs/solve.js', 'vendor/gan-web-bluetooth-3.0.2.js', __ASSETS__];
+const SHELL = ['./', 'fridrich', 'cfop', 'principiante', 'plan', '2x2', '4x4', 'pyraminx', 'square-1', 'manifest.webmanifest', 'fridrich.webmanifest', 'cfop.webmanifest', 'principiante.webmanifest', 'plan.webmanifest', '2x2.webmanifest', '4x4.webmanifest', 'pyraminx.webmanifest', 'square-1.webmanifest', 'icon-192.png', 'icon-512.png', 'cubejs/cube.js', 'cubejs/solve.js', 'vendor/gan-web-bluetooth-3.0.2.js', __ASSETS__];
 const FONT_HOSTS = ['fonts.googleapis.com', 'fonts.gstatic.com'];
 
 self.addEventListener('install', (e) => {
@@ -18,11 +18,10 @@ self.addEventListener('fetch', (e) => {
   if (url.origin === self.location.origin && url.pathname.startsWith('/api/')) return;
   if (url.origin !== self.location.origin && !FONT_HOSTS.includes(url.hostname)) return;
   if (req.mode === 'navigate') {
-    // Only the four pages are kept for offline use; others (the stream overlay) go to the network.
+    // Only the app's pages are kept for offline use; others (the stream overlay) go to the network.
+    const named = url.pathname.match(/\/(fridrich|cfop|principiante|plan|2x2|4x4|pyraminx|square-1)(\.html)?$/);
     const page = url.origin !== self.location.origin ? null
-      : /\/(index\.html)?$/.test(url.pathname) ? './' : /\/fridrich(\.html)?$/.test(url.pathname) ? 'fridrich'
-        : /\/cfop(\.html)?$/.test(url.pathname) ? 'cfop'
-        : /\/principiante(\.html)?$/.test(url.pathname) ? 'principiante' : null;
+      : /\/(index\.html)?$/.test(url.pathname) ? './' : named ? named[1] : null;
     if (!page) return;
     e.respondWith(fetch(req).then((res) => {
       const copy = res.clone();

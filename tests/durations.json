@@ -1,4 +1,6 @@
 {
+  "a11y/eventos-1.js": 40,
+  "a11y/eventos-2.js": 45,
   "a11y/fridrich-1.js": 30,
   "a11y/fridrich-2.js": 30,
   "a11y/fridrich-3.js": 30,
@@ -11,6 +13,7 @@
   "e2e/bld-m2.js": 24,
   "e2e/competition-mode.js": 8,
   "e2e/cube-pages.js": 2,
+  "e2e/eventos.js": 18,
   "e2e/fridrich-extras.js": 15,
   "e2e/fridrich-f2l.js": 16,
   "e2e/fridrich-phases.js": 36,
@@ -23,6 +26,7 @@
   "e2e/overlay-memo.js": 5,
   "e2e/overlay-obs.js": 18,
   "e2e/overlay-two-windows.js": 31,
+  "e2e/plan.js": 5,
   "e2e/previews-spoiler-updates.js": 10,
   "e2e/principiante.js": 11,
   "e2e/smart-cube-dnf-read.js": 39,

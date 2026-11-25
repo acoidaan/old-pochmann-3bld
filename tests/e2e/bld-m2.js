@@ -328,11 +328,11 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
   await btn.click();
   const menu = await p.evaluate(() => {
     const m = [...document.querySelectorAll('.sx-menu')].find((x) => !x.hidden);
-    return { items: [...m.querySelectorAll('a')].map((a) => a.textContent.trim().split('\n')[0]), here: m.querySelector('a[aria-current]').dataset.sx, cfop: new URL(m.querySelector('a[data-sx="cfop"]').href).pathname };
+    return { items: [...m.querySelectorAll('a[data-sx]')].map((a) => a.dataset.sx), here: m.querySelector('a[aria-current]').dataset.sx, cfop: new URL(m.querySelector('a[data-sx="cfop"]').href).pathname };
   });
   await p.keyboard.press('Escape');
   const closed = await p.evaluate(() => [...document.querySelectorAll('.sx-menu')].every((m) => m.hidden));
-  check('sections: one menu (A ciegas, CFOP, Principiante), where you are marked, CFOP goes to the level last used (here completa), Escape closes it; CFOP shows its level', menu.items.length === 3 && menu.here === 'bld' && menu.cfop === '/cfop' && closed && cf.h1 === 'CFOP' && cf.lv === 'full', JSON.stringify({ menu, closed, cf }));
+  check('sections: one menu (Mi plan, CFOP, A ciegas, Principiante and the four new events), where you are marked, CFOP goes to the level last used (here completa), Escape closes it; CFOP shows its level', menu.items.join(' ') === 'plan cfop bld beg 222 444 pyram sq1' && menu.here === 'bld' && menu.cfop === '/cfop' && closed && cf.h1 === 'CFOP' && cf.lv === 'full', JSON.stringify({ menu, closed, cf }));
   await ctx.close();
 
   for (const [name, opts] of [['pixel7', { ...devices['Pixel 7'] }], ['iphone-landscape', { viewport: { width: 750, height: 340 }, isMobile: true, hasTouch: true }]]) {

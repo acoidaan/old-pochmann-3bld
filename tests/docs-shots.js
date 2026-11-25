@@ -322,6 +322,53 @@ const save = (p, name, opts) => p.screenshot({ path: path.join(OUT, name), ...op
     await ctx.close();
   }
 
+  // Mi plan and the new events, early in December 2026 (the 2×2 under way), with what each section would keep.
+  {
+    const NOW = new Date('2026-12-03T19:00:00+01:00').getTime();
+    const ctx = await browser.newContext({ deviceScaleFactor: 1, viewport: { width: 1180, height: 1160 }, colorScheme: 'light' });
+    await ctx.route(/fonts\.googleapis\.com/, (r) => r.fulfill({ contentType: 'text/css', body: FONTS_CSS }));
+    await ctx.route(/fonts\.gstatic\.com/, (r) => r.abort());
+    await ctx.addInitScript((now) => {
+      if (localStorage.getItem('shots')) return;
+      localStorage.setItem('shots', '1');
+      const day = 86400000;
+      const cfop = Array.from({ length: 60 }, (_, i) => ({ at: now - (60 - i) * 2 * 3600000, t: 42000 - i * 110 + ((i * 7) % 5) * 600, pen: 0, scr: 'R U', ph: [6200, 22400, 6900, 3500] }));
+      localStorage.setItem('cfop:times:v1', JSON.stringify(cfop));
+      const learn = {};
+      for (let n = 1; n <= 25; n++) learn[`oll-${n}`] = 'known';
+      ['Aa', 'Ab', 'E', 'F', 'Ga', 'H', 'Ja', 'Jb', 'T'].forEach((x) => { learn[`pll-${x}`] = 'known'; });
+      for (let n = 1; n <= 8; n++) learn[`f2l${n}`] = 'known';
+      localStorage.setItem('cfop:learn:v1', JSON.stringify(learn));
+      localStorage.setItem('op3bld:times:v1', JSON.stringify([{ at: now - 2 * day, memo: 140000, exec: 95000, ok: false, scr: "R U F2 L' D B" }, { at: now - day, memo: 120000, exec: 80000, ok: true, scr: "R U F2 L' D B" }]));
+      localStorage.setItem('ev:222:times:v1', JSON.stringify(Array.from({ length: 14 }, (_, i) => ({ at: now - (14 - i) * 600000, t: 31000 - i * 900, pen: 0, scr: 'R U', ...(i < 6 ? { help: 1 } : {}) }))));
+      localStorage.setItem('ev:known:v1', JSON.stringify({ 222: { cara: now - day, oll: now - 3600000 } }));
+      const key = (t) => { const d = new Date(t); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+      const prac = (mins) => ({ shots: Object.fromEntries(mins.map((m, i) => [key(now - (mins.length - 1 - i) * day), m * 60000])) });
+      localStorage.setItem('cfop:practice:v1', JSON.stringify(prac([35, 25, 40, 30])));
+      localStorage.setItem('op3bld:practice:v1', JSON.stringify(prac([0, 15, 0, 0])));
+      localStorage.setItem('ev222:practice:v1', JSON.stringify(prac([0, 0, 20, 25])));
+      localStorage.setItem('plan:v1', JSON.stringify({ comp: { date: '2027-03-13', name: 'Mi primera competición', url: '', at: now }, prep: {}, ticks: {} }));
+    }, NOW);
+    const p = await ctx.newPage();
+    await p.clock.install({ time: NOW });
+    await p.goto(`${SITE}/plan`);
+    await p.clock.runFor(1500);
+    await p.evaluate(() => document.fonts.ready);
+    await save(p, 'plan.png');
+    done.push('plan.png');
+    await p.goto(`${SITE}/2x2#aprender`);
+    await p.clock.runFor(1500);
+    await p.evaluate(() => document.fonts.ready);
+    await (await p.$('#paso-oll')).screenshot({ path: path.join(OUT, 'modalidad-2x2.png') });
+    done.push('modalidad-2x2.png');
+    await p.goto(`${SITE}/square-1#aprender`);
+    await p.clock.runFor(1500);
+    await p.evaluate(() => document.fonts.ready);
+    await (await p.$('#paso-forma')).screenshot({ path: path.join(OUT, 'modalidad-sq1.png') });
+    done.push('modalidad-sq1.png');
+    await ctx.close();
+  }
+
   await browser.close();
   console.log(`Capturas: ${done.filter((x) => typeof x === 'string').join(', ')}`);
   console.log('0 problems');

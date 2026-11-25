@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="es" data-section="__SX__" data-event="__EV__" data-practice="__PRACTICE__">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script>try{var t=localStorage.getItem('op3bld:theme:v1');if(t==='light'||t==='dark'||t==='carbon')document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
+<meta name="description" content="__DESC__">
+<meta name="op3-build" content="__BUILD__">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Old Pochmann 3BLD">
+<meta property="og:title" content="__TITLE__">
+<meta property="og:description" content="__DESC__">
+<meta property="og:url" content="https://old-pochmann-3bld.vercel.app/__HREF__">
+<meta property="og:locale" content="es_ES">
+<link rel="manifest" href="__HREF__.webmanifest">
+<meta name="theme-color" content="#ECEFF3" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0F1319" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="__NAME__">
+<title>__TITLE__</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Martian+Mono:wght@400;600&family=Unbounded:wght@500;700&display=swap">
+<link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="fridrich.css">
+<link rel="stylesheet" href="eventos.css">
+</head>
+<body class="fr ev">
+<div class="fr-app">
+  <header class="fr-head">
+    <div class="brand">
+      <h1>__NAME__</h1>
+      <p>__METHOD__</p>
+    </div>
+    <a class="ev-phase" id="evPhase" href="plan" title="Tu plan WCA 2027">__PHASE__</a>
+    <button class="btn install" type="button" hidden>Instalar app</button>
+    <div class="sx-bar">
+      <nav class="sx" aria-label="Secciones de la app">
+        <button type="button" class="sx-btn" aria-expanded="false" aria-controls="sxMenu"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></svg><span>__NAME__</span><svg class="sx-chev" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>
+        <ul class="sx-menu" id="sxMenu" hidden><!--sx--></ul>
+      </nav>
+    </div>
+  </header>
+
+  <nav class="tabs" id="tabs" aria-label="Secciones">
+    <button type="button" class="tab" data-go="aprender"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/><path d="M8 7.5h8M8 11h6"/></svg><span>Aprender</span></button>
+    <button type="button" class="tab" data-go="crono"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13.5" r="7.5"/><path d="M12 13.5V9.5M9.5 2.5h5M12 2.5V6M18.3 6.7 19.8 5.2"/></svg><span>Cronómetro</span></button>
+    <button type="button" class="tab" data-go="entrenar"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/></svg><span>Entrenar</span></button>
+    <button type="button" class="tab" data-go="progreso"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16"/><path d="M5 16l4.5-5 3.5 3 6-7"/><path d="M15 7h4v4"/></svg><span>Progreso</span></button>
+    <button type="button" class="tab tab-ajustes" data-go="ajustes"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2.2"/><circle cx="9" cy="17" r="2.2"/></svg><span>Ajustes</span></button>
+  </nav>
+
+  <main>
+    <!-- ================= Aprender ================= -->
+    <div class="view" data-view="aprender">
+      <section class="panel ev-intro" aria-labelledby="hIntro">
+        <div class="panel-head"><h2 id="hIntro">__METHOD_NAME__, paso a paso</h2><span class="pr-known" id="knownCount"></span></div>
+        <p id="evIntro"></p>
+        <ol class="ev-path" id="path"></ol>
+        <label class="check ev-solo"><input type="checkbox" id="soloCheck"> <span id="soloText"></span></label>
+        <p class="hint" id="holdNote"></p>
+      </section>
+      <details class="panel nt-box ev-notation" id="notationBox">
+        <summary><h2>La notación</h2></summary>
+        <div id="notationBody"></div>
+      </details>
+      <div class="ev-steps" id="steps"></div>
+      <section class="panel ev-next" id="nextBox" aria-labelledby="hNext" hidden></section>
+    </div>
+
+    <!-- ================= Cronómetro ================= -->
+    <div class="view" data-view="crono" hidden>
+      <section class="panel" aria-labelledby="hTimer">
+        <div class="panel-head">
+          <h2 id="hTimer">Cronómetro</h2>
+          <div class="seg small" role="group" aria-label="Tiempos sueltos o ronda de 5">
+            <button type="button" id="modeFree" aria-pressed="true">Libre</button>
+            <button type="button" id="modeRound" aria-pressed="false">Ronda de 5</button>
+          </div>
+          <button class="btn focus-open" type="button" id="focusOpen" aria-pressed="false" aria-keyshortcuts="f" title="Solo la mezcla y el cronómetro (tecla F)">
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+            Pantalla completa
+          </button>
+          <span class="hint fr-keys"><kbd>Espacio</kbd>: mantén y suelta para empezar, pulsa para parar · <kbd>Esc</kbd> cancela · <kbd>F</kbd> pantalla completa</span>
+        </div>
+        <div class="fr-scramble ev-scramble">
+          <div class="fr-scr-head">
+            <span class="field-title">Mezcla</span>
+            <span class="actions"><button class="btn ev-focus-close" type="button" id="focusClose">Salir</button><button class="btn" type="button" id="newScr">Otra mezcla</button></span>
+          </div>
+          <p class="fr-scr" id="scr" aria-live="polite"></p>
+          <details class="ev-scrpic" id="scrPicBox"><summary>Cómo queda tras mezclar</summary><div id="scrPic"></div></details>
+        </div>
+        <div class="ev-opts">
+          <label class="check"><input type="checkbox" id="optInspect"> Inspección de 15 s, como en la WCA</label>
+          <label class="check"><input type="checkbox" id="optHelp"> Mirando el tutorial</label>
+        </div>
+        <section class="ev-round" id="round" aria-label="Ronda de 5" hidden></section>
+        <button type="button" class="clock" id="clock" data-phase="idle">
+          <span class="clock-phase" id="clockPhase">Listo</span>
+          <span class="clock-time" id="clockTime">0.00</span>
+          <span class="clock-split" id="clockSplit">Mantén pulsado y suelta para empezar</span>
+        </button>
+        <div class="stats" id="stats"></div>
+        <div class="history" id="history"></div>
+        <div class="actions"><button class="btn" type="button" id="histMore" hidden>Ver más</button></div>
+      </section>
+    </div>
+
+    <!-- ================= Entrenar ================= -->
+    <div class="view" data-view="entrenar" hidden>
+      <section class="panel" aria-labelledby="hTrain">
+        <div class="panel-head">
+          <h2 id="hTrain">Entrenar los casos</h2>
+          <div class="seg small" id="trSets" role="group" aria-label="Qué casos"></div>
+        </div>
+        <p class="hint">Te saco un caso. Ponlo en tu puzle como en el dibujo, hazlo y luego mira la solución: con tres seguidos bien, ese caso está dominado. Los que fallas salen más a menudo.</p>
+        <div class="ev-train" id="trBox" aria-live="polite"></div>
+        <div id="trStats"></div>
+      </section>
+    </div>
+
+    <!-- ================= Progreso ================= -->
+    <div class="view" data-view="progreso" hidden>
+      <section class="panel" aria-labelledby="hGoals">
+        <div class="panel-head"><h2 id="hGoals">Tus metas en el plan</h2><a class="btn" href="plan">Ver el plan entero</a></div>
+        <ul class="ev-goals" id="goals"></ul>
+      </section>
+      <section class="panel" aria-labelledby="hProg">
+        <div class="panel-head"><h2 id="hProg">Tus tiempos</h2></div>
+        <div class="stats" id="progStats"></div>
+        <div class="fr-chart-plot ev-chart" id="chart"></div>
+      </section>
+      <section class="panel" aria-labelledby="hRounds">
+        <div class="panel-head"><h2 id="hRounds">Rondas de 5</h2></div>
+        <div id="rounds"></div>
+      </section>
+      <section class="panel" aria-labelledby="hLearn">
+        <div class="panel-head"><h2 id="hLearn">Lo que llevas</h2></div>
+        <div id="learnSum"></div>
+      </section>
+    </div>
+
+    <!-- ================= Ajustes ================= -->
+    <div class="view" data-view="ajustes" hidden>
+      <section class="panel" aria-labelledby="hSettings">
+        <div class="panel-head"><h2 id="hSettings">Ajustes</h2></div>
+        <div class="fr-settings">
+          <label class="check"><input type="checkbox" id="setInspect"> Inspección de 15 s al cronometrar (en todas las modalidades nuevas)</label>
+          <div class="field">
+            <label class="check"><input type="checkbox" id="setVoice"> La voz del juez a los 8 y a los 12 segundos de la inspección</label>
+            <div class="actions"><button class="btn" type="button" id="voiceTry">Probar</button></div>
+          </div>
+          <label class="check"><input type="checkbox" id="setSound"> Sonido al parar el reloj</label>
+          <label class="check"><input type="checkbox" id="awakeSet" checked> Mantener la pantalla encendida mientras uses la app</label>
+          <div class="field">
+            <span class="field-title">Tema</span>
+            <div class="seg small" role="group" aria-label="Tema">
+              <button type="button" data-theme-set="auto" aria-pressed="true">Automático</button>
+              <button type="button" data-theme-set="light" aria-pressed="false">Claro</button>
+              <button type="button" data-theme-set="dark" aria-pressed="false">Oscuro</button>
+              <button type="button" data-theme-set="carbon" aria-pressed="false">Carbón</button>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section class="panel" aria-labelledby="hSync">
+        <div class="panel-head"><h2 id="hSync">Sincronizar entre dispositivos</h2></div>
+        <div class="sync" id="syncBox"></div>
+      </section>
+      <section class="panel" aria-labelledby="hData">
+        <div class="panel-head"><h2 id="hData">Tus datos</h2></div>
+        <p>Tus tiempos, lo que has aprendido y lo que has entrenado se guardan en este navegador (y, si activas la sincronización, en tus otros dispositivos).</p>
+        <div class="actions">
+          <button class="btn" type="button" id="exportData">Descargar copia</button>
+          <button class="btn" type="button" id="clearTimes">Borrar tiempos</button>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<div class="sheet ev-try" id="trySheet" hidden role="dialog" aria-modal="true" aria-labelledby="tryTitle">
+  <div class="sheet-card ev-try-card">
+    <div class="panel-head"><h2 id="tryTitle"></h2><button class="x" type="button" id="tryClose" aria-label="Cerrar">×</button></div>
+    <div class="ev-try-pic" id="tryPic"></div>
+    <p class="ev-try-alg" id="tryAlg"></p>
+    <p class="hint ev-try-now" id="tryNow" aria-live="polite"></p>
+    <div class="actions">
+      <button class="btn" type="button" id="tryPrev">Anterior</button>
+      <button class="btn primary" type="button" id="tryNext">Siguiente</button>
+      <button class="btn" type="button" id="tryReset">Desde el principio</button>
+    </div>
+  </div>
+</div>
+<template id="voiceClips"><audio data-k="eight" src="audio/eight.mp3"></audio><audio data-k="twelve" src="audio/twelve.mp3"></audio></template>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+<div class="update-bar" id="updateBar" role="status" hidden>
+  <span>Hay una versión nueva de la app.</span>
+  <button class="btn primary" type="button" id="updateGo">Actualizar</button>
+  <button class="x" type="button" id="updateLater" aria-label="Ahora no" title="Ahora no">×</button>
+</div>
+
+<script src="sections.js"></script>
+<script src="syncplan.js"></script>
+<script src="practice.js"></script>
+<script src="evdata.js"></script>
+<script src="evsync.js"></script>
+<!--ev-scripts-->
+<script src="eventos.js"></script>
+<script src="awake.js"></script>
+</body>
+</html>

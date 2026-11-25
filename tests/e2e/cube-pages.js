@@ -73,8 +73,9 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
 
   // ---- Disconnecting in the frame: that section becomes the page ----
   await frame().evaluate(() => document.getElementById('cubeOff').click());   // its bar is in «Cronómetro»
-  await p.waitForFunction(() => window.OP3 && !document.querySelector('.sc-frame'), null, { timeout: 10000 }).catch(() => {});
-  s = await p.evaluate(() => ({ path: location.pathname, op3: !!window.OP3, frame: !!document.querySelector('.sc-frame'), status: window.OP3 && window.OP3.cube.status }));
+  // The page loads again as 3BLD: wait for its cube too (with two suites at once it can come a moment later).
+  await p.waitForFunction(() => window.OP3 && window.OP3.cube && !document.querySelector('.sc-frame'), null, { timeout: 10000 }).catch(() => {});
+  s = await p.evaluate(() => ({ path: location.pathname, op3: !!window.OP3, frame: !!document.querySelector('.sc-frame'), status: window.OP3 && window.OP3.cube && window.OP3.cube.status }));
   check('«Desconectar» in the frame → 3BLD becomes the page, disconnected', s.path === '/' && s.op3 && !s.frame && s.status === 'off', JSON.stringify(s));
 
   // ---- Without a cube, a link just navigates ----
