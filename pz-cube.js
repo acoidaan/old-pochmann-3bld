@@ -299,7 +299,13 @@
       const sol = solve(permIndex(cp), oriIndex(co), 14);
       return sol ? sol.length : null;
     }
-    return { scramble, solve, distance, piecesOf, stateOf, slots, FIXED, MOVES };
+    // The shortest R, U, F solution of a sticker state (its back-down-left corner in place), or null.
+    function solveState(state, maxDepth = 14) {
+      const { cp, co } = piecesOf(state);
+      if (cp[FIXED] !== FIXED || co[FIXED] !== 0) return null;
+      return solve(permIndex(cp), oriIndex(co), maxDepth);
+    }
+    return { scramble, solve, solveState, distance, piecesOf, stateOf, slots, FIXED, MOVES };
   })();
 
   // ================= 4×4: random-move scrambles =================

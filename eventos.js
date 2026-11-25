@@ -17,6 +17,37 @@
   const K = { view: `ev:${EV}:view:v1`, scr: `ev:${EV}:scramble:v1`, round: `ev:${EV}:round:v1`, mode: `ev:${EV}:mode:v1`, trSet: `ev:${EV}:trset:v1` };
 
   // ================= The puzzle =================
+  const pick = (xs) => xs[Math.floor(Math.random() * xs.length)];
+  // Random turns, never the same face twice in a row (with three of them, prime and double too; the Pyraminx
+  // has no double turns).
+  function randomTurns(faces, n, noDouble) {
+    const out = [];
+    let last = '';
+    while (out.length < n) {
+      const f = pick(faces);
+      if (f === last) continue;
+      last = f;
+      out.push(f + pick(noDouble ? ['', "'"] : ['', "'", '2']));
+    }
+    return out.join(' ');
+  }
+  // Joins turns of the same layer next to each other (R R → R2, R R' → nothing): where the random turns meet
+// the way to the case. mod is 4 on a cube, 3 on the Pyraminx.
+function tidy(alg, mod) {
+  const out = [];
+  const amt = (sfx) => (sfx === "'" ? mod - 1 : sfx === '2' ? 2 : 1);
+  const sfxOf = (a) => (a === 1 ? '' : a === mod - 1 ? "'" : '2');
+  for (const tok of String(alg).trim().split(/\s+/).filter(Boolean)) {
+    const m = /^(.*?)(2|')?$/.exec(tok);
+    const last = out[out.length - 1];
+    if (last && last.f === m[1]) {
+      last.a = (last.a + amt(m[2])) % mod;
+      if (!last.a) out.pop();
+    } else out.push({ f: m[1], a: amt(m[2]) });
+  }
+  return out.map((x) => x.f + sfxOf(x.a)).join(' ');
+}
+const ROTS = ['', 'y', 'y2', "y'"].flatMap((a) => ['', 'x', 'x2', "x'", 'z', "z'"].map((b) => [a, b].filter(Boolean).join(' ')));
   const PZ = (() => {
     if (T.puzzle === 'cube2' || T.puzzle === 'cube4') {
       const n = T.puzzle === 'cube2' ? 2 : 4;
@@ -43,7 +74,37 @@
         scrPic: (st, o) => P.net(n, st, o),
         from: (f) => { let st = held(); if (f.flip) st = M.flipEdge(st, ...f.flip); if (f.swap) st = M.swapEdges(st, ...f.swap); return st; },
         solvedNow: (st) => M.isSolved(st),
+        disguise: (c) => (n === 2 ? setup2(c) : setup4(c)),
       };
+      // To train with your own cube: a setup that does not give the case away. On the 2×2, a few random turns and
+      // the shortest way from there to the case (the solver of the scrambles), with a random U before.
+      function setup2(c) {
+        for (let k = 0; k < 6; k++) {
+          const su = setup2once(c);
+          if (su && !su.setup.includes(P.invert(c.alg))) return su;
+        }
+        return null;
+      }
+      function setup2once(c) {
+        const pre = pick(['', 'U', 'U2', "U'"]);
+        const X = P.invert([pre, c.alg, c.after].filter(Boolean).join(' '));
+        const Q = randomTurns(['R', 'U', 'F'], 7);
+        const D = M.apply(M.solved(), `${P.invert(Q)} ${X}`);
+        for (const r of ROTS) {
+          const sol = P.two.solveState(r ? M.apply(D, r) : D);
+          if (!sol) continue;
+          const setup = [tidy([Q, P.invert(sol.join(' '))].join(' '), 4), r ? P.invert(r) : ''].filter(Boolean).join(' ');
+          return { setup, state: M.apply(held(), setup), pre };
+        }
+        return null;
+      }
+      // On the 4×4 (no solver): another algorithm that does the same parity (c.hide) between random 3×3 last
+      // layer algorithms (c.mix), so it comes as in a real solve: the parity and a last layer to finish.
+      function setup4(c) {
+        if (!c.hide) return null;
+        const setup = tidy([pick(['', 'U', 'U2', "U'"]), pick(c.mix || ['']), pick(c.hide), pick(['', 'U', 'U2', "U'"])].join(' '), 4);
+        return { setup, state: M.apply(held(), setup), pre: '', mixed: true };
+      }
     }
     if (T.puzzle === 'pyra') {
       const P = window.PzPyra;
@@ -51,7 +112,25 @@
         model: P, held: P.solved, apply: P.apply, invert: P.invert, isSolved: P.isSolved,
         tokens: (alg) => String(alg).trim().split(/\s+/).filter(Boolean),
         scramble: () => P.scramble(), draw: (st, kind, o) => P.net(st, o), stepPic: 'net', scrPic: (st, o) => P.net(st, o), solvedNow: P.isSolved,
+        // A setup that does not give the case away: random turns and the shortest way from there to the case.
+        disguise: (c) => {
+          for (let k = 0; k < 6; k++) {
+            const su = once(c);
+            if (su && !su.setup.includes(P.invert(c.alg))) return su;
+          }
+          return null;
+        },
       };
+      function once(c) {
+        const pre = pick(['', 'U', "U'"]);
+        const X = P.invert([pre, c.alg].filter(Boolean).join(' '));
+        const Q = randomTurns(['U', 'L', 'R', 'B'], 5, true);
+        const sol = P.solve(P.apply(P.solved(), `${P.invert(Q)} ${X}`), 12);
+        if (!sol) return null;
+        const setup = tidy(`${Q} ${P.invert(Array.isArray(sol) ? sol.join(' ') : sol)}`, 3);
+        if (!setup) return null;
+        return { setup, state: P.apply(P.solved(), setup), pre };
+      }
     }
     const Q = window.PzSq1;
     return {
@@ -588,7 +667,17 @@
     tr.id = pickCase();
     tr.last = tr.id;
     tr.shown = false;
+    tr.su = null;
     renderTrain();
+  }
+  // The case as it comes this time: with a setup that does not give it away (if the puzzle has one), drawn as
+  // that setup leaves it.
+  function trainSetup(c) {
+    if (tr.su && tr.su.id === c.id) return tr.su;
+    let su = null;
+    try { su = PZ.disguise ? PZ.disguise(c) : null; } catch (e) { su = null; }
+    tr.su = { id: c.id, ...(su || { setup: '', state: caseState(c), pre: '' }) };
+    return tr.su;
   }
   function renderTrainSets() {
     $('trSets').innerHTML = trSets.map((id) => `<button type="button" data-trset="${id}" aria-pressed="${id === trSet}">${esc(setOf(id).name)}</button>`).join('');
@@ -603,17 +692,20 @@
   });
   function renderTrain() {
     if (!trSets.length) { $('trBox').innerHTML = '<p class="empty-note">Este método no tiene casos que entrenar.</p>'; return; }
-    if (!tr.id || !setOf(trSet).cases.some((c) => c.id === tr.id)) { tr.id = pickCase(); tr.last = tr.id; tr.shown = false; }
+    if (!tr.id || !setOf(trSet).cases.some((c) => c.id === tr.id)) { tr.id = pickCase(); tr.last = tr.id; tr.shown = false; tr.su = null; }
     const s = setOf(trSet);
     const c = s.cases.find((x) => x.id === tr.id);
+    const su = trainSetup(c);
+    const setupHtml = su.setup ? `<p class="ev-train-setup"><span class="field-title">Para ponerlo en tu puzle</span>${algHtml(su.setup)}<span class="hint">Desde resuelto y sujeto como en los dibujos. No es el algoritmo al revés: así no te lo chiva.</span></p>` : '';
+    const solution = `${su.pre ? `<span class="ev-sol-note">Antes</span> ${algHtml(su.pre)} <span class="ev-sol-note">y después</span> ` : ''}${algHtml(c.alg)}${c.after ? ` <span class="ev-sol-note">y luego</span> ${algHtml(c.after)}` : ''}${su.mixed ? ' <span class="ev-sol-note">y termina la última capa con tus algoritmos del 3×3</span>' : ''}`;
     const st = (D.train(EV)[c.id] || {});
     $('trBox').innerHTML = `<div class="ev-train-card">
-        <div class="ev-train-pic${wideOf(s) ? ' ev-wide' : ''}">${PZ.draw(caseState(c), s.pic, { label: 'El caso que toca', mask: c.mask || s.mask })}</div>
+        <div class="ev-train-pic${wideOf(s) ? ' ev-wide' : ''}">${PZ.draw(su.state, s.pic, { label: 'El caso que toca', mask: c.mask || s.mask })}</div>
         <div class="ev-train-text">
-          ${tr.shown ? `<h3>${esc(c.name)}</h3>${c.how ? `<p class="ev-case-how">${esc(c.how)}</p>` : ''}<p class="ev-case-alg fr-alg-big">${algHtml(c.alg)}${c.after ? ` <span class="muted">y luego ${esc(c.after)}</span>` : ''}</p>
+          ${tr.shown ? `<h3>${esc(c.name)}</h3>${c.how ? `<p class="ev-case-how">${esc(c.how)}</p>` : ''}<p class="ev-case-alg fr-alg-big">${solution}</p>${setupHtml}
             <p class="hint">¿Te ha salido sin mirar?</p>
             <div class="actions"><button class="btn primary" type="button" id="trOk">Me ha salido</button><button class="btn" type="button" id="trKo">He fallado</button><button class="btn" type="button" data-try="${esc(c.id)}">Pruébalo</button></div>`
-          : `<p class="fr-note">¿Qué caso es? Ponlo en tu puzle como en el dibujo y hazlo.</p>
+          : `<p class="fr-note">¿Qué caso es? Ponlo en tu puzle y hazlo.</p>${setupHtml}
             <p class="hint">Seguidas bien: ${st.streak || 0} de ${DONE}${(st.streak || 0) >= DONE ? ' · ya te lo sabes' : ''}.</p>
             <div class="actions"><button class="btn primary" type="button" id="trShow">Ver la solución</button><button class="btn" type="button" id="trSkip">Otro</button></div>`}
         </div>
@@ -795,7 +887,7 @@
 
   window.EvPage = {
     EV, T, PZ, D, showView, caseState, openTry, newScramble, voiceLog,
-    state: () => ({ phase: timer.phase, times, scramble, mode, round, view, train: tr.id }),
+    state: () => ({ phase: timer.phase, times, scramble, mode, round, view, train: tr.id, trainSetup: tr.su }),
     // For the stream overlay (stream.js): the clock in wall time, the puzzle after a scramble, the views.
     timerState: () => {
       const off = Date.now() - now();

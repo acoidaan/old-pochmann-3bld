@@ -312,6 +312,26 @@ check('Square-1 scrambles: 12 slashes, every one possible', scrS.every((s) => s.
   await p.click('#trOk');
   const tr = await p.evaluate((i) => window.EvData.train('222')[i], id);
   check('trainer: a PBL case, its solution on demand, «Me ha salido» counts it', T2.sets.pbl.cases.some((c) => c.id === id) && alg.replace(/\s+/g, ' ').includes(T2.sets.pbl.cases.find((c) => c.id === id).alg.split(' ')[0]) && tr && tr.streak === 1, `${id} ${JSON.stringify(tr)}`);
+  // Setups that do not give the case away: from solved, the setup leaves the drawn state, the shown solution
+  // (AUF before, the algorithm, what comes after) solves it, and the setup is not the algorithm backwards.
+  const setupCheck = (pg) => pg.evaluate(() => {
+    const { PZ, T } = window.EvPage;
+    const key = (st) => JSON.stringify(PZ.model.faceColors ? PZ.model.faceColors(st) : st);
+    const bad = [];
+    let n = 0;
+    for (const set of Object.values(T.sets)) for (const c of set.cases) for (let k = 0; k < 4; k++) {
+      const su = PZ.disguise(c);
+      if (!su) break;
+      n++;
+      const st = PZ.apply(PZ.held(), su.setup);
+      const ok = key(st) === key(su.state) && (su.mixed || PZ.isSolved(PZ.apply(st, [su.pre, c.alg, c.after].filter(Boolean).join(' '))));
+      if (!ok || su.setup.includes(PZ.invert(c.alg)) || / (\S+) \1( |$)/.test(su.setup)) bad.push(`${c.id}: ${su.setup}`);
+    }
+    return { n, bad };
+  });
+  const su2 = await setupCheck(p);
+  const shownSetup = await p.evaluate(() => ({ text: (document.querySelector('#trBox .ev-train-setup') || {}).textContent || '', su: window.EvPage.state().trainSetup }));
+  check('trainer setups on the 2×2: the drawn state, solved by the shown solution, never the algorithm backwards; the page shows it', su2.n > 50 && !su2.bad.length && shownSetup.su && shownSetup.su.setup && shownSetup.text.includes('Para ponerlo'), JSON.stringify({ ...su2, bad: su2.bad.slice(0, 3), shownSetup }));
   // Ajustes and full screen.
   await p.evaluate(() => window.EvPage.showView('ajustes'));
   await p.uncheck('#setInspect');
@@ -357,6 +377,10 @@ check('Square-1 scrambles: 12 slashes, every one possible', scrS.every((s) => s.
     for (let i = 0; i < k; i++) await p.click('#tryNext');
     check(`${page}: «Pruébalo» to the end of ${tryId}`, endMsg.test(await p.textContent('#tryNow')), await p.textContent('#tryNow'));
     await p.click('#tryClose');
+    if (page !== 'square-1') {
+      const su = await setupCheck(p);
+      check(`${page}: its trainer setups give the drawn case, are solved by the shown solution and are never the algorithm backwards`, su.n > (page === '4x4' ? 8 : 100) && !su.bad.length, JSON.stringify({ ...su, bad: su.bad.slice(0, 3) }));
+    }
     await ctx.close();
   }
 
