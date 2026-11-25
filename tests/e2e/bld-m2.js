@@ -247,6 +247,9 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
   const lostTurns = await p.evaluate(async () => {
     const O = window.OP3;
     const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    // The verdict comes once the cube has been asked how it really is (after it stays still a moment): wait for
+    // it rather than a fixed time, which a busy machine can overrun.
+    const verdict = async () => { for (let k = 0; k < 100 && !document.getElementById('trFeedback').textContent; k++) await wait(50); };
     const algOf = () => O.tokenAlg({ kind: 'edge', L: O.trainer.state().letter }).split(' ');
     const out = [];
     const fb = document.getElementById('trFeedback');
@@ -259,7 +262,7 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
     await wait(1000);
     out.push(document.getElementById('trCubeLine').textContent);
     await O.cube.link.play([moves.slice(1).join(' ')], 300);
-    await wait(300);
+    await verdict();
     out.push(document.getElementById('trFeedback').textContent);
     fb.textContent = '';
     moves = algOf();
@@ -267,7 +270,8 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
     if (j) await O.cube.link.play([moves.slice(0, j).join(' ')], 300);
     O.cube.link.silent(moves[j]);
     if (j + 1 < moves.length) await O.cube.link.play([moves.slice(j + 1).join(' ')], 300);
-    await wait(1200);
+    await wait(300);
+    await verdict();
     out.push(document.getElementById('trFeedback').textContent);
     // And the other way round: a turn the app heard but the cube didn't make (R and back, the way back lost).
     // It says «Ese giro no toca» only until the cube is asked how it really is.
@@ -278,7 +282,7 @@ const check = (name, ok, extra) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name}
     await wait(600);
     out.push(document.getElementById('trCubeLine').textContent);
     await O.cube.link.play([moves.join(' ')], 300);
-    await wait(300);
+    await verdict();
     out.push(document.getElementById('trFeedback').textContent);
     return out;
   });
