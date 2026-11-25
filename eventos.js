@@ -403,7 +403,7 @@
       idle: 'Listo', done: 'Tiempo', hold: 'Mantén…', ready: 'Suelta para empezar', run: 'En marcha',
       inspect: 'Inspección', ihold: 'Mantén…', iready: 'Suelta para empezar',
     };
-    $('clockPhase').textContent = phaseText[p] || '';
+    $('clockPhase').textContent = `${phaseText[p] || ''}${D.settings().help ? ' · con ayuda' : ''}`;
     let sub = '';
     if (p === 'idle' || p === 'done') sub = inspectOn() ? 'Pulsa (o Espacio) para empezar la inspección' : 'Mantén pulsado (o Espacio) y suelta para empezar';
     else if (p === 'inspect') sub = 'Mantén pulsado y suelta para empezar a resolver';
@@ -465,8 +465,19 @@
   clockEl.addEventListener('click', (ev) => ev.preventDefault());
 
   // ---- Full screen: only the scramble and the clock
+  // With «Mirando el tutorial» on, full screen keeps the method's algorithms in sight (the long sets, as the
+  // 35 L4E, stay in Aprender); the solve is saved as with help.
+  function renderCheat() {
+    const box = $('cheat');
+    box.hidden = !(document.body.classList.contains('ev-focus') && D.settings().help);
+    if (box.hidden || box.dataset.done) return;
+    box.dataset.done = '1';
+    const ids = [...new Set(T.steps.map((st) => st.set).filter(Boolean))].filter((id) => setOf(id) && setOf(id).cases.length <= 12);
+    box.innerHTML = ids.map((id) => `<div class="ev-cheat-set"><h3>${esc(setOf(id).name)}</h3><ul>${setOf(id).cases.map((c) => `<li><b>${esc(c.name)}</b> ${algHtml(c.alg)}${c.after ? ` <span class="muted">y ${esc(c.after)}</span>` : ''}</li>`).join('')}</ul></div>`).join('');
+  }
   function setFocus(on) {
     document.body.classList.toggle('ev-focus', on);
+    renderCheat();
     $('focusOpen').setAttribute('aria-pressed', String(on));
     if (on) { try { if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {}); } catch (e) { /* not allowed */ } } else if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {});
   }
@@ -503,7 +514,7 @@
     if (nb) nb.addEventListener('click', () => { round = null; D.save(K.round, null); renderRound(); });
   }
   $('optInspect').addEventListener('change', (e) => { D.setSettings({ inspect: e.target.checked }); renderClock(); renderRound(); renderSettings(); });
-  $('optHelp').addEventListener('change', (e) => { D.setSettings({ help: e.target.checked }); });
+  $('optHelp').addEventListener('change', (e) => { D.setSettings({ help: e.target.checked }); renderCheat(); renderClock(); });
 
   // ---- Numbers and the list
   let histShown = 20;

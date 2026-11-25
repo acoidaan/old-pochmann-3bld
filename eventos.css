@@ -74,8 +74,16 @@
 .ev-scrpic[open] summary { margin-bottom: 8px; }
 .ev-scrpic svg { width: min(100%, 360px); }
 .ev-focus-close { display: none; }
+/* Full screen: inspection and «Mirando el tutorial» stay; with the second, the algorithms under the clock. */
+body.ev-focus .ev-opts { justify-content: center; }
+.ev-cheat { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 10px 22px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--raise); }
+.ev-cheat h3 { margin: 0 0 4px; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.ev-cheat ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; }
+.ev-cheat li { font-size: 13.5px; }
+.ev-cheat .fr-alg { font-family: var(--font-mono); font-weight: 600; column-gap: .4em; }
+body.ev-focus:has(#cheat:not([hidden])) .clock { min-height: 34vh; }
 /* Full screen: the scramble and the clock, nothing else. */
-body.ev-focus .fr-head, body.ev-focus .tabs, body.ev-focus .panel-head, body.ev-focus .ev-opts, body.ev-focus .stats,
+body.ev-focus .fr-head, body.ev-focus .tabs, body.ev-focus .panel-head, body.ev-focus .stats,
 body.ev-focus .history, body.ev-focus #histMore, body.ev-focus .ev-scrpic, body.ev-focus .view:not([data-view="crono"]) { display: none !important; }
 body.ev-focus .ev-focus-close { display: inline-flex; }
 body.ev-focus main .panel { border: 0; background: none; padding: 0; }

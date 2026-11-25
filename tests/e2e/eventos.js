@@ -320,7 +320,12 @@ check('Square-1 scrambles: 12 slashes, every one possible', scrS.every((s) => s.
   await p.evaluate(() => window.EvPage.showView('crono'));
   await p.keyboard.press('f');
   const focus = await p.evaluate(() => document.body.classList.contains('ev-focus'));
+  const cheat = await p.evaluate(() => ({ hidden: document.getElementById('cheat').hidden, opts: getComputedStyle(document.querySelector('.ev-opts')).display !== 'none' }));
+  await p.check('#optHelp');
+  const cheatOn = await p.evaluate(() => ({ hidden: document.getElementById('cheat').hidden, sets: document.querySelectorAll('#cheat .ev-cheat-set').length, algs: document.querySelectorAll('#cheat li').length, phase: document.getElementById('clockPhase').textContent }));
+  await p.uncheck('#optHelp');
   await p.keyboard.press('Escape');
+  check('full screen keeps «Mirando el tutorial»; with it on, the algorithms of each step under the clock and «con ayuda» on the clock', cheat.hidden && cheat.opts && !cheatOn.hidden && cheatOn.sets === 3 && cheatOn.algs === 15 && /con ayuda/.test(cheatOn.phase), JSON.stringify({ cheat, cheatOn }));
   check('Ajustes turns the inspection off and on; F goes full screen and Escape back', off === false && (await p.evaluate(() => window.EvData.settings().inspect)) && focus && !(await p.evaluate(() => document.body.classList.contains('ev-focus'))));
   // Another device's data: new times, an edit, a deletion, newer marks; the plan's competition.
   const merged = await p.evaluate(() => {
