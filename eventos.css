@@ -82,6 +82,11 @@ body.ev-focus .ev-opts { justify-content: center; }
 .ev-cheat li { font-size: 13.5px; }
 .ev-cheat .fr-alg { font-family: var(--font-mono); font-weight: 600; column-gap: .4em; }
 body.ev-focus:has(#cheat:not([hidden])) .clock { min-height: 34vh; }
+body.ev-focus .ev-cheat { gap: 14px 28px; padding: 16px 20px; }
+body.ev-focus .ev-cheat h3 { font-size: 13px; margin-bottom: 8px; }
+body.ev-focus .ev-cheat ul { gap: 8px; }
+body.ev-focus .ev-cheat li { font-size: clamp(15px, 1.6vw, 19px); }
+body.ev-focus .ev-cheat .fr-alg { font-size: clamp(16px, 1.9vw, 23px); }
 /* Full screen: the scramble and the clock, nothing else. */
 body.ev-focus .fr-head, body.ev-focus .tabs, body.ev-focus .panel-head, body.ev-focus .stats,
 body.ev-focus .history, body.ev-focus #histMore, body.ev-focus .ev-scrpic, body.ev-focus .view:not([data-view="crono"]) { display: none !important; }

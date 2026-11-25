@@ -382,9 +382,9 @@ check('Square-1 scrambles: 12 slashes, every one possible', scrS.every((s) => s.
       await p4.waitForFunction(() => window.EvPage && window.EvPage.state().scramble);
       await p4.keyboard.press('f');
       await p4.check('#optHelp');
-      const sets = await p4.evaluate(() => [...document.querySelectorAll('#cheat .ev-cheat-set h3')].map((h) => h.textContent).join('|'));
+      const sets = await p4.evaluate(() => [...document.querySelectorAll('#cheat .ev-cheat-set h3')].map((h) => h.textContent).join('|') + ':' + document.querySelectorAll('#cheat li').length + ':' + parseFloat(getComputedStyle(document.querySelector('#cheat .fr-alg')).fontSize));
       await p4.uncheck('#optHelp');
-      check('4×4, full screen with «Mirando el tutorial»: only the parities in sight', sets === 'Paridades', sets);
+      check('4×4, full screen with «Mirando el tutorial»: only the two parities in sight, big enough to read', /^Paridades:2:/.test(sets) && Number(sets.split(':')[2]) >= 16, sets);
       await p4.close();
     }
     check('overlay: the Square-1 page on stream (its name, its scramble drawn, its steps, the inspection running; no 3×3 cube nor CFOP steps)', /Square-1/.test(o1.brand) && o1.pic && o1.net && o1.splits && /Pasos que me sé/.test(o1.prog), JSON.stringify(o1));

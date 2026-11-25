@@ -53,7 +53,7 @@
         cases: [
           { id: 'oll-par', name: 'Paridad OLL', how: 'Una sola arista doble volteada en la capa de arriba: ponla delante.', alg: "Rw U2 x Rw U2 Rw U2 Rw' U2 Lw U2 Rw' U2 Rw U2 Rw' U2 Rw'", from: { flip: ['U', 'F'] }, mask: 'D' },
           { id: 'pll-par', name: 'Paridad PLL', how: 'Las aristas dobles de delante y de detrás cambiadas entre sí (lo demás bien). Ojo: r2 es solo la capa de dentro de la derecha (también se escribe 2R2), no Rw2: con Rw2 no sale.', alg: "r2 U2 r2 Uw2 r2 Uw2", after: 'U2', from: { swap: [['U', 'F'], ['U', 'B']] } },
-          { id: 'pll-par-adj', name: 'Paridad PLL (de al lado)', how: 'Cambiadas la arista doble de la izquierda y la de detrás; la de delante, la de la derecha y las esquinas bien. Haz la paridad PLL así, sin girar el cubo: te queda una Ub con la de la derecha bien. Gira el cubo para tenerla detrás (y\') y haz la Ub.', alg: "r2 U2 r2 Uw2 r2 Uw2 U2", after: "y' R2 U R U R' U' R' U' R' U R'", from: { swap: [['U', 'L'], ['U', 'B']] } },
+          { id: 'pll-par-adj', cheat: false, name: 'Paridad PLL (de al lado)', how: 'Cambiadas la arista doble de la izquierda y la de detrás; la de delante, la de la derecha y las esquinas bien. Haz la paridad PLL así, sin girar el cubo: te queda una Ub con la de la derecha bien. Gira el cubo para tenerla detrás (y\') y haz la Ub.', alg: "r2 U2 r2 Uw2 r2 Uw2 U2", after: "y' R2 U R U R' U' R' U' R' U R'", from: { swap: [['U', 'L'], ['U', 'B']] } },
         ],
       },
     },

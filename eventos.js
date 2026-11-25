@@ -475,7 +475,7 @@
     box.dataset.done = '1';
     // The sets a method asks for («cheat»: in the 4×4, only the parities), else every step's own.
     const ids = (T.cheat || [...new Set(T.steps.map((st) => st.set).filter(Boolean))]).filter((id) => setOf(id) && setOf(id).cases.length <= 12);
-    box.innerHTML = ids.map((id) => `<div class="ev-cheat-set"><h3>${esc(setOf(id).name)}</h3><ul>${setOf(id).cases.map((c) => `<li><b>${esc(c.name)}</b> ${algHtml(c.alg)}${c.after ? ` <span class="muted">y</span> ${algHtml(c.after)}` : ''}</li>`).join('')}</ul></div>`).join('');
+    box.innerHTML = ids.map((id) => `<div class="ev-cheat-set"><h3>${esc(setOf(id).name)}</h3><ul>${setOf(id).cases.filter((c) => c.cheat !== false).map((c) => `<li><b>${esc(c.name)}</b> ${algHtml(c.alg)}${c.after ? ` <span class="muted">y</span> ${algHtml(c.after)}` : ''}</li>`).join('')}</ul></div>`).join('');
   }
   function setFocus(on) {
     document.body.classList.toggle('ev-focus', on);
