@@ -252,6 +252,30 @@ const SOLVE = ["D R' F2 L", "U R U' R'", "U' F' U F", "L' U' L", "U B U' B'", "F
   await ph.p.screenshot({ path: `${SHOTS}/fridrich-focus-pixel7.png` });
   await ph.ctx.close();
 
+  // ================= Competition mode: the ao5 written as on WCA results =================
+  // Seven solves today (one +2, the last a DNF): the last five are the ao5, its best and its worst (the DNF) in
+  // brackets, the two before it smaller (they are not in it).
+  const seven = () => {
+    if (localStorage.getItem('seeded7')) return;
+    localStorage.setItem('seeded7', '1');
+    const now = Date.now();
+    const ts = [[30000, 0], [28000, 0], [35000, 2], [31000, 0], [29000, 0], [33000, 0], [40000, 'dnf']];
+    localStorage.setItem('cfop:times:v1', JSON.stringify(ts.map(([t, pen], i) => ({ at: now - (7 - i) * 1000, t, pen, scr: "R U R' U'" }))));
+  };
+  const rowOf = (pg) => pg.evaluate(() => {
+    const spans = [...document.querySelectorAll('#focusRecent > span:not(.sr-only)')];
+    return { all: spans.map((x) => x.textContent).join(' '), seen: spans.filter((x) => getComputedStyle(x).display !== 'none').map((x) => x.textContent).join(' '), cls: spans.map((x) => x.className).join('|'), stats: document.getElementById('focusStats').textContent };
+  });
+  for (const [label, opts, want] of [['computer', {}, '30.00 28.00 37.00+ 31.00 (29.00) 33.00 (DNF)'], ['phone', { ...devices['Pixel 7'] }, '28.00 37.00+ 31.00 (29.00) 33.00 (DNF)']]) {
+    const w = await open(opts, `${SITE}/fridrich#crono`, seven);
+    await w.p.click('#focusOpen');
+    await w.p.waitForTimeout(150);
+    const r = await rowOf(w.p);
+    check(`focus (${label}): today's last five are the ao5 above, its best and its worst in brackets (a DNF is the worst), the older ones outside it`,
+      r.seen === want && r.all === '30.00 28.00 37.00+ 31.00 (29.00) 33.00 (DNF)' && r.cls === 'old|best old|in|in|drop|in|dnf drop last' && /ao5 33\.67/.test(r.stats), JSON.stringify(r));
+    await w.ctx.close();
+  }
+
   await ctx.close();
   results.forEach((r) => console.log(r));
   console.log(`page errors: ${errs.length ? JSON.stringify(errs) : 'none'}`);

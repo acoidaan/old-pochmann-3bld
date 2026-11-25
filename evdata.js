@@ -95,6 +95,16 @@
       mean: ok.length ? ok.map(value).reduce((a, b) => a + b, 0) / ok.length : null,
     };
   }
+  // The two times of an average of 5 that WCA results write in brackets, because they do not count: its best and
+  // its worst (a DNF is the worst); the first of each when two are the same.
+  function trimmed(list) {
+    if (list.length !== 5) return new Set();
+    const vs = list.map(value);
+    const lo = vs.indexOf(Math.min(...vs));
+    const hi = vs.indexOf(Math.max(...vs));
+    return new Set([lo, hi === lo ? vs.lastIndexOf(Math.max(...vs)) : hi]);
+  }
+  const fmtAvg5 = (list) => { const out = trimmed(list); return list.map((r, i) => (out.has(i) ? `(${fmtRes(r)})` : fmtRes(r))).join(' '); };
   // A round of 5 is the times with the same `rd` (when it began), in order: its average is the WCA one.
   function rounds(list) {
     const by = new Map();
@@ -457,7 +467,7 @@
 
   window.EvData = {
     K, NEW, EVENTS, START, PRACTICE, eventOf, load, save,
-    value, fmt, fmtRes, short, avgOf, bestAvg, summary, rounds,
+    value, fmt, fmtRes, short, avgOf, bestAvg, summary, rounds, trimmed, fmtAvg5,
     times, setTimes, known, isKnown, setKnown, solo, setSolo, train, trainAnswer, settings, setSettings,
     plan, setComp, setPrep, setTick,
     cfopTimes, cfopParts, cfopAlgs, bldTimes, bldFull, bldValue, bldLearn, practiceDays, dayKey, dayStart, mondayOf, weekKey,

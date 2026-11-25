@@ -491,12 +491,14 @@
     const cur = round ? D.rounds(times).find((r) => r.id === round.rd) : null;
     const going = cur && !cur.done ? cur : null;
     const shown = going || (cur && cur.done ? cur : null);
+    // Once done, its best and its worst in brackets, as on WCA results: they do not count.
+    const out = shown && shown.done ? D.trimmed(shown.times) : new Set();
     const slots = [0, 1, 2, 3, 4].map((i) => {
       const r = shown ? shown.times[i] : null;
-      return `<li class="${r ? 'done' : (going && i === going.times.length) || (!going && !shown && i === 0) ? 'cur' : ''}"><span class="muted">${i + 1}</span><b>${r ? D.fmtRes(r) : '—'}</b></li>`;
+      return `<li class="${r ? `done${out.has(i) ? ' drop' : ''}` : (going && i === going.times.length) || (!going && !shown && i === 0) ? 'cur' : ''}"><span class="muted">${i + 1}</span><b>${r ? (out.has(i) ? `(${D.fmtRes(r)})` : D.fmtRes(r)) : '—'}</b></li>`;
     }).join('');
     let foot;
-    if (shown && shown.done) foot = `<p class="ev-round-avg">Media de la ronda: <b>${D.fmt(shown.avg)}</b> · mejor ${D.fmt(shown.best)}</p><p class="hint">Como en la WCA: fuera el mejor y el peor, y la media de los otros tres. El siguiente tiempo empieza otra ronda.</p>`;
+    if (shown && shown.done) foot = `<p class="ev-round-avg">Media de la ronda: <b>${D.fmt(shown.avg)}</b> · mejor ${D.fmt(shown.best)}</p><p class="hint">Como en la WCA: fuera el mejor y el peor (entre paréntesis), y la media de los otros tres. El siguiente tiempo empieza otra ronda.</p>`;
     else foot = `<p class="hint">Cinco intentos seguidos, como en una ronda de competición${inspectOn() ? ', con inspección' : ''}. Al quinto, la media.</p>`;
     box.innerHTML = `<div class="ev-round-head"><span class="field-title">Ronda de 5</span>${going ? `<button class="btn" type="button" id="roundNew">Empezar otra</button>` : ''}</div><ol class="ev-round-slots">${slots}</ol>${foot}`;
     const nb = $('roundNew');
@@ -660,7 +662,7 @@
     $('chart').innerHTML = chartSvg(times);
     const rs = D.rounds(times).filter((r) => r.done).reverse();
     $('rounds').innerHTML = rs.length ? `<div class="fr-table" tabindex="0" role="region" aria-label="Tus rondas de 5"><table><thead><tr><th scope="col">Cuándo</th><th scope="col">Media</th><th scope="col">Tiempos</th></tr></thead><tbody>${
-      rs.slice(0, 30).map((r) => `<tr><td class="muted">${new Date(r.at).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}</td><td><b>${D.fmt(r.avg)}</b></td><td class="muted">${r.times.map(D.fmtRes).join(' · ')}</td></tr>`).join('')}</tbody></table></div>`
+      rs.slice(0, 30).map((r) => `<tr><td class="muted">${new Date(r.at).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}</td><td><b>${D.fmt(r.avg)}</b></td><td class="muted">${D.fmtAvg5(r.times)}</td></tr>`).join('')}</tbody></table></div>`
       : '<p class="empty-note">Aún no has hecho ninguna ronda de 5. En el cronómetro, elige «Ronda de 5»: es como se compite.</p>';
     const stats = D.train(EV);
     const sets = (T.train || []).filter((id) => setOf(id)).map((id) => { const s = setOf(id); const n = s.cases.filter((c) => ((stats[c.id] || {}).streak || 0) >= DONE).length; return `${esc(s.name)}: ${n} de ${s.cases.length}`; });

@@ -81,6 +81,7 @@
 .ev-round-slots li { display: grid; gap: 1px; justify-items: center; padding: 6px 2px; border: 1px solid var(--line); border-radius: 9px; font-variant-numeric: tabular-nums; min-width: 0; }
 .ev-round-slots li b { font-family: var(--font-mono); font-size: 14px; }
 .ev-round-slots li.done { border-color: var(--ok); }
+.ev-round-slots li.drop b { color: var(--muted); font-weight: 600; }
 .ev-round-slots li.cur { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 .ev-round-avg { margin: 0; font-size: 15px; }
 .ev-round-avg b { font-family: var(--font-display); font-size: 20px; }

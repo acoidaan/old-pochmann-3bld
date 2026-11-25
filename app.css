@@ -374,6 +374,9 @@ body.focus .clock:focus-visible { outline: none; }
   font-size: clamp(13px, 2.4vw, 17px); color: var(--muted); font-variant-numeric: tabular-nums;
 }
 .focus-recent > * { flex: none; }
+/* The ao5 (today's last 5): the ones that count stand out; its best and worst go in brackets, the older ones smaller. */
+.focus-recent .in { color: var(--ink); }
+.focus-recent .old { font-size: .84em; }
 .focus-recent:empty { display: none; }
 @media (max-width: 480px) { .focus-recent > :nth-last-child(n+7):not(.sr-only) { display: none; } }   /* a phone: the last six, whole */
 .focus-hint .on-touch { display: none; }
@@ -481,6 +484,7 @@ body.focus .view[data-view="crono"] > .panel:has(.clock[data-phase="inspect"]) {
 body.focus .focus-stats, body.focus .focus-hint { color: var(--cb-muted); }
 body.focus .focus-stats b { color: var(--cb-ink); }
 body.focus .focus-recent { color: var(--cb-muted); }
+body.focus .focus-recent .in { color: var(--cb-ink); }
 body.focus .focus-recent .best { color: var(--cb-ready); }
 body.focus .focus-recent .dnf { color: var(--cb-hold); }
 body.focus .focus-recent .last { color: var(--cb-ink); font-weight: 700; }

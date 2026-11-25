@@ -3660,15 +3660,24 @@
     if (timer.last) parts.push(`último <b>${fmtRes(timer.last)}</b>`);
     $('focusStats').innerHTML = parts.join(' · ');
     // Today's last solves in a row, the oldest on the left and the last one on the right (when they do not fit,
-    // the oldest slide out on the left); today's best in green.
+    // the oldest slide out on the left); today's best in green. From 5 on, the last 5 are the ao5 above, written
+    // as on WCA results: its best and its worst in brackets (they do not count); the older ones, smaller.
     const recent = today.slice(-12);
     const bestV = ok.length ? Math.min(...ok.map(value)) : null;
+    const w0 = today.length >= 5 ? recent.length - 5 : recent.length;   // where the ao5 starts in the row
+    const out = new Set();
+    if (w0 < recent.length) {
+      const vs = recent.slice(w0).map(value);
+      const lo = vs.indexOf(Math.min(...vs));
+      const hi = vs.indexOf(Math.max(...vs));
+      out.add(w0 + lo).add(w0 + (hi === lo ? vs.lastIndexOf(Math.max(...vs)) : hi));
+    }
     const row = recent.map((t, i) => {
-      const cls = [t.pen === 'dnf' ? 'dnf' : value(t) === bestV ? 'best' : '', i === recent.length - 1 ? 'last' : ''].filter(Boolean).join(' ');
-      return `<span${cls ? ` class="${cls}"` : ''}>${esc(fmtRes(t))}</span>`;
+      const cls = [t.pen === 'dnf' ? 'dnf' : value(t) === bestV ? 'best' : '', i < w0 && w0 < recent.length ? 'old' : out.has(i) ? 'drop' : i >= w0 ? 'in' : '', i === recent.length - 1 ? 'last' : ''].filter(Boolean).join(' ');
+      return `<span${cls ? ` class="${cls}"` : ''}>${esc(out.has(i) ? `(${fmtRes(t)})` : fmtRes(t))}</span>`;
     }).join('');
     const fr = $('focusRecent');
-    const html = row ? `<span class="sr-only">Tus últimos solves de hoy:</span>${row}` : '';
+    const html = row ? `<span class="sr-only">${w0 < recent.length ? 'Tus últimos solves de hoy; los 5 últimos son tu ao5, y entre paréntesis el mejor y el peor, que no cuentan:' : 'Tus últimos solves de hoy:'}</span>${row}` : '';
     if (fr.dataset.h !== html) { fr.dataset.h = html; fr.innerHTML = html; }
     $('focusNew').disabled = $('newScr').disabled;
     // With the cube and the help on: the step and the case, in one line.

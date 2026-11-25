@@ -275,10 +275,22 @@ check('Square-1 scrambles: 12 slashes, every one possible', scrS.every((s) => s.
   await p.uncheck('#optInspect');
   await p.click('#modeRound');
   for (let i = 0; i < 5; i++) await solve(p);
-  const rd = await p.evaluate(() => { const rs = window.EvData.rounds(window.EvPage.state().times); const r = rs[rs.length - 1]; return { done: r.done, avg: r.avg, want: window.EvData.avgOf(r.times, 5), text: document.getElementById('round').textContent }; });
-  check('a round of 5: done, with the WCA average (best and worst out) on screen', rd.done && rd.avg === rd.want && /Media de la ronda/.test(rd.text), JSON.stringify(rd));
+  const rd = await p.evaluate(() => {
+    const D = window.EvData;
+    const rs = D.rounds(window.EvPage.state().times);
+    const r = rs[rs.length - 1];
+    const out = D.trimmed(r.times);
+    const want = r.times.map((x, i) => (out.has(i) ? `(${D.fmtRes(x)})` : D.fmtRes(x))).join(' ');
+    return { done: r.done, avg: r.avg, wavg: D.avgOf(r.times, 5), text: document.getElementById('round').textContent, slots: [...document.querySelectorAll('#round .ev-round-slots b')].map((b) => b.textContent).join(' '), want, fmt: D.fmtAvg5(r.times) };
+  });
+  check('a round of 5: done, with the WCA average on screen and its best and worst in brackets, as on WCA results', rd.done && rd.avg === rd.wavg && /Media de la ronda/.test(rd.text) && rd.slots === rd.want && rd.fmt === rd.want && (rd.want.match(/\(/g) || []).length === 2, JSON.stringify(rd));
   await p.evaluate(() => window.EvPage.showView('progreso'));
-  check('Progreso: the round in its table and the plan\'s goals', (await p.locator('#rounds tbody tr').count()) === 1 && /Resolver sin ayuda/.test(await p.textContent('#goals')));
+  const roundRow = await p.evaluate(() => [...document.querySelectorAll('#rounds tbody tr')].map((tr) => tr.lastElementChild.textContent));
+  check('Progreso: the round in its table (written the same way) and the plan\'s goals', roundRow.length === 1 && roundRow[0] === rd.want && /Resolver sin ayuda/.test(await p.textContent('#goals')), JSON.stringify(roundRow));
+  const brackets = (ts) => p.evaluate((x) => [...window.EvData.trimmed(x.map(([t, pen]) => ({ t, pen })))].sort().join(','), ts);
+  check('the brackets: the best and the worst; a DNF is the worst; with two the same, the first of them',
+    (await brackets([[9000, 0], [8000, 0], [9500, 0], [12000, 0], [9100, 0]])) === '1,3' && (await brackets([[9000, 0], [8000, 'dnf'], [9500, 2], [7000, 0], [9100, 0]])) === '1,3'
+    && (await brackets([[9000, 0], [9000, 0], [9000, 0], [9000, 0], [9000, 0]])) === '0,4' && (await brackets([[8000, 0], [8000, 0], [9000, 'dnf'], [9500, 0], [9000, 'dnf']])) === '0,2');
   // The second goal of the 2×2 (average under 10 s) from times seeded under it.
   await p.evaluate(() => { const now = Date.now(); window.EvData.setTimes('222', Array.from({ length: 5 }, (_, i) => ({ at: now - 50000 + i * 1000, t: 8000 + i * 100, pen: 0, scr: 'R U' }))); });
   await p.reload();
