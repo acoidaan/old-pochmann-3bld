@@ -119,7 +119,7 @@ function verdict(out, code) {
       bad.push(name);
       const lines = out.split('\n').filter((l) => l.trim());
       const detail = name.startsWith('e2e')
-        ? lines.filter((l) => /^FAIL|page errors: \[|TIMEOUT|Error/.test(l))
+        ? lines.filter((l) => /^FAIL|page errors: \[|TIMEOUT|Error|Timeout \d+ms exceeded|^\s+at .*e2e\//.test(l))
         : lines.filter((l) => !/: (axe )?clean$|^Capturas|^0 problems/.test(l));
       console.log((detail.length ? detail : out.split('\n').slice(-25)).map((l) => `    ${l}`).join('\n'));
     }

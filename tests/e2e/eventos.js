@@ -224,8 +224,8 @@ check('Square-1 scrambles: 12 slashes, every one possible', scrS.every((s) => s.
   const nMoves = await p.locator('#tryAlg .ev-mv').count();
   const firstMsg = await p.textContent('#tryNow');
   for (let i = 0; i < nMoves; i++) await p.click('#tryNext');
-  const tryEnd = await p.evaluate(() => ({ msg: document.getElementById('tryNow').textContent, next: document.getElementById('tryNext').disabled, done: document.querySelectorAll('#tryAlg .ev-mv.done').length, pic: document.querySelectorAll('#tryPic polygon').length }));
-  check('«Pruébalo»: the case, then each turn of its algorithm on the puzzle, to «¡Resuelto!»', /antes de empezar/.test(firstMsg) && /Resuelto/.test(tryEnd.msg) && tryEnd.next && tryEnd.done === nMoves && tryEnd.pic > 0, JSON.stringify(tryEnd));
+  const tryEnd = await p.evaluate(() => ({ msg: document.getElementById('tryNow').textContent, next: document.getElementById('tryNext').disabled, done: document.querySelectorAll('#tryAlg .ev-mv.done').length, pic: document.querySelectorAll('#tryPic polygon').length, focus: document.activeElement.id }));
+  check('«Pruébalo»: the case, then each turn of its algorithm on the puzzle, to «¡Resuelto!» (the focus stays in it, on «Anterior»)', /antes de empezar/.test(firstMsg) && /Resuelto/.test(tryEnd.msg) && tryEnd.next && tryEnd.done === nMoves && tryEnd.pic > 0 && tryEnd.focus === 'tryPrev', JSON.stringify(tryEnd));
   await p.keyboard.press('Escape');
   const closed = await p.evaluate(() => ({ hidden: document.getElementById('trySheet').hidden, focus: document.activeElement && document.activeElement.dataset.try }));
   check('Escape closes it and gives the focus back to its button', closed.hidden && closed.focus === 'bar-bar', JSON.stringify(closed));

@@ -278,15 +278,20 @@
     else if (tryS.c.shape && PZ.shapeNow) msg = PZ.shapeNow(st) ? '¡Forma de cubo! Las dos capas son cuadradas.' : 'Fin del algoritmo.';
     else msg = PZ.solvedNow(st) ? '¡Resuelto!' : 'Fin del algoritmo: el paso está hecho (lo demás se arregla en los pasos siguientes).';
     $('tryNow').innerHTML = msg;
+    const had = document.activeElement;
     $('tryPrev').disabled = tryS.k === 0;
     $('tryNext').disabled = tryS.k >= n;
+    // At either end the button you were on goes off: keep the focus in the sheet, on the other one.
+    if (had && had.disabled) (had === $('tryNext') ? $('tryPrev') : $('tryNext')).focus();
   }
   $('tryNext').addEventListener('click', () => { if (tryS.k < tryS.toks.length) { tryS.k++; renderTry(); } });
   $('tryPrev').addEventListener('click', () => { if (tryS.k > 0) { tryS.k--; renderTry(); } });
   $('tryReset').addEventListener('click', () => { tryS.k = 0; renderTry(); });
   $('tryClose').addEventListener('click', closeTry);
   $('trySheet').addEventListener('click', (ev) => { if (ev.target === $('trySheet')) closeTry(); });
-  $('trySheet').addEventListener('keydown', (ev) => {
+  // On the whole document while it is open: the focus can end up on the page (a button that just got disabled).
+  document.addEventListener('keydown', (ev) => {
+    if ($('trySheet').hidden) return;
     if (ev.key === 'Escape') { ev.preventDefault(); closeTry(); }
     if (ev.key === 'ArrowRight') { ev.preventDefault(); $('tryNext').click(); }
     if (ev.key === 'ArrowLeft') { ev.preventDefault(); $('tryPrev').click(); }
