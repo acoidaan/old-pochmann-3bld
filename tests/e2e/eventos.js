@@ -111,11 +111,24 @@ check('4×4 · Yau: with white on the left and green in front, red is up, orange
 check("4×4 · Yau: the centre trick and r, Rw, R, U keep the three cross edges on the left; R U R', L' U' L and the last two edges' algorithm keep the cross down",
   ["Rw U2 Rw'", 'r', 'l', 'Rw', 'R', 'U'].every((a) => keeps(heldL, a, leftCross))
   && ["R U R'", "L' U' L", T4.sets.aristas.cases[0].alg].every((a) => keeps(held4, a, downCross)) && !keeps(held4, 'F', downCross));
+// Every case of the last centres: white on the left, only the front and top centres touched (the back, bottom,
+// white and yellow ones and the three cross edges as solved), and its algorithm solves it.
+const centreCases = T4.sets.centros.cases;
+check('4×4 · Yau centres: each hole and bar case only changes the front and top centres (never the done ones nor the cross), and its algorithm fills the front',
+  centreCases.length === 6 && centreCases.every((c) => {
+    const st = st4[c.id];
+    return centreAt(st, 'L') === 'U' && ['L', 'R', 'D', 'B'].every((f) => uniform([5, 6, 9, 10].map((k) => col(M4, st, f, k))))
+      && leftCross.every((i) => st[i] === heldL[i]) && !uniform([5, 6, 9, 10].map((k) => col(M4, st, 'F', k))) && M4.isSolved(M4.apply(st, c.alg));
+  }), centreCases.map((c) => c.id).join(' '));
+const holeOf = (st) => [5, 6, 9, 10].filter((k) => col(M4, st, 'F', k) !== 'F').join(',');
+check('4×4 · Yau centres: the four single holes are where their names say (top/bottom, left/right of the front centre)',
+  holeOf(st4['hueco-ai']) === '5' && holeOf(st4['hueco-ad']) === '6' && holeOf(st4['hueco-di']) === '9' && holeOf(st4['hueco-dd']) === '10' && holeOf(st4['barra-i']) === '5,9',
+  ['hueco-ai', 'hueco-ad', 'hueco-di', 'hueco-dd', 'barra-i'].map((id) => holeOf(st4[id])).join(' '));
 const bar = st4.barra;
 check('4×4 · centres: white on the left, the green bar in the left column of the top centre, the right column of the front one still to do; the trick finishes the front',
   centreAt(bar, 'L') === 'U' &&
   col(M4, bar, 'U', 5) === 'F' && col(M4, bar, 'U', 9) === 'F' && col(M4, bar, 'F', 5) === 'F' && col(M4, bar, 'F', 9) === 'F' && col(M4, bar, 'F', 6) !== 'F' && col(M4, bar, 'F', 10) !== 'F'
-  && uniform([5, 6, 9, 10].map((k) => col(M4, M4.apply(bar, T4.sets.centros.cases[0].alg), 'F', k))));
+  && uniform([5, 6, 9, 10].map((k) => col(M4, M4.apply(bar, centreCases.find((c) => c.id === 'barra').alg), 'F', k))));
 const cr = st4.cruzadas;
 const crAfter = M4.apply(cr, T4.sets.aristas.cases[0].alg);
 check('4×4 · pairing: with the centres done, only the front left and front right double edges unpaired; the algorithm pairs them (and keeps the centres)',

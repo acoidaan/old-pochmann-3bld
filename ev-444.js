@@ -24,8 +24,8 @@
       },
       {
         id: 'centros4', name: 'Los cuatro centros que faltan', short: '4 centros',
-        html: '<p>Ahora los centros de arriba, delante, abajo y detrás, todos alrededor de la capa del medio. La regla: <b>nada de giros que muevan las tres aristas de la cruz</b>. Usa r, Rw, R y U, que no tocan la cara izquierda. Si hace falta, gira la cara izquierda para llevar el hueco libre de la cruz adonde estorbe menos, y vuelve a ponerla al acabar.</p><p>El orden: con el blanco a la izquierda y el verde delante, el <b>rojo va arriba</b>, el naranja abajo y el azul detrás. El truco de las barras de la reducción sigue valiendo, porque no toca la cara izquierda:</p>',
-        tip: 'Pon el pulgar en la arista de delante de la cruz y el dedo corazón en la de detrás, y no los sueltes: así tu mano no hace sin querer un giro que la rompa.',
+        html: '<p>Parece que cualquier giro lo rompe todo, pero solo necesitas <b>tres ideas</b>.</p><p><b>1. Tus piezas solo pueden estar en los centros que aún no has hecho.</b> Nunca en el blanco ni en el amarillo. Y el color de cada centro no lo eliges: el de delante es el de la arista de la cruz que tienes delante (blanca-verde, verde).</p><p><b>2. La cara de arriba es tu mesa de trabajo.</b> U gira solo esa cara (y el hueco libre de la cruz), así que puedes girarla todo lo que quieras para colocar una pieza.</p><p><b>3. El intercambio:</b> <b>r U r\'</b> cambia <b>una pieza de delante por una de arriba</b>, y nada más. No toca el blanco, ni el amarillo, ni la cruz, ni los centros que ya tengas abajo y detrás. Compruébalo con el cubo resuelto (blanco a la izquierda, verde delante): haz r U r\' y mira que solo han cambiado una pieza delante y una arriba. Con <b>U2</b> en medio, en vez de una pieza, cambia una columna entera (una barra).</p><p><b>Cómo se hace un centro:</b> pon delante el que toca y mira qué hueco tiene. Busca una pieza de su color arriba, gírala con U hasta donde está en el dibujo de ese hueco y haz su algoritmo; abajo están los cuatro huecos, uno por algoritmo. Si la pieza está en un centro sin hacer de detrás, súbela antes con <b>r\' U r</b>. Nunca uses Lw: mueve la cara de la cruz.</p><p><b>El orden:</b> el primero, el que más piezas tenga; cuando esté, <b>x\'</b> (gira el cubo entero y lo manda abajo, sin romper nada). El segundo, uno <b>de al lado</b> del primero, no el de enfrente; otra vez delante y x\'. Los dos últimos quedan arriba y delante: ahí ve barra a barra, con los dos últimos casos.</p>',
+        tip: 'Al principio, haz los centros pieza a pieza, mirando los dibujos de los huecos. Cuando te salga, empieza a juntar dos piezas en una barra arriba y mételas de una vez.',
         set: 'centros',
       },
       {
@@ -53,9 +53,14 @@
     ],
     sets: {
       centros: {
-        name: 'Barras de los centros', pic: 'net', mask: 'centres',
+        name: 'Los huecos del centro de delante', pic: 'net', mask: 'centres',
         cases: [
-          { id: 'barra', name: 'Barra de arriba al centro de delante', how: 'Con el blanco a la izquierda: la barra verde en la columna izquierda del centro de arriba, y la columna derecha del de delante por hacer.', alg: "Rw U2 Rw'", setup: "z Rw U2 Rw'" },
+          { id: 'hueco-dd', name: 'Hueco abajo a la derecha', how: 'La pieza que falta delante, abajo a la derecha del centro. Arriba, la pieza buena donde la ves en el dibujo.', alg: "r U r'", setup: "z r U' r'" },
+          { id: 'hueco-ad', name: 'Hueco arriba a la derecha', how: 'La pieza que falta delante, arriba a la derecha del centro.', alg: "r U' r'", setup: "z r U r'" },
+          { id: 'hueco-ai', name: 'Hueco arriba a la izquierda', how: 'La pieza que falta delante, arriba a la izquierda del centro. Ahora con l (la capa de dentro de la izquierda), no con Lw.', alg: "l' U l", setup: "z l' U' l" },
+          { id: 'hueco-di', name: 'Hueco abajo a la izquierda', how: 'La pieza que falta delante, abajo a la izquierda del centro.', alg: "l' U' l", setup: "z l' U l" },
+          { id: 'barra', name: 'Barra a la columna derecha', how: 'Con el blanco a la izquierda: la barra verde en la columna izquierda del centro de arriba, y la columna derecha del de delante por hacer.', alg: "Rw U2 Rw'", setup: "z Rw U2 Rw'" },
+          { id: 'barra-i', name: 'Barra a la columna izquierda', how: 'La barra verde en la columna derecha del centro de arriba, y la columna izquierda del de delante por hacer.', alg: "l' U2 l", setup: "z l' U2 l" },
         ],
       },
       aristas: {
