@@ -32,6 +32,10 @@
 .ev-step-body p:last-child, .ev-next p:last-child { margin-bottom: 0; }
 .ev-known[aria-pressed="true"] { border-color: var(--ok); color: var(--ok); }
 .ev-tip { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--raise); border: 1px solid var(--line); font-size: 14px; }
+.ev-warm { margin-bottom: 14px; font-size: 15px; }
+.ev-warm p { margin: 0; }
+.ev-warm ol { margin: 8px 0; padding-left: 22px; }
+.ev-warm li + li { margin-top: 6px; }
 .ev-group { margin: 6px 0 0; font-size: 15px; }
 .ev-cases { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 290px), 1fr)); gap: 12px; }
 .ev-case { display: flex; gap: 14px; align-items: flex-start; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--raise); min-width: 0; }

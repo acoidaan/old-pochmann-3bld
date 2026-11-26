@@ -124,6 +124,10 @@ const holeOf = (st) => [5, 6, 9, 10].filter((k) => col(M4, st, 'F', k) !== 'F').
 check('4×4 · Yau centres: the four single holes are where their names say (top/bottom, left/right of the front centre)',
   holeOf(st4['hueco-ai']) === '5' && holeOf(st4['hueco-ad']) === '6' && holeOf(st4['hueco-di']) === '9' && holeOf(st4['hueco-dd']) === '10' && holeOf(st4['barra-i']) === '5,9',
   ['hueco-ai', 'hueco-ad', 'hueco-di', 'hueco-dd', 'barra-i'].map((id) => holeOf(st4[id])).join(' '));
+// The step's warm-up from the solved cube: z' from white up is white on the left; two holes at the bottom, fixed one by one.
+const warm = M4.apply(M4.solved(), "z2 z r U' r' l' U l");
+check('4×4 · Yau centres warm-up: z\' from white up puts white on the left and green in front; r U\' r\' l\' U l leaves the two bottom holes and l\' U\' l r U r\' fixes them',
+  centreAt(M4.apply(M4.solved(), "z'"), 'L') === 'U' && centreAt(M4.apply(M4.solved(), "z'"), 'F') === 'F' && holeOf(warm) === '9,10' && M4.isSolved(M4.apply(warm, "l' U' l r U r'")));
 const bar = st4.barra;
 check('4×4 · centres: white on the left, the green bar in the left column of the top centre, the right column of the front one still to do; the trick finishes the front',
   centreAt(bar, 'L') === 'U' &&
