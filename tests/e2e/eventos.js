@@ -149,6 +149,12 @@ const formed = (id) => { const left = unpaired(M4, M4.apply(st4[id], "Uw'")); re
 check("4×4 · 3-2-3 cases: after Uw', «una» has the front right edge whole and «dos» the two front ones; every algorithm keeps the cross and pairs it all",
   formed('una') === '3,*,3' && formed('dos') === '3,*,3 -3,*,3' && edgeCases.every((c) => keeps(held4, c.alg, downCross) && unpaired(M4, M4.apply(st4[c.id], c.alg)).length === 0),
   `${formed('una')} | ${formed('dos')}`);
+// The last cross edge with the cross down: F2 brings the top front edge's top sticker to the bottom front; U' R' F R,
+// its front sticker (the flipped case). Neither touches the other three cross edges.
+const dfFrom = (alg) => { const i = M4.stickers.findIndex((q) => q.face === 'D' && q.pos.join(',') === '1,-3,3'); const q = M4.stickers[M4.apply(M4.solved(), alg)[i]]; return `${q.face}@${slotAt(q.pos.join(','))}`; };
+const otherCross = downCross.filter((i) => M4.stickers[i].pos[2] !== lim4);
+check("4×4 · last cross edge: white up on top front → F2; white facing you → U' R' F R; both keep the other three cross edges",
+  dfFrom('F2') === 'U@*,3,3' && dfFrom("U' R' F R") === 'F@*,3,3' && ['F2', "U' R' F R"].every((a) => keeps(held4, a, otherCross)), `${dfFrom('F2')} ${dfFrom("U' R' F R")}`);
 const cr = st4.cruzadas;
 const crAfter = M4.apply(cr, edgeCases.find((c) => c.id === 'cruzadas').alg);
 check('4×4 · pairing: with the centres done, only the front left and front right double edges unpaired; the algorithm pairs them (and keeps the centres)',

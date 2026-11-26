@@ -30,7 +30,7 @@
       },
       {
         id: 'cruz4', name: 'La última arista de la cruz', short: 'Cruz',
-        html: '<p>Empareja la <b>blanca-roja</b> igual que las otras y métela en el hueco de arriba de la cara izquierda, con cuidado de no romper los centros: si mueves una capa de dentro para emparejarla, deshazla antes de que se descoloque nada más.</p><p>Luego gira el cubo para tener la <b>cruz abajo</b> (z\'), con el amarillo arriba y el verde delante. Ya tienes la cruz del 3×3 hecha.</p>',
+        html: '<p>Empareja la <b>blanca-roja</b> igual que las otras y métela en el hueco de arriba de la cara izquierda, con cuidado de no romper los centros: si mueves una capa de dentro para emparejarla, deshazla antes de que se descoloque nada más.</p><p>Luego gira el cubo para tener la <b>cruz abajo</b> (z\'), con el amarillo arriba y el verde delante. Ya tienes la cruz del 3×3 hecha.</p><p><b>Si la haces con la cruz ya abajo</b> (muchos lo hacen así): empareja la blanca-roja con el slice-flip-slice de la reducción, que no toca la capa de abajo, y déjala arriba, encima de su hueco. Para meterla hay dos casos, según hacia dónde mire el blanco: <b>blanco arriba</b>, <b>F2</b>; <b>blanco mirándote</b> (está volteada), <b>U\' R\' F R</b>. Los dos son solo giros de fuera: no tocan los centros ni las otras tres aristas de la cruz.</p>',
         tip: 'Esta arista también puedes hacerla con la cruz ya abajo, si te la encuentras más fácil así.',
       },
       {
