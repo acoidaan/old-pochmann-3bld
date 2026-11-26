@@ -110,7 +110,7 @@ check('4×4 · Yau: with white on the left and green in front, red is up, orange
   ORDER.map((f) => `${f}:${centreAt(heldL, f)}`).join(' '));
 check("4×4 · Yau: the centre trick and r, Rw, R, U keep the three cross edges on the left; R U R', L' U' L and the last two edges' algorithm keep the cross down",
   ["Rw U2 Rw'", 'r', 'l', 'Rw', 'R', 'U'].every((a) => keeps(heldL, a, leftCross))
-  && ["R U R'", "L' U' L", T4.sets.aristas.cases[0].alg].every((a) => keeps(held4, a, downCross)) && !keeps(held4, 'F', downCross));
+  && ["R U R'", "L' U' L", T4.sets.aristas.cases.find((c) => c.id === 'cruzadas').alg].every((a) => keeps(held4, a, downCross)) && !keeps(held4, 'F', downCross));
 // Every case of the last centres: white on the left, only the front and top centres touched (the back, bottom,
 // white and yellow ones and the three cross edges as solved), and its algorithm solves it.
 const centreCases = T4.sets.centros.cases;
@@ -133,8 +133,24 @@ check('4×4 · centres: white on the left, the green bar in the left column of t
   centreAt(bar, 'L') === 'U' &&
   col(M4, bar, 'U', 5) === 'F' && col(M4, bar, 'U', 9) === 'F' && col(M4, bar, 'F', 5) === 'F' && col(M4, bar, 'F', 9) === 'F' && col(M4, bar, 'F', 6) !== 'F' && col(M4, bar, 'F', 10) !== 'F'
   && uniform([5, 6, 9, 10].map((k) => col(M4, M4.apply(bar, centreCases.find((c) => c.id === 'barra').alg), 'F', k))));
+// 3-2-3 with the cross down: where Uw' takes each middle slot's upper half, where the storing moves send a slot's
+// edge and which top edge they bring down, and the cases (the pairs Uw' forms, and the cross kept).
+const goes = (alg, pos, face) => { const i0 = M4.stickers.findIndex((st) => st.pos.join(',') === pos && st.face === face); const j = M4.apply(M4.solved(), alg).indexOf(i0); return M4.stickers[j].pos.join(','); };
+const comes = (alg, pos, face) => { const i = M4.stickers.findIndex((st) => st.pos.join(',') === pos && st.face === face); return M4.stickers[M4.apply(M4.solved(), alg)[i]].pos.join(','); };
+const slotAt = (q) => q.split(',').map((v) => (Math.abs(Number(v)) === lim4 ? v : '*')).join(',');
+check("4×4 · 3-2-3: Uw' takes each middle slot's upper half one slot to the right (front left → front right → back right → back left), the lower half stays, the top edges stay whole",
+  slotAt(goes("Uw'", '-3,1,3', 'F')) === '3,*,3' && slotAt(goes("Uw'", '3,1,3', 'F')) === '3,*,-3' && slotAt(goes("Uw'", '3,1,-3', 'B')) === '-3,*,-3' && slotAt(goes("Uw'", '-3,1,-3', 'B')) === '-3,*,3'
+  && goes("Uw'", '-3,-1,3', 'F') === '-3,-1,3' && unpaired(M4, M4.apply(held4, "Uw'")).every((k) => k.split(',')[1] === '*'));
+check("4×4 · 3-2-3: R U R' / L' U' L take the front right / front left edge up to the top front and bring down the top back; R' U' R / L U L', the back ones to the top back, bringing down the top front; none moves the cross",
+  [["R U R'", '3,1,3', 'F', '*,3,3', '*,3,-3'], ["L' U' L", '-3,1,3', 'F', '*,3,3', '*,3,-3'], ["R' U' R", '3,1,-3', 'B', '*,3,-3', '*,3,3'], ["L U L'", '-3,1,-3', 'B', '*,3,-3', '*,3,3']]
+    .every(([a, pos, f, up, down]) => slotAt(goes(a, pos, f)) === up && slotAt(goes(a, pos.replace(',1,', ',-1,'), f)) === up && slotAt(comes(a, pos, f)) === down && keeps(held4, a, downCross)));
+const edgeCases = T4.sets.aristas.cases;
+const formed = (id) => { const left = unpaired(M4, M4.apply(st4[id], "Uw'")); return ['3,*,3', '-3,*,3'].filter((k) => !left.includes(k)).join(' '); };
+check("4×4 · 3-2-3 cases: after Uw', «una» has the front right edge whole and «dos» the two front ones; every algorithm keeps the cross and pairs it all",
+  formed('una') === '3,*,3' && formed('dos') === '3,*,3 -3,*,3' && edgeCases.every((c) => keeps(held4, c.alg, downCross) && unpaired(M4, M4.apply(st4[c.id], c.alg)).length === 0),
+  `${formed('una')} | ${formed('dos')}`);
 const cr = st4.cruzadas;
-const crAfter = M4.apply(cr, T4.sets.aristas.cases[0].alg);
+const crAfter = M4.apply(cr, edgeCases.find((c) => c.id === 'cruzadas').alg);
 check('4×4 · pairing: with the centres done, only the front left and front right double edges unpaired; the algorithm pairs them (and keeps the centres)',
   centresDone(M4, cr) && unpaired(M4, cr).sort().join(' ') === '-3,*,3 3,*,3' && unpaired(M4, crAfter).length === 0 && centresDone(M4, crAfter), unpaired(M4, cr).join(' '));
 // The 4×4 as a 3×3: is the permutation of its corners as even or odd as that of its double edges (no PLL
